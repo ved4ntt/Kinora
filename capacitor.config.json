@@ -1,0 +1,18 @@
+{
+  "appId": "app.kinora.player",
+  "appName": "Kinora",
+  "webDir": "www",
+  "backgroundColor": "#07080b",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
