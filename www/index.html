@@ -457,6 +457,7 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 }
 @media(hover:none){#pop{display:none!important}.card:hover{transform:none}.co{display:none}}
 </style>
+<link rel="stylesheet" href="v5.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute"><defs><linearGradient id="kg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#c9c6be"/></linearGradient></defs></svg>
@@ -1442,6 +1443,7 @@ if(IS_APP)document.documentElement.classList.add('app');
 if(/Electron/.test(navigator.userAgent))fetch('/native.json').then(r=>r.json()).then(j=>LS.set('srv',{url:j.url,key:j.key})).catch(()=>{});
 else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script src="v5.js"></script>
 <script>boot()</script>
 </body>
 </html>
