@@ -1231,7 +1231,7 @@ V.settings=function(){
   const REC=[['Cyberflix Catalog','Netflix, Disney+, HBO Max, Prime Video, Apple TV+ and more as browsable catalogs','https://cyberflix.elfhosted.com/manifest.json'],['Streaming Catalogs','Trending on Netflix, HBO Max, Disney+, Hulu and other services (the service list depends on the add-on)','https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json']];
   app.innerHTML=`<div class="page"><h1>Settings</h1><p class="sub">Everything is stored in this browser.</p>
     <h2>Interface</h2>${tg('hover','Hover previews','Show a larger preview when you hold the pointer on a poster')}${seg('hdelay','Preview delay','How long to hold before the preview opens',[[400,'Fast'],[650,'Normal'],[1000,'Slow']])}${tg('hero','Auto-change banner','Rotate the home banner automatically')}${tg('hideAdult','Hide adult titles','Remove titles marked E from posters and the banner')}${tg('reduce','Reduce animations','Turn off most motion effects')}
-    <h2>Playback</h2>${seg('quality','Preferred quality','Used when a source is picked for you',[['best','Best'],[1080,'1080p'],[720,'720p'],[480,'480p']])}${tg('autoPlay','Play without choosing a source','Start straight away with the best matching source')}${tg('autonext','Play next episode automatically','Continue to the next episode when one ends')}${tg('resume','Resume where you left off','Start from your last position')}${seg('skip','Skip length','Seconds for the skip buttons',[[5,'5s'],[10,'10s'],[15,'15s'],[30,'30s']])}${seg('speed','Default speed','Playback speed when a video starts',[[.75,'0.75×'],[1,'1×'],[1.25,'1.25×'],[1.5,'1.5×']])}${tg('rem','Show time remaining','Show the time left instead of the time played')}
+    <h2>Playback</h2>${seg('quality','Preferred quality','Used when a source is picked for you',[['best','Best'],[2160,'4K'],[1080,'1080p'],[720,'720p'],[480,'480p']])}${tg('autoPlay','Play without choosing a source','Start straight away with the best matching source')}${tg('autonext','Play next episode automatically','Continue to the next episode when one ends')}${tg('resume','Resume where you left off','Start from your last position')}${seg('skip','Skip length','Seconds for the skip buttons',[[5,'5s'],[10,'10s'],[15,'15s'],[30,'30s']])}${seg('speed','Default speed','Playback speed when a video starts',[[.75,'0.75×'],[1,'1×'],[1.25,'1.25×'],[1.5,'1.5×']])}${tg('rem','Show time remaining','Show the time left instead of the time played')}
     <h2>Subtitles</h2>${tg('autosub','Turn on subtitles automatically','Pick a track in your preferred language when one is available')}<div class="set"><div>Preferred language<small>Used when automatic subtitles are on</small></div><select id="sl3" aria-label="Preferred subtitle language">${['English','Hindi','Spanish','French','German','Portuguese','Italian','Arabic','Japanese','Korean','Chinese','Russian','Turkish'].map(x=>`<option${c.sublang===x?' selected':''}>${x}</option>`).join('')}</select></div><div class="set"><div>Subtitle style<small>Size, colour, background and more are in the player's subtitle settings</small></div><button class="btn" id="rs">Reset style</button></div>
     ${cloudSettings()}<h2>Sources</h2><p class="note">Sources are add-ons that provide streams, subtitles and catalogs. Only add sources for content you have the right to watch.</p>
     <form class="tools" id="af"><input class="t" id="au" placeholder="Paste an add-on link, e.g. https://example.com/manifest.json" aria-label="Add-on link"><button class="btn p">Install</button></form>
@@ -1271,11 +1271,11 @@ function avatarSvg(i){
 }
 
 /* ----- cloud (Supabase) ----- */
-const CL=()=>({url:'',key:'',...LS.get('cloud',{})});
+const CL=()=>({url:'https://tmjrxyspvkiluwrpmsax.supabase.co',key:'sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq',...LS.get('cloud',{})});
 let SB=null,USER=null,pulling=false,pushT=0;
 const SYNCK=new Set(['addons','lib','st','ew','prog','cfg','sub','me','av']);
 {const s0=LS.set;LS.set=function(k,v){s0.call(LS,k,v);if(SYNCK.has(k)&&!pulling)pushSoon()}}
-const snapshot=()=>({addons:LS.get('addons',[]).filter(a=>!a.core).map(a=>a.url),lib:LS.get('lib',{}),st:LS.get('st',{}),ew:LS.get('ew',{}),prog:LS.get('prog',{}),cfg:LS.get('cfg',{}),sub:LS.get('sub',{})});
+const snapshot=()=>({addons:LS.get('addons',[]).filter(a=>!a.core).map(a=>a.url),lib:LS.get('lib',{}),st:LS.get('st',{}),ew:LS.get('ew',{}),prog:LS.get('prog',{}),sub:LS.get('sub',{})});
 function sbInit(){
   const c=CL();if(!(c.url&&c.key&&window.supabase))return null;
   if(SB&&SB._u===c.url+c.key)return SB;
@@ -1304,7 +1304,6 @@ async function pull(){
     LS.set('st',{...(d.st||{}),...LS.get('st',{})});
     LS.set('ew',{...(d.ew||{}),...LS.get('ew',{})});
     const pr=LS.get('prog',{});for(const k in d.prog||{})if(!pr[k]||(d.prog[k].at||0)>(pr[k].at||0))pr[k]=d.prog[k];LS.set('prog',pr);
-    if(d.cfg){LS.set('cfg',{...LS.get('cfg',{}),...d.cfg});LS.set('onb',1)}
     if(d.sub)LS.set('sub',{...LS.get('sub',{}),...d.sub});
     for(const u of d.addons||[])if(!addons.some(a=>a.url===u))await addAddon(u).catch(()=>{});
   }else if(!LS.get('me','')){LS.set('me',meta.full_name||meta.name||(USER.email||'').split('@')[0])}
