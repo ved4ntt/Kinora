@@ -1,0 +1,25 @@
+// Applied to the generated Android project by the GitHub workflow.
+// Signs the release APK with a fixed key so it installs cleanly and can update over older installs.
+def run = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    signingConfigs {
+        release {
+            storeFile file('kinora.jks')
+            storePassword 'eXwl7iau0mzoV33WfPj7'
+            keyAlias 'kinora'
+            keyPassword 'eXwl7iau0mzoV33WfPj7'
+        }
+    }
+    defaultConfig {
+        versionCode run
+        versionName "1.0.${run}"
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            debuggable false
+        }
+    }
+}

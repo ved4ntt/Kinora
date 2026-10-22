@@ -22,9 +22,14 @@ jobs:
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/app/kinora/player/MainActivity.java
       - run: npx capacitor-assets generate --android
       - run: npx cap sync android
-      - run: ./gradlew assembleDebug
+      # Sign with the fixed Kinora key (same signature on every build, so updates install over old versions)
+      - run: base64 -d android-overrides/kinora.jks.b64 > android/app/kinora.jks
+      - run: cp android-overrides/signing.gradle android/app/signing.gradle
+      - run: echo "apply from: 'signing.gradle'" >> android/app/build.gradle
+      - run: ./gradlew assembleRelease
         working-directory: android
+      - run: cp android/app/build/outputs/apk/release/app-release.apk Kinora.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Kinora-Android-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Kinora.apk

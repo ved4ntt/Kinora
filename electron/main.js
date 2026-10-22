@@ -9,6 +9,18 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win;
+let lastNav = 0;
+// One place for "go back / forward" so the mouse side buttons never fire twice.
+function nav(dir) {
+  if (!win) return;
+  const now = Date.now();
+  if (now - lastNav < 250) return;
+  lastNav = now;
+  const wc = win.webContents;
+  if (dir === 'back' && wc.canGoBack()) wc.goBack();
+  if (dir === 'forward' && wc.canGoForward()) wc.goForward();
+}
+
 async function createWindow() {
   const { port } = await startServer({
     www: path.join(__dirname, '..', 'www'),
@@ -24,11 +36,17 @@ async function createWindow() {
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadURL(`http://127.0.0.1:${port}/index.html`);
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
-  // Mouse "back" / "forward" side buttons and keyboard back (Alt+Left)
+
+  // Mouse side buttons (Windows sends them as app commands) and Alt+Left / Alt+Right.
   win.on('app-command', (e, cmd) => {
-    if (cmd === 'browser-backward' && win.webContents.canGoBack()) win.webContents.goBack();
-    if (cmd === 'browser-forward' && win.webContents.canGoForward()) win.webContents.goForward();
+    if (cmd === 'browser-backward') nav('back');
+    if (cmd === 'browser-forward') nav('forward');
   });
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type === 'keyDown' && input.alt && input.key === 'ArrowLeft') { e.preventDefault(); nav('back'); }
+    if (input.type === 'keyDown' && input.alt && input.key === 'ArrowRight') { e.preventDefault(); nav('forward'); }
+  });
+
   const st = () => win.webContents.send('win-state', { max: win.isMaximized(), full: win.isFullScreen() });
   ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach((ev) => win.on(ev, st));
 }
@@ -38,6 +56,8 @@ ipcMain.on('win', (_e, a) => {
   if (a === 'min') win.minimize();
   else if (a === 'max') win.isMaximized() ? win.unmaximize() : win.maximize();
   else if (a === 'quit') app.quit();
+  else if (a === 'back') nav('back');
+  else if (a === 'forward') nav('forward');
 });
 
 app.whenReady().then(createWindow);
