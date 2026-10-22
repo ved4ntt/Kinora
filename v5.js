@@ -9,6 +9,7 @@ const say=m=>{try{toast(m)}catch{}};
 
 /* ---- bundled plugins: paste your own manifest links here ---- */
 const DEFAULT_ADDONS=[
+ 'https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json',
  'https://cyberflix.elfhosted.com/manifest.json',
  'https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json'
 ];
