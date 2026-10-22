@@ -25,7 +25,8 @@ jobs:
       # Sign with the fixed Kinora key (same signature on every build, so updates install over old versions)
       - run: base64 -d android-overrides/kinora.jks.b64 > android/app/kinora.jks
       - run: cp android-overrides/signing.gradle android/app/signing.gradle
-      - run: echo "apply from: 'signing.gradle'" >> android/app/build.gradle
+      - run: |
+          echo "apply from: 'signing.gradle'" >> android/app/build.gradle
       - run: ./gradlew assembleRelease
         working-directory: android
       - run: cp android/app/build/outputs/apk/release/app-release.apk Kinora.apk
