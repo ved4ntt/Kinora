@@ -459,8 +459,8 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 </style>
 <link rel="stylesheet" href="v5.css">
 <link rel="stylesheet" href="v6.css">
-<link rel="stylesheet" href="v7.css">
-<link rel="stylesheet" href="v8.css">
+
+
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute"><defs><linearGradient id="kg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#c9c6be"/></linearGradient></defs></svg>
@@ -917,11 +917,12 @@ function openSrc(m,type,id,vid){
   const sid=vid||id,list=addons.filter(a=>has(a,'stream',type,sid));
   const tr=(m.trailerStreams||[]).map(t=>t.ytId)[0]||(m.trailers||[]).map(t=>t.source)[0];
   const o=document.createElement('div');o.id='so';
-  o.innerHTML=`<div class="sl2" style="--bg:url('${h(m.background||m.poster||'')}')"><button class="rb" id="sx" aria-label="Close">${ic('x')}</button>${tr?`<iframe class="tbg" src="https://www.youtube.com/embed/${h(tr)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${h(tr)}&modestbranding=1&playsinline=1&rel=0&disablekb=1&iv_load_policy=3" allow="autoplay;encrypted-media" tabindex="-1" title="Trailer preview"></iframe>`:''}<div class="sh"></div><div class="sinfo">${logoOrName(m)}<div class="mt">${mt(m)}</div>${tr?`<button class="btn" id="stl">${ic('play')} Watch trailer</button>`:''}</div></div><div class="sr2"><h2>${h(m.name)}</h2><div class="mt">${mt(m)}</div>${resumeCard(m,type,id,vid)}<div class="tabs" id="stb"><i class="ind"></i><button class="on" data-a="all">All</button></div><div id="sbx">${LDS}</div></div>`;
+  o.innerHTML=`<div class="sl2" style="--bg:url('${h(m.background||m.poster||'')}')"><button class="rb" id="sx" aria-label="Close">${ic('x')}</button>${tr?`<iframe class="tbg" src="https://www.youtube.com/embed/${h(tr)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${h(tr)}&modestbranding=1&playsinline=1&rel=0&disablekb=1&iv_load_policy=3" allow="autoplay;encrypted-media" tabindex="-1" title="Trailer preview"></iframe>`:''}<div class="sh"></div><div class="sinfo">${logoOrName(m)}<div class="mt">${mt(m)}</div>${tr?`<button class="btn" id="stl">${ic('play')} Watch trailer</button>`:''}</div></div><div class="sr2"><h2>${h(m.name)}</h2><div class="mt">${mt(m)}</div>${resumeCard(m,type,id,vid)}<div class="tabs" id="stb"><i class="ind"></i><button class="on" data-a="all">All</button></div><div id="sps" class="sps"></div><div id="sbx">${LDS}</div></div>`;
   document.body.append(o);slide();
   $('#sx').onclick=()=>o.remove();bindResume(o);
   if(tr)$('#stl').onclick=()=>openTrailer(tr);
   const groups=[];let tab='all',done=!list.length;
+  const pend=new Set(list.map(a=>a.manifest.name)),prg={},sps=()=>{const e=$('#sps');if(!e)return;e.innerHTML=[...pend].map(n=>'<div class="spl"><i></i>'+h(n)+' · '+(prg[n]||'searching…')+'</div>').join('')+(done&&!groups.length&&window.KPlugHint&&KPlugHint()?'<div class="spl hint">'+h(KPlugHint())+'</div>':'')};const onP=e=>{if(!o.isConnected)return removeEventListener('k-plug',onP);prg['Kinora Plugins']='providers '+e.detail.done+'/'+e.detail.total+' · '+e.detail.found+' streams';sps()};addEventListener('k-plug',onP);
   const draw=()=>{
     const gs=tab==='all'?groups:[groups[+tab]].filter(Boolean);
     $('#sbx').innerHTML=gs.map(g=>`<div class="sg"><h3>${h(g.n)}</h3>${g.st.map((s,i)=>`<button class="stream" data-g="${groups.indexOf(g)}" data-i="${i}">${qc(s)}${h((s.name||'Stream').replace(/\n/g,' '))}${wr(s)?'':'<b class="qc nw">May not play in browser</b>'}<small>${h(s.title||s.description||'')}</small></button>`).join('')}</div>`).join('')||(done?'<p class="sub">'+(list.length?'No source returned a stream for this title.':'No source can provide streams yet. Add one in Settings.')+'</p>':LDS);
@@ -930,11 +931,11 @@ function openSrc(m,type,id,vid){
   $('#sbx').onclick=e=>{const b=e.target.closest('.stream');if(!b)return;PICK=groups[+b.dataset.g].st[+b.dataset.i];o.remove();location.hash=watchUrl(type,id,vid)};
   draw();
   Promise.all(list.map(async a=>{
-    const r=await call(a,'stream',type,sid).catch(()=>({})),st=(r.streams||[]).slice().sort((x,y)=>wr(y)-wr(x)||qd(x)-qd(y));
+    const r=await call(a,'stream',type,sid).catch(()=>({})),st=(r.streams||[]).slice().sort((x,y)=>wr(y)-wr(x)||qd(x)-qd(y));pend.delete(a.manifest.name);sps();
     if(!st.length||!o.isConnected)return;
     groups.push({n:a.manifest.name,st});
     $('#stb').insertAdjacentHTML('beforeend',`<button data-a="${groups.length-1}">${h(a.manifest.name)}<small>${st.length}</small></button>`);slide();draw();
-  })).then(()=>{done=true;if(o.isConnected)draw()});
+  })).then(()=>{done=true;pend.clear();if(o.isConnected){draw();sps()}});
 }
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const o=$('#so');if(o)o.remove();const t=$('.tmod #tx');if(t)t.click()});
 
@@ -945,7 +946,7 @@ V.title=async function(type,id){
   const m=(await call(a,'meta',type,id)).meta;m.type=m.type||type;M[m.type+'|'+m.id]=m;
   const vids=(m.videos||[]).filter(v=>v.season>0||type!=='series').sort((x,y)=>x.season-y.season||x.episode-y.episode);
   const seasons=[...new Set(vids.map(v=>v.season))],selSeason=(vids.find(v=>v.id===((progFor(m)||{}).vid))||vids[0]||{}).season||0;
-  const cast=((m.app_extras&&m.app_extras.cast)||(m.cast||[]).map(name=>({name})));
+  let cast=((m.app_extras&&m.app_extras.cast)||(m.cast||[]).map(name=>({name})));{const have=new Set(cast.map(c=>c.name));[].concat(m.director||[]).forEach(n=>{if(!have.has(n)){have.add(n);cast.push({name:n,character:'Director'})}});[].concat(m.writer||[]).forEach(n=>{if(!have.has(n)){have.add(n);cast.push({name:n,character:'Writer'})}})}
   const trl=[...(m.trailerStreams||[]).map(t=>t.ytId),...(m.trailers||[]).map(t=>t.source)].filter(Boolean).slice(0,4);
   let sel=(progFor(m)||{}).vid||(vids[0]?vids[0].id:''),saved=inLib(m);const s0=stOf(m);
   const rel=m.released?new Date(m.released).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):(m.releaseInfo||m.year);
@@ -967,6 +968,7 @@ V.title=async function(type,id){
   app.querySelectorAll('.rxp button').forEach(b=>b.onclick=e=>{e.stopPropagation();const r=b.dataset.r,v=stOf(m).r===r?'':r;setSt(m,{r:v});paint(v);rxw.classList.remove('open');rxw.classList.add('shut');if(v)burst(rxBtn,v);else toast('Reaction removed')});
   $('#wl').onclick=()=>{const v=!stOf(m).l;setSt(m,{l:v});$('#wl').classList.toggle('on',v);toast(v?'Added to watch later':'Removed from watch later')};
   $('#wd').onclick=()=>{const v=!stOf(m).w;setSt(m,{w:v});$('#wd').classList.toggle('on',v);toast(v?'Marked as watched':'Marked as unwatched')};
+  if(window.KCredits&&LS.get('tmdbKey','')&&cast.length<20)KCredits(type,id).then(l=>{let box=app.querySelector('.cast');if(!l.length||l.length<=cast.length)return;if(!box){const mo=$('#more');if(!mo)return;mo.insertAdjacentHTML('beforebegin','<section class="sec"><h2>Cast</h2><div class="cast"></div></section>');box=app.querySelector('.cast')}box.innerHTML=l.map(c=>`<div class="pc" data-n="${h(c.name)}">${c.photo?`<img referrerpolicy="no-referrer" src="${h(c.photo)}" alt="">`:`<span class="av">${h((c.name||'?')[0])}</span>`}<b>${h(c.name)}</b><small>${h(c.character||'')}</small></div>`).join('');box.querySelectorAll('.pc').forEach(p=>{p.onclick=()=>{const i=p.querySelector('img');openPerson(p.dataset.n,i?i.src:'')};const im=p.querySelector('img'),fb=()=>wiki(p.dataset.n).then(u=>{if(u)p.firstElementChild.outerHTML=`<img referrerpolicy="no-referrer" src="${h(u)}" alt="">`});if(im)im.onerror=fb;else fb()})});
   app.querySelectorAll('.tr').forEach(t=>t.onclick=()=>openTrailer(t.dataset.y));
   app.querySelectorAll('.pc').forEach(p=>{p.onclick=()=>{const i=p.querySelector('img');openPerson(p.dataset.n,i?i.src:'')};const im=p.querySelector('img'),fb=()=>wiki(p.dataset.n).then(u=>{if(u)p.firstElementChild.outerHTML=`<img referrerpolicy="no-referrer" src="${h(u)}" alt="">`});if(im)im.onerror=fb;else fb()});
   if(type==='series'){
@@ -982,27 +984,29 @@ V.title=async function(type,id){
 play=function(s,ctx,t0){
   const box=$('#vw'),ld=$('#ld');if(!box)return;
   if(HL){HL.destroy();HL=null}clearTimeout(play.wd);box.innerHTML='';ld.classList.add('on');
-  const lt=$('#lt');if(lt)lt.textContent='Buffering…';
-  const bad=t=>{clearTimeout(play.wd);if(SRVOK()&&!s._srv&&s.url&&!/^(magnet|torrent):/.test(s.url)){toast('Retrying through your playback server…');return play(srvStream(s),ctx,t0)}window.PF&&PF(t)};
+  const lt=$('#lt');if(lt)lt.textContent='Connecting to '+(s._a||'the source')+'…';
+  const bad=t=>{clearTimeout(play.wd);if(SRVOK()&&!s._srv&&s.url&&!/^(magnet|torrent):/.test(s.url)){toast('Retrying through your playback server…');return play(srvStream(s),ctx,t0)}window.PF&&PF(t,(function(){const x=$('#vw video');return x&&x.currentTime>5?x.currentTime:0})())};
   if(s.ytId&&!s.url){ld.classList.remove('on');return box.innerHTML=`<iframe src="https://www.youtube.com/embed/${encodeURIComponent(s.ytId)}?autoplay=1" allow="autoplay;fullscreen" allowfullscreen></iframe>`}
   if(s.externalUrl&&!s.url){ld.classList.remove('on');return open(s.externalUrl,'_blank','noopener')}
   if(!s.url||/^(magnet|torrent):/.test(s.url))return bad('This source is a torrent. Browsers cannot play torrents directly.');
   if(location.protocol==='https:'&&s.url.startsWith('http:'))return bad('This is an insecure (http) link, so the browser blocked it on an https page.');
   if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders)return play(srvStream(s),ctx,t0);
+  if(SRVOK()&&!s._srv&&/Electron/.test(navigator.userAgent)&&/hevc|x265|h\.?265|dts|truehd|e-?ac-?3|\bac3\b/i.test((s.name||'')+' '+(s.title||s.description||'')+' '+(s.url||'')))return play(srvStream(s),ctx,t0);
   const v=document.createElement('video');v.autoplay=true;v.playsInline=true;v.preload='auto';box.append(v);v.defaultPlaybackRate=v.playbackRate=CFG().speed;
-  if(/\.m3u8(\?|$)/i.test(s.url)&&window.Hls&&Hls.isSupported()){HL=new Hls({maxBufferLength:30});HL.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal)bad('This stream could not be loaded. The host may block browsers.')});HL.loadSource(s.url);HL.attachMedia(v)}else v.src=s.url;
+  if(/\.m3u8(\?|$)/i.test(s.url)&&window.Hls&&Hls.isSupported()){const pq=CFG().quality,bl=CFG().buf||60;HL=new Hls({maxBufferLength:bl,maxMaxBufferLength:bl*2,backBufferLength:30,maxBufferSize:150*1e6,enableWorker:true,startFragPrefetch:true,fragLoadingMaxRetry:6,manifestLoadingMaxRetry:4,levelLoadingMaxRetry:4,abrBandWidthFactor:.85,abrBandWidthUpFactor:.6});HL.on(Hls.Events.MANIFEST_PARSED,(_,d)=>{if(pq!=='best'){let bi=-1,bd=1e9;d.levels.forEach((l,i)=>{const x=Math.abs((l.height||0)-pq);if(x<bd){bd=x;bi=i}});if(bi>=0){HL.startLevel=bi;HL.autoLevelCapping=bi}}});HL.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal){if(d.type===Hls.ErrorTypes.NETWORK_ERROR&&(HL._nr=(HL._nr||0)+1)<=3)return HL.startLoad();if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&(HL._mr=(HL._mr||0)+1)<=2)return HL.recoverMediaError();bad('This stream could not be loaded. The host may block browsers.')}else if(d.details==='bufferStalledError'&&HL.currentLevel>0&&HL.autoLevelEnabled)HL.nextLevel=HL.currentLevel-1});HL.loadSource(s.url);HL.attachMedia(v)}else v.src=s.url;
   play.wd=setTimeout(()=>bad('This source took too long to start.'),s._srv?70000:25000);
   const key=ctx.vid||ctx.id;let last=0;
   const markW=()=>{if(!v.duration||v.currentTime/v.duration<.9)return;if(ctx.vid){const w=EW();if(!w[ctx.vid]){w[ctx.vid]=1;LS.set('ew',w)}}else if(!stOf(ctx).w)setSt(ctx,{w:true})};
   const ui=()=>{const d=v.duration||0,p=$('#pg');if(!p)return;p.style.width=(d?100*v.currentTime/d:0)+'%';$('#tt').textContent=CFG().rem?'-'+ft(d-v.currentTime)+' / '+ft(d):ft(v.currentTime)+' / '+ft(d);try{$('#bf').style.width=d&&v.buffered.length?100*v.buffered.end(v.buffered.length-1)/d+'%':'0'}catch{}};
   v.onerror=()=>{const c=v.error&&v.error.code;bad(c===3?'Your browser cannot decode this video or audio format (often HEVC/x265 video or DTS/AC3 audio). Native apps like Nuvio use ExoPlayer or mpv for these.':c===4?'This stream cannot be opened in a browser. It may be an unsupported format, blocked by the host, or not meant for browsers.':'A network error stopped this stream.')};
-  v.onwaiting=()=>{ld.classList.add('on');const t=$('#lt');if(t)t.textContent='Buffering…'};
-  v.onplaying=()=>{clearTimeout(play.wd);ld.classList.remove('on')};
+  let started=false,stallT;
+  v.onwaiting=()=>{const p=$('#pl');if(!started){ld.classList.add('on');const t=$('#lt');if(t)t.textContent='Buffering…'}else if(p)p.classList.add('buf');clearTimeout(stallT);if(started&&CFG().autoSwitch!==false)stallT=setTimeout(()=>{if(!v.paused&&v.readyState<3)bad('This source keeps stalling.')},25000)};
+  v.onplaying=()=>{started=true;clearTimeout(play.wd);clearTimeout(stallT);ld.classList.remove('on');const p=$('#pl');if(p)p.classList.remove('buf')};
   v.onpause=v.onplay=()=>{const p=$('#pl');if(!p)return;$('#pp').innerHTML=ic(v.paused?'play':'pause');p.wake&&p.wake()};
   v.onvolumechange=()=>{const b=$('#vb');if(b)b.innerHTML=volIc(v);const r=$('#vs');if(r)r.value=v.muted?0:v.volume};
   v.onloadedmetadata=()=>{const p=CFG().resume&&!window.START0?LS.get('prog',{})[key]:null,t=t0||(p&&p.t>30&&p.t<v.duration-60?p.t:0);if(t)v.currentTime=t;window.START0=false};
   v.ontimeupdate=()=>{ui();markW();if(Date.now()-last<5000)return;last=Date.now();const p=LS.get('prog',{});p[key]={...ctx,t:v.currentTime,d:v.duration,at:last};LS.set('prog',p)};
-  v.onprogress=ui;v.onended=()=>{const n=$('#nx');n&&CFG().autonext&&n.click()};
+  v.onprogress=()=>{ui();if(window.PS&&$('#ld.on'))try{PS('buf',v.buffered.length?v.buffered.end(v.buffered.length-1)-v.currentTime:0)}catch{}};v.oncanplay=()=>{const p=$('#pl');if(p&&!v.seeking)p.classList.remove('buf')};v.onseeking=()=>{const p=$('#pl');if(p&&started)p.classList.add('buf')};v.onseeked=()=>{const p=$('#pl');if(p&&v.readyState>=3)p.classList.remove('buf')};v.onended=()=>{const n=$('#nx');n&&CFG().autonext&&n.click()};
   addSubs(v,ctx);
 };
 V.watch=async function(type,id,vid){
@@ -1014,13 +1018,16 @@ V.watch=async function(type,id,vid){
   const ctx={type,id,vid,name:nm.name,poster:meta.poster,label:ep?`S${ep.season}E${ep.episode}`:''};
   setAmb();const pick=PICK;PICK=null;
   app.innerHTML=`<div id="pl" class="act"><div id="vw"></div>
-    <div id="ld" class="on"><div class="lb" style="background-image:url('${h(meta.background||meta.poster||'')}')"></div><div class="lc">${logoOrName(nm)}<div class="lt" id="lt">Finding sources…</div></div></div>
+    <div id="ld" class="on"><div class="lb" style="background-image:url('${h(meta.background||meta.poster||'')}')"></div><div class="lc">${logoOrName(nm)}<div class="lt" id="lt">Finding sources…</div><div id="lst"></div></div></div><div id="bfs"><i></i></div>
     <div id="top"><a class="rb" href="#/title/${type}/${encodeURIComponent(id)}" aria-label="Back">${ic('back')}</a><b>${h(ctx.name)}${ctx.label?' · '+h(ctx.label):''}${ep&&ep.title?' · '+h(ep.title):''}</b><span style="width:44px"></span></div>
     <div id="ov">${logoOrName(nm)}<div class="mt">${mt(meta)}</div><p>${h((ep&&ep.overview)||meta.description||'')}</p></div>
     <div id="ctl"><div id="sk"><i id="bf"></i><i id="pg"></i><b id="stp"></b></div><div class="cr"><button class="cb" id="pp" aria-label="Play or pause">${ic('play')}</button><button class="cb" id="b10" title="Back 10 seconds">${ic('rw')}</button><button class="cb" id="f10" title="Forward 10 seconds">${ic('ff')}</button><button class="cb" id="vb" aria-label="Mute">${ic('vol2')}</button><input id="vs" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume"><span id="tt">0:00 / 0:00</span><span class="sp"></span>${nx?`<button class="cb" id="nx" title="Next episode">${ic('next')}</button>`:''}<button class="cb" id="cc" title="Subtitles">${ic('cc')}</button><button class="cb" id="sd" title="Playback">${ic('speed')}</button><button class="cb" id="sb" title="Sources">${ic('cloud')}</button><button class="cb" id="fs" title="Fullscreen">${ic('full')}</button></div></div><div id="mn"></div></div>`;
   const pl=$('#pl'),VID=()=>$('#vw video'),S=[],tried=new Set();
   let it,cur=-1,dead=false,done=false,lastWhy='',mk='';
-  pl.wake=()=>{pl.classList.add('act');pl.classList.remove('rest');clearTimeout(it);it=setTimeout(()=>{if($('#mn.on'))return pl.wake();pl.classList.remove('act');const v=VID();if(v&&v.paused)pl.classList.add('rest')},2800)};
+  const SL=new Map(),stl=(k,t,c)=>{const b=$('#lst');if(!b)return;let e=SL.get(k);if(!e||!b.contains(e)){e=document.createElement('div');SL.set(k,e);b.append(e)}e.className=c||'';e.textContent=t},stt=t=>{const e=$('#lt');if(e)e.textContent=t};
+  window.PS=(k,a)=>{if(k==='buf')stt('Buffering… '+Math.max(0,Math.round(a))+'s ready')};
+  const onPlug=e=>{if(!$('#pl'))return removeEventListener('k-plug',onPlug);const d=e.detail;stl('Kinora Plugins','Kinora Plugins · providers '+d.done+'/'+d.total+' · '+d.found+' streams',d.done>=d.total?'ok':'')};addEventListener('k-plug',onPlug);
+  pl.wake=()=>{pl.classList.add('act');pl.classList.remove('rest');clearTimeout(it);it=setTimeout(()=>{if($('#mn.on'))return pl.wake();pl.classList.remove('act');const v=VID();if(v&&v.paused&&!pl.classList.contains('buf')&&!$('#ld.on'))pl.classList.add('rest')},2800)};
   pl.onmousemove=pl.wake;pl.wake();
   const tog=()=>{const v=VID();v&&(v.paused?v.play():v.pause())},jump=d=>{const v=VID();v&&(v.currentTime+=d)},fs=()=>document.fullscreenElement?document.exitFullscreen():pl.requestFullscreen&&pl.requestFullscreen();
   $('#vw').onclick=e=>{if(e.target.tagName==='VIDEO'){$('#mn').classList.remove('on');tog()}};$('#vw').ondblclick=fs;
@@ -1036,9 +1043,9 @@ V.watch=async function(type,id,vid){
   const ok=s=>s.ytId||(s.url&&!/^(magnet|torrent):/.test(s.url));
   const rank=s=>{const u=(s.url||'').split('?')[0].toLowerCase();return(s.ytId?6:0)+(wr(s)?0:20)+(/\.(m3u8|mp4|webm)$/.test(u)?0:/\.mkv$/.test(u)?2:3)+qd(s)};
   const next=()=>S.map((s,i)=>[s,i]).filter(([s,i])=>ok(s)&&!tried.has(i)).sort((a,b)=>rank(a[0])-rank(b[0]))[0];
-  const go=(i,t)=>{tried.add(i);cur=i;dead=false;play(S[i],ctx,t||0)};
+  const go=(i,t)=>{tried.add(i);cur=i;dead=false;const s=S[i],q=qOf(s);stt('Starting playback…');stl('play','▶ '+(s._a||'Source')+' · '+(s.name||'Stream').replace(/\n/g,' ')+(q?' · '+(q>=2160?'4K':q+'p'):''),'ok');play(s,ctx,t||0)};
   const showFail=why=>{$('#ld').classList.remove('on');$('#vw').innerHTML=`<div class="msg">${h(why)}<div class="acts" style="justify-content:center;margin-top:18px"><button class="btn p" id="rt">Choose another source</button><button class="btn" id="cp">Copy stream link</button></div></div>`;$('#rt').onclick=()=>menu('src');$('#cp').onclick=()=>{const s=S[cur];s&&s.url?navigator.clipboard.writeText(s.url).then(()=>toast('Link copied. Paste it into VLC or MX Player.')):toast('No link to copy')}};
-  window.PF=why=>{lastWhy=why;const n=next();if(n){toast('That source failed. Trying another…');go(n[1])}else{dead=true;if(done)showFail(why)}};
+  window.PF=(why,t)=>{lastWhy=why;const n=next();stl('play','✕ '+why,'bad');if(n){toast('That source failed. Trying another…');go(n[1],t||0)}else{dead=true;if(done)showFail(why)}};
   /* menus */
   const rng=(k,a,b,s,v,l,ds)=>`<label class="fr"><span>${l}</span><input type="range" data-${ds||'k'}="${k}" min="${a}" max="${b}" step="${s}" value="${v}"></label>`;
   const menu=k=>{
@@ -1081,10 +1088,11 @@ V.watch=async function(type,id,vid){
   /* start playing: chosen source first, then the best web-friendly one */
   const add=(st,name)=>st.forEach(s=>{if(s.url&&S.some(x=>x.url===s.url))return;S.push({...s,_a:name})});
   const list=addons.filter(a=>has(a,'stream',type,sid));
-  if(pick){add([pick],'Chosen source');go(0)}
+  if(pick){stl('pick','Using the source you chose','ok');add([pick],'Chosen source');go(0)}
+  stt('Checking '+list.length+' source'+(list.length>1?'s':'')+'…');
   if(!list.length&&!pick){done=true;return showFail('No source can provide streams yet. Add one in Settings.')}
   await Promise.all(list.map(async a=>{
-    const r=await call(a,'stream',type,sid).catch(()=>({}));add(r.streams||[],a.manifest.name);
+    stl(a.manifest.name,a.manifest.name+' · searching…');const r=await call(a,'stream',type,sid).catch(()=>({}));add(r.streams||[],a.manifest.name);{const n=(r.streams||[]).length;stl(a.manifest.name,a.manifest.name+' · '+(n?n+' streams':'no streams'),n?'ok':'')}
     if(cur<0||dead){const n=next();if(n)go(n[1])}
   }));
   done=true;
@@ -1175,7 +1183,7 @@ heroCar=function(all){
   if(it.length<5)it=all.filter(ok).sort((a,b)=>rt(b)-rt(a)).slice(0,6);
   it=it.slice(0,8);if(!it.length)return;
   it.forEach(m=>{M[m.type+'|'+m.id]=m});
-  el.innerHTML=it.map((m,i)=>`<div class="sl${i?'':' on'}"><div class="hb" style="background-image:linear-gradient(90deg,rgba(7,8,11,.7),transparent 62%),url('${h(m.background)}')"></div><div class="hc">${logoOrName(m)}<div class="mt">${mt(m)}</div><p>${h(m.description||'')}</p><button class="more" data-more="${h(m.type+'|'+m.id)}">More</button><div class="acts"><a class="pill" href="${dt(m)}">${ic('play')}Play</a></div></div></div>`).join('')
+  el.innerHTML=it.map((m,i)=>`<div class="sl${i?'':' on'}"><div class="hb" style="background-image:linear-gradient(90deg,rgba(7,8,11,.7),transparent 62%),url('${h(m.background)}')"></div><div class="hc">${logoOrName(m)}<div class="mt">${mt(m)}</div><p>${h(m.description||'')}</p><div class="acts"><a class="pill" href="${dt(m)}">${ic('play')}Play</a></div></div></div>`).join('')
     +`<div class="dots${CFG().hero?'':' pz'}">${it.map((_,i)=>`<button class="${i?'':'on'}" aria-label="Slide ${i+1}"><i></i></button>`).join('')}</div>`;
   let k=0;const ds=[...el.querySelectorAll('.dots button')],ss=[...el.querySelectorAll('.sl')];
   const go=i=>{k=i;ss.forEach((s,j)=>s.classList.toggle('on',j===i));ds.forEach(d=>d.classList.remove('on'));void el.offsetWidth;ds[i].classList.add('on');setAmb(it[i].background)};
@@ -1448,7 +1456,7 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 </script>
 <script src="v5.js"></script>
 <script src="v6.js"></script>
-<script src="v7.js"></script>
+
 <script src="v8.js"></script>
 <script>boot()</script>
 </body>
