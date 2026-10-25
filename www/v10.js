@@ -158,7 +158,7 @@ function seriesExtras(){
 const G={br:1};
 const hud=(t,side)=>{
  const pl=Q('#pl');if(!pl)return;
- let e=Q('#kg');if(!e){e=D.createElement('div');e.id='kg';pl.append(e)}
+ let e=Q('#khud');if(!e){e=D.createElement('div');e.id='khud';pl.append(e)}
  e.textContent=t;e.className='on'+(side?' '+side:'');clearTimeout(hud.t);hud.t=setTimeout(()=>e.classList.remove('on'),side?650:900);
 };
 function playerPlus(){

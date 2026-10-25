@@ -460,6 +460,8 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 <link rel="stylesheet" href="v5.css">
 <link rel="stylesheet" href="v6.css">
 <link rel="stylesheet" href="v9.css">
+<link rel="stylesheet" href="v10.css">
+<link rel="stylesheet" href="party.css">
 
 
 </head>
@@ -1455,11 +1457,15 @@ if(IS_APP)document.documentElement.classList.add('app');
 if(/Electron/.test(navigator.userAgent))fetch('/native.json').then(r=>r.json()).then(j=>LS.set('srv',{url:j.url,key:j.key})).catch(()=>{});
 else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script src="config.js"></script>
 <script src="v5.js"></script>
 <script src="v6.js"></script>
 
 <script src="v8.js"></script>
 <script src="v9.js"></script>
+<script src="v10.js"></script>
+<script src="party.js"></script>
+<script src="auth.js"></script>
 <script>boot()</script>
 </body>
 </html>

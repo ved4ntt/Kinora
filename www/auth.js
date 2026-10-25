@@ -75,9 +75,9 @@ function resetModal(){
  D.body.append(d);
  d.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const {error}=await sbInit().auth.updateUser({password:d.querySelector('input').value});if(error)return say(nice(error));say('Password updated');d.remove()};
 }
-{const sb=sbInit();if(sb)sb.auth.onAuthStateChange((ev,s)=>{
+setTimeout(()=>{const sb=sbInit();if(sb)sb.auth.onAuthStateChange((ev)=>{
  if(ev==='PASSWORD_RECOVERY')resetModal();
-})}
+})},0);
 
 /* ---------- profile page ---------- */
 V.profile=function(){

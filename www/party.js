@@ -304,6 +304,7 @@ function tick(){
   return;
  }
  if(P.pb.media_key!==P.media.key)return;
+ if(P.pend)return;
  const exp=expected(P.pb,sNow(),v.duration)/1000;
  if(!P.synced){hardSync(v,exp);P.synced=true;return}
  if(P.detached){
@@ -331,6 +332,7 @@ function tick(){
  else{P.nudging=true;setRate(v,r.rate)}
 }
 function sendPb(v){
+ P.pend=false;
  const pb={seq:(P.pb?P.pb.seq:0)+1,paused:P.autoPaused&&P.pb?P.pb.paused:v.paused,position_ms:Math.round(v.currentTime*1000),rate:P.nudging&&P.pb?(P.pb.rate||1):v.playbackRate,at:Math.round(sNow()),media_key:P.media.key,member_id:P.me};
  adoptPb(pb,true);bc('state',pb);
  rpc('kinora_party_update',{p_party_id:P.id,p_device_id:dev(),p_playback:pb}).then(s=>{if(P)applySnap(s)}).catch(()=>{});
@@ -342,7 +344,7 @@ function onVid(e){
  const c=curMedia();if(!c||c.key!==P.media.key)return;
  if(Date.now()<(P.mute||0))return;
  if(e.type==='ratechange'&&Math.abs(v.playbackRate-(P.setRate||1))<1e-4)return;
- if(canCtl()){clearTimeout(sendT);sendT=setTimeout(()=>{if(P&&vid()===v)sendPb(v)},80)}
+ if(canCtl()){P.pend=true;clearTimeout(sendT);sendT=setTimeout(()=>{if(P&&vid()===v)sendPb(v);else if(P)P.pend=false},80)}
  else if(!P.detached&&P.pb){P.detached={at:Date.now()};tick()}
 }
 ['play','pause','seeked','ratechange'].forEach(t=>D.addEventListener(t,onVid,true));
