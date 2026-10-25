@@ -144,14 +144,9 @@ function player(){
   }).observe(mn,{childList:true});
   mn.addEventListener('click',e=>{const b=e.target.closest('[data-z]'),v=Q('#vw video');if(!b||!v)return;v.style.objectFit=b.dataset.z;mn.querySelectorAll('[data-z]').forEach(x=>x.classList.toggle('on',x===b))});
  }
- if(top&&top.lastElementChild){
-  top.lastElementChild.insertAdjacentHTML('beforebegin',`<button class="rb" id="k9pb" title="Watch together" aria-label="Watch together">${PW}</button>`);
-  Q('#k9pb').onclick=panel;
- }
- if(PA.host)announce();
 }
 
-/* ---------- watch together: PIN rooms with sync, chat and reactions ---------- */
+/* ---------- old PIN rooms (replaced by party.js, kept here as a comment for reference)
 const PA={ctl:true,log:[]};
 const snd=p=>PA.ch&&PA.ch.send({type:'broadcast',event:'k',payload:p});
 const pin4=()=>String(1000+Math.floor(Math.random()*9000));
@@ -221,7 +216,7 @@ V.party=pin=>{join(String(pin||'').replace(/\D/g,'').slice(0,4),false);location.
  pm.insertAdjacentHTML('beforeend','<button class="btn" id="k9w" style="display:block;width:100%;margin-top:8px">Watch together</button>');
  const b=Q('#k9w');if(b)b.onclick=()=>{pm.classList.remove('on');panel()};
 }}
-renderPm();
+*/
 
 new MutationObserver(()=>{
  player();

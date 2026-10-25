@@ -20,6 +20,18 @@ jobs:
       - run: npm install
       - run: npx cap add android
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/app/kinora/player/MainActivity.java
+      # Let kinora://auth open the app again after Google sign-in in the browser
+      - run: |
+          python3 - <<'PY'
+          import re
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          if 'android:scheme="kinora"' not in s:
+              f = '<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="kinora" android:host="auth"/></intent-filter>'
+              s = s.replace('</activity>', f + '</activity>', 1)
+              open(p, 'w', encoding='utf-8').write(s)
+          print('kinora deep link:', 'android:scheme="kinora"' in open(p, encoding='utf-8').read())
+          PY
       - run: npx capacitor-assets generate --android
       - run: npx cap sync android
       # Sign with the fixed Kinora key (same signature on every build, so updates install over old versions)

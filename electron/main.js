@@ -8,6 +8,24 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
+// Google sign-in returns to the app through kinora://auth (the browser hands the link back to Kinora).
+const PROTO = 'kinora';
+if (process.defaultApp) {
+  if (process.argv.length >= 2) app.setAsDefaultProtocolClient(PROTO, process.execPath, [path.resolve(process.argv[1])]);
+} else {
+  app.setAsDefaultProtocolClient(PROTO);
+}
+const authUrl = (argv) => (argv || []).find((a) => /^kinora:\/\/auth/i.test(a));
+let pendingAuth = authUrl(process.argv);
+function sendAuth(u) {
+  if (!u) return;
+  if (win && !win.isDestroyed() && !win.webContents.isLoading()) {
+    win.webContents.send('auth-url', u);
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  } else pendingAuth = u;
+}
+
 let win;
 let lastNav = 0;
 // One place for "go back / forward" so the mouse side buttons never fire twice.
@@ -35,7 +53,8 @@ async function createWindow() {
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadURL(`http://127.0.0.1:${port}/index.html`);
-  win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.once('did-finish-load', () => { if (pendingAuth) { const u = pendingAuth; pendingAuth = null; setTimeout(() => sendAuth(u), 1200); } });
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
 
   // Mouse side buttons (Windows sends them as app commands) and Alt+Left / Alt+Right.
   win.on('app-command', (e, cmd) => {
@@ -61,6 +80,8 @@ ipcMain.on('win', (_e, a) => {
   else if (a === 'forward') nav('forward');
 });
 
+ipcMain.on('open-external', (_e, u) => { if (typeof u === 'string' && /^https:\/\//i.test(u)) shell.openExternal(u); });
+
 app.whenReady().then(createWindow);
-app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+app.on('second-instance', (_e, argv) => { const u = authUrl(argv); if (win) { if (win.isMinimized()) win.restore(); win.focus(); } if (u) sendAuth(u); });
 app.on('window-all-closed', () => app.quit());
