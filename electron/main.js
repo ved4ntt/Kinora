@@ -55,6 +55,7 @@ ipcMain.on('win', (_e, a) => {
   if (!win) return;
   if (a === 'min') win.minimize();
   else if (a === 'max') win.isMaximized() ? win.unmaximize() : win.maximize();
+  else if (a === 'full') win.setFullScreen(!win.isFullScreen());
   else if (a === 'quit') app.quit();
   else if (a === 'back') nav('back');
   else if (a === 'forward') nav('forward');
