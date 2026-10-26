@@ -1,5 +1,5 @@
 /* Kinora watch party: rooms with a code, seats, live sync, chat and floating reactions.
-   Backend: the kinora_party_* functions in Supabase (see supabase/watch_party.sql). Realtime broadcast + presence carry the live events. */
+   Backend: the kinora_party_* functions in the Supabase project (migration "kinora_watch_party"). Realtime broadcast + presence carry the live events. */
 (()=>{
 const D=document,Q=s=>D.querySelector(s),say=m=>{try{toast(m)}catch{}};
 const on=k=>CFG()[k]!==false;

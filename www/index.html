@@ -1045,7 +1045,9 @@ V.watch=async function(type,id,vid){
   /* fallback logic */
   const ok=s=>s.ytId||(s.url&&!/^(magnet|torrent):/.test(s.url));
   const rank=s=>{const u=(s.url||'').split('?')[0].toLowerCase();return(s.ytId?6:0)+(wr(s)?0:20)+(/\.(m3u8|mp4|webm)$/.test(u)?0:/\.mkv$/.test(u)?2:3)+qd(s)};
-  const next=()=>S.map((s,i)=>[s,i]).filter(([s,i])=>ok(s)&&!tried.has(i)).sort((a,b)=>rank(a[0])-rank(b[0]))[0];
+  const PQ=window.KPREF||null;window.KPREF=null;let pref=PQ&&PQ.get?PQ.get():null;
+  const sc=s=>pref&&window.KSrc?window.KSrc.score(s,pref):0;
+  const next=()=>S.map((s,i)=>[s,i]).filter(([s,i])=>ok(s)&&!tried.has(i)).sort((a,b)=>sc(b[0])-sc(a[0])||rank(a[0])-rank(b[0]))[0];
   const go=(i,t)=>{tried.add(i);cur=i;dead=false;const s=S[i],q=qOf(s);stt('Starting playback…');stl('play','▶ '+(s._a||'Source')+' · '+(s.name||'Stream').replace(/\n/g,' ')+(q?' · '+(q>=2160?'4K':q+'p'):''),'ok');play(s,ctx,t||0)};
   const showFail=why=>{$('#ld').classList.remove('on');$('#vw').innerHTML=`<div class="msg">${h(why)}<div class="acts" style="justify-content:center;margin-top:18px"><button class="btn p" id="rt">Choose another source</button><button class="btn" id="cp">Copy stream link</button></div></div>`;$('#rt').onclick=()=>menu('src');$('#cp').onclick=()=>{const s=S[cur];s&&s.url?navigator.clipboard.writeText(s.url).then(()=>toast('Link copied. Paste it into VLC or MX Player.')):toast('No link to copy')}};
   window.PF=(why,t)=>{lastWhy=why;const n=next();stl('play','✕ '+why,'bad');if(n){toast('That source failed. Trying another…');go(n[1],t||0)}else{dead=true;if(done)showFail(why)}};
@@ -1091,6 +1093,26 @@ V.watch=async function(type,id,vid){
   /* start playing: chosen source first, then the best web-friendly one */
   const add=(st,name)=>st.forEach(s=>{if(s.url&&S.some(x=>x.url===s.url))return;S.push({...s,_a:name})});
   const list=addons.filter(a=>has(a,'stream',type,sid));
+  if(PQ&&!pick){ /* watch party: play the same source as the host */
+    const mkS=u=>({url:u.url,name:u.name||'Host source',title:u.title||'',behaviorHints:u.headers?{proxyHeaders:{request:u.headers}}:undefined});
+    stt('Syncing with the host…');
+    let fin=false;
+    const gather=Promise.all(list.map(async a=>{stl(a.manifest.name,a.manifest.name+' · searching…');const r=await call(a,'stream',type,sid).catch(()=>({}));add(r.streams||[],a.manifest.name);{const n=(r.streams||[]).length;stl(a.manifest.name,a.manifest.name+' · '+(n?n+' streams':'no streams'),n?'ok':'')}})).then(()=>{fin=true});
+    const t0=Date.now();
+    while($('#pl')&&cur<0&&Date.now()-t0<14000){
+      pref=pref||PQ.get();
+      if(pref&&pref.url){add([mkS(pref)],'Host source');stl('pick','Using the host\u2019s source','ok');go(S.length-1);break}
+      const n=next();
+      if(pref&&n&&sc(n[0])>=60){go(n[1]);break}
+      if(pref&&fin&&n){go(n[1]);break}
+      if(!pref&&n&&Date.now()-t0>9000){go(n[1]);break}
+      await new Promise(r=>setTimeout(r,300));
+    }
+    await gather;done=true;
+    if(cur<0||dead){const n=next();if(n)go(n[1])}
+    if(cur<0||dead)showFail(dead?lastWhy:'No playable source was found for this title.');
+    return;
+  }
   if(pick){stl('pick','Using the source you chose','ok');add([pick],'Chosen source');go(0)}
   stt('Checking '+list.length+' source'+(list.length>1?'s':'')+'…');
   if(!list.length&&!pick){done=true;return showFail('No source can provide streams yet. Add one in Settings.')}

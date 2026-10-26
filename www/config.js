@@ -8,5 +8,5 @@ window.KINORA_CONFIG={
   siteUrl:'https://kinor4.vercel.app',
   appName:'Kinora',
   deepLink:'kinora://auth',
-  googleClientId:''
+  googleClientId:'286829733855-kv3sr70pfha0480rmm3kqb7ua2vgj6po.apps.googleusercontent.com'
 };
