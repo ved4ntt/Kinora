@@ -109,7 +109,7 @@ async function joinCode(code,quiet){
   const w=who(),s=await rpc('kinora_party_join',{p_code:code,p_device_id:dev(),p_name:w.n,p_avatar:w.a});
   if(s.error){if(!quiet)say(ERR[s.error]||ERR.bad_request);return false}
   start(s,false,quiet);
-  if(!quiet){const c=curMedia();if(!c||c.key!==P.media.key)follow(P.media)}
+  if(!quiet){const c=curMedia();if(!c||c.key!==P.media.key)follow(P.media);else setTimeout(maybeSwitch,700)}
   return true;
  }catch(e){if(!quiet)fail(e);return false}
 }
@@ -127,7 +127,7 @@ async function create(){
 
 /* ---------- session ---------- */
 function start(s,host,quiet){
- P={id:'',code:'',me:'',host:null,hostOnly:false,max:8,media:null,stream:null,pb:null,members:[],pres:{},msgs:[],unread:0,connected:true,fails:0,n:0,synced:!!host&&!!vid(),leading:false,detached:null,tab:'party',lastId:0,seen:new Set()};
+ P={id:'',code:'',me:'',host:null,hostOnly:false,max:8,media:null,stream:null,shareLink:LS.get('pShare',true)!==false,pb:null,members:[],pres:{},msgs:[],unread:0,connected:true,fails:0,n:0,synced:!!host&&!!vid(),leading:false,detached:null,tab:'party',lastId:0,seen:new Set()};
  applySnap(s,true);
  D.body.classList.add('kparty');
  LS.set('kparty',{code:P.code,at:Date.now()});
@@ -135,6 +135,7 @@ function start(s,host,quiet){
  P.hb=setInterval(beat,4000);P.tk=setInterval(tick,400);
  pullChat();render();
  if(!quiet)say(host?'Party '+P.code+' is live':"You're in the party");
+ if(host)setTimeout(pushSoon,1200);
 }
 function teardown(){
  if(!P)return;
@@ -162,7 +163,7 @@ function end(msg){teardown();if(msg)say(msg)}
 /* ---------- snapshots from the server ---------- */
 function applySnap(s,first){
  if(!s||s.error||!P)return;
- const p=s.party,old=P.members,pHost=P.host,pHO=P.hostOnly,pKey=P.media&&P.media.key;
+ const p=s.party,old=P.members,pHost=P.host,pHO=P.hostOnly,pKey=P.media&&P.media.key,pSK=skey(P.stream);
  P.me=s.member_id||P.me;P.id=p.id;P.code=p.code;P.max=p.max_members;P.host=p.host_member;P.hostOnly=p.host_only;P.stream=p.stream;P.members=s.members||[];P.media=p.media;
  if(p.playback&&newer(p.playback,P.pb))adoptPb(p.playback,false,first);
  if(!first){
@@ -171,6 +172,7 @@ function applySnap(s,first){
   if(pHost&&P.host&&pHost!==P.host)note((P.host===P.me?'You are':nm(P.host)+' is')+' now the host');
   if(pHO!==undefined&&pHO!==P.hostOnly)note(P.hostOnly?'Only the host can control playback now':'Everyone can control playback now');
   if(pKey&&pKey!==P.media.key)onMedia(pKey);
+  else if(!isHost()&&skey(P.stream)!==pSK)maybeSwitch();
  }
  render();
 }
@@ -251,7 +253,9 @@ function statusOf(m){
 function follow(m){
  if(!m||!m.id)return;
  P.followed=Date.now();
- location.hash=watchUrl(m.type,m.id,m.vid);
+ const to=watchUrl(m.type,m.id,m.vid);
+ if(!isHost())window.KPREF=prefFeed();
+ if(location.hash===to){route()}else location.hash=to;
 }
 function onMedia(prevKey){
  P.synced=false;P.detached=null;P.autoPaused=false;
@@ -360,14 +364,16 @@ function chip(id,text,btn,fn,spin){
 }
 function hideChip(id){const e=Q('#'+id);if(e){e.classList.remove('on');e._k=''}}
 function joinPill(c){
- const need=P&&P.media&&(!c||c.key!==P.media.key);
+ const need=P&&P.media&&P.dismissed!==P.media.key&&!D.body.classList.contains('pm-open')&&(!c||c.key!==P.media.key);
  let e=Q('#kj');
  if(!need){if(e){e.remove();D.body.classList.remove('kj-on')}return}
  if(e&&e._k===P.media.key){return}
  if(e)e.remove();
  e=D.createElement('div');e.id='kj';e._k=P.media.key;
- e.innerHTML=`<img src="${h(P.media.poster||'')}" alt=""><div class="ri"><small>Watch party · ${h(P.code)}</small><b>${h(title(P.media))}</b></div><button class="btn p">Watch with the party</button>`;
- e.querySelector('button').onclick=()=>follow(P.media);
+ e.innerHTML=`<img src="${h(P.media.poster||'')}" alt=""><div class="ri"><small>Watch party · ${h(P.code)}</small><b>${h(title(P.media))}</b></div><button class="btn p" data-j>Watch with the party</button><button class="kjx" aria-label="Dismiss">${ic('x')}</button>`;
+ e.querySelector('.kjx').onclick=()=>{P.dismissed=P.media.key;e.classList.remove('on');setTimeout(()=>{e.remove();D.body.classList.remove('kj-on')},350)};
+ clearTimeout(P.kjt);P.kjt=setTimeout(()=>{if(P&&e.isConnected){P.dismissed=P.media.key;e.classList.remove('on');setTimeout(()=>{e.remove();D.body.classList.remove('kj-on')},350)}},16000);
+ e.querySelector('[data-j]').onclick=()=>follow(P.media);
  D.body.append(e);D.body.classList.add('kj-on');setTimeout(()=>e.classList.add('on'),30);
 }
 
@@ -506,7 +512,49 @@ function siteUrl(){
 
 /* sharing the host's own stream link (off by default) */
 let CUR=null;
-{const p0=play;play=function(s){CUR=s;return p0.apply(this,arguments)}}
+{const p0=play;play=function(s){CUR=s;if(P&&isHost())pushSoon();return p0.apply(this,arguments)}}
+
+/* ---------- same source for everyone ---------- */
+const nrm=t=>String(t||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0,160);
+const fpOf=s=>{const b=s.behaviorHints||{};return{a:String(s._a||'').slice(0,60),n:nrm((s.name||'')+' '+(s.title||s.description||'')),h:String(s.infoHash||'').toLowerCase(),i:s.fileIdx==null?null:s.fileIdx,fn:nrm(b.filename),sz:b.videoSize||0,q:typeof qOf==='function'?(qOf(s)||0):0,u:String(s.url||'').split('?')[0].slice(0,200)}};
+const score=(s,p)=>{
+ if(!s||!p)return 0;const f=fpOf(s);
+ if(p.h&&f.h&&p.h===f.h)return p.i==null||f.i==null||p.i===f.i?100:70;
+ if(p.u&&f.u&&p.u===f.u)return 100;
+ if(p.fn&&f.fn&&p.fn===f.fn)return 90+(p.sz&&p.sz===f.sz?5:0);
+ if(p.n&&f.n&&p.n===f.n)return p.a&&p.a===f.a?80:65;
+ if(p.a&&p.a===f.a&&p.q&&p.q===f.q)return 40;
+ return p.q&&p.q===f.q?15:0;
+};
+window.KSrc={score,fp:fpOf};
+const skey=st=>st?(st.url||'')+'|'+JSON.stringify(st.fp||'').slice(0,240):'';
+const prefFeed=()=>({get:()=>{const st=P&&P.stream;return st?{...(st.fp||{}),url:st.url||'',headers:st.headers||null,name:st.name,title:st.title}:null}});
+let pushT;
+function pushSoon(){
+ clearTimeout(pushT);
+ pushT=setTimeout(async()=>{
+  if(!P||!isHost()||!CUR)return;
+  const c=curMedia();if(!c||c.key!==P.media.key)return;
+  const url=CUR.url&&/^https?:\/\/(?!localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(CUR.url)&&!/^http:\/\/(10\.|192\.168\.)/.test(CUR.url)?CUR.url:'';
+  const hd=CUR.behaviorHints&&CUR.behaviorHints.proxyHeaders&&CUR.behaviorHints.proxyHeaders.request;
+  const st={fp:fpOf(CUR),name:String(CUR.name||'Stream').slice(0,120),title:String(CUR.title||CUR.description||'').slice(0,200),from:String(CUR._a||'').slice(0,60)};
+  if(P.shareLink&&url){st.url=url;if(hd)st.headers=hd}
+  try{const s=await rpc('kinora_party_update',{p_party_id:P.id,p_device_id:dev(),p_share:true,p_stream:st});applySnap(s);bc('ctl',{t:'sync'})}catch{}
+ },900);
+}
+function maybeSwitch(){
+ const c=curMedia();if(!P||isHost()||!c||c.key!==P.media.key||!CUR||!P.stream)return;
+ const pr=prefFeed().get();if(!pr)return;
+ if(!((pr.url&&CUR.url===pr.url)||score(CUR,pr)>=60)){note('Switching to the host\u2019s source');useShared()}
+}
+function useShared(){
+ if(!P||!P.stream)return;
+ const c=curMedia();window.KPREF=prefFeed();
+ if(c&&c.key===P.media.key){P.synced=false;route()}else follow(P.media);
+}
+async function toggleShare(){P.shareLink=!P.shareLink;LS.set('pShare',P.shareLink);render();pushSoon()}
+
+/* old link-only sharing, superseded by the block above
 const shareable=s=>s&&s.url&&/^https?:\/\/(?!localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(s.url)&&!/^http:\/\/(10\.|192\.168\.)/.test(s.url);
 async function toggleShare(){
  if(P.stream){const s=await rpc('kinora_party_update',{p_party_id:P.id,p_device_id:dev(),p_share:false});applySnap(s);bc('ctl',{t:'sync'});return}
@@ -524,6 +572,7 @@ function useShared(){
  const c=curMedia();
  if(c&&c.key===P.media.key){P.synced=false;route()}else follow(P.media);
 }
+*/
 
 /* ---------- rendering ---------- */
 let rq=0;
@@ -561,8 +610,8 @@ function viewParty(){
  <div class="kseat"><b>${P.members.length} of ${seats} seats</b><div class="ksb">${Array.from({length:seats},(_,i)=>`<i class="${i<P.members.length?'on':''}"></i>`).join('')}</div></div>
  <div class="kml">${rows}${Array.from({length:open},()=>`<button class="km kopen" data-a="invite"><span class="avb sm kemp">${ic('plus')}</span><div class="kmi"><b>Invite a friend</b></div></button>`).join('')}</div>
  <div class="kmed"><img src="${h(m.poster||'')}" alt=""><div><small>${watching?'Now watching together':'The party is watching'}</small><b>${h(title(m))}</b>${watching?'':'<button class="btn p" data-a="follow">Watch with the party</button>'}</div></div>
- ${P.stream&&!ph?`<div class="kmed kshare"><div><small>Shared by ${h(nm(P.host))}</small><b>${h(P.stream.name||'Stream')}</b><button class="btn" data-a="usestream">Play their source</button></div></div>`:''}
- ${ph?`<div class="kset"><div class="k6o2"><span><b>Only I can control playback</b><small>Others can still pause or rewind for themselves.</small></span><button class="k6t${P.hostOnly?' on':''}" data-a="ho" role="switch" aria-checked="${!!P.hostOnly}" aria-label="Only I can control playback"></button></div><div class="k6o2"><span><b>Share my stream</b><small>Friends can play your link instead of picking their own. It can include your debrid key.</small></span><button class="k6t${P.stream?' on':''}" data-a="share" role="switch" aria-checked="${!!P.stream}" aria-label="Share my stream"></button></div></div>`
+ ${P.stream&&!ph?`<div class="kmed kshare"><div><small>The host's source</small><b>${h(P.stream.name||'Stream')}</b><button class="btn" data-a="usestream">Use the host's source</button></div></div>`:''}
+ ${ph?`<div class="kset"><div class="k6o2"><span><b>Only I can control playback</b><small>Others can still pause or rewind for themselves.</small></span><button class="k6t${P.hostOnly?' on':''}" data-a="ho" role="switch" aria-checked="${!!P.hostOnly}" aria-label="Only I can control playback"></button></div><div class="k6o2"><span><b>Share my link with friends</b><small>Everyone plays your source. If a friend doesn't have it, they use your link, which can include your debrid key.</small></span><button class="k6t${P.shareLink?' on':''}" data-a="share" role="switch" aria-checked="${!!P.shareLink}" aria-label="Share my link with friends"></button></div></div>`
   :`<p class="khint">${P.hostOnly?'Only the host can control playback.':'Everyone can control playback.'}</p>`}
  <div class="kfoot"><button class="btn" data-a="leave">Leave party</button>${ph?'<button class="btn kdanger" data-a="end">End for everyone</button>':''}</div>`;
 }
