@@ -2,6 +2,37 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+/* Profiles: a non-main profile keeps its own library, history, ratings and settings under its own keys. This runs first so every later script sees them. */
+(function(){try{
+ var a=localStorage.getItem('kprof');if(!a||a==='main')return;
+ var L=JSON.parse(localStorage.getItem('kprofs')||'[]');if(!L.some(function(p){return p.id===a})){localStorage.setItem('kprof','main');return}
+ var NS={lib:1,st:1,ew:1,prog:1,cfg:1,me:1,av:1,recent:1},P=Storage.prototype,g=P.getItem,s=P.setItem,r=P.removeItem;
+ window.__kRaw={get:function(k){return g.call(localStorage,k)}};window.__kProf=a;
+ var m=function(k){return NS[k]?'kp:'+a+':'+k:k};
+ P.getItem=function(k){return g.call(this,this===localStorage?m(k):k)};
+ P.setItem=function(k,v){return s.call(this,this===localStorage?m(k):k,v)};
+ P.removeItem=function(k){return r.call(this,this===localStorage?m(k):k)};
+ document.documentElement.classList.add('kprofile');
+}catch(e){}})();
+</script>
+<style>
+/* animated launch screen: the same dark colour as the Android splash, so the handoff is seamless */
+#spl{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:#07080b;transition:opacity .75s ease,visibility .75s}
+#spl.out{opacity:0;visibility:hidden}
+#spl .sg{position:relative;display:grid;justify-items:center;gap:26px}
+#spl .gl{position:absolute;top:50%;left:50%;width:min(110vw,520px);aspect-ratio:1;margin:calc(min(110vw,520px)/-2 - 20px) 0 0 calc(min(110vw,520px)/-2);border-radius:50%;background:radial-gradient(circle,rgba(127,164,232,.2),transparent 62%);opacity:0;animation:splg 1.8s .2s ease-out forwards}
+#spl svg{position:relative;width:min(30vw,128px);overflow:visible;filter:drop-shadow(0 16px 30px rgba(0,0,0,.55))}
+#spl .a{opacity:0;transform-box:fill-box;transform-origin:center;animation:splin .95s cubic-bezier(.2,.8,.2,1) forwards}
+#spl .a1{--x:-46px;--y:0px;animation-delay:.05s}#spl .a2{--x:34px;--y:-34px;animation-delay:.2s}#spl .a3{--x:34px;--y:40px;animation-delay:.35s}
+#spl .sw{transform-box:fill-box;transform:translateX(-130%);animation:splsw 1.05s .95s ease-in-out forwards}
+#spl b{font:500 12.5px Unbounded,system-ui,sans-serif;letter-spacing:.55em;padding-left:.55em;color:#c9ccd3;opacity:0;animation:splt .9s 1.05s ease-out forwards}
+@keyframes splin{from{opacity:0;transform:translate(var(--x),var(--y)) scale(.94);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes splg{to{opacity:1}}
+@keyframes splsw{to{transform:translateX(300%)}}
+@keyframes splt{from{opacity:0;transform:translateY(8px)}to{opacity:.8;transform:none}}
+@media(prefers-reduced-motion:reduce){#spl *{animation-duration:.01s!important;animation-delay:0s!important}}
+</style>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07080b">
 <meta name="mobile-web-app-capable" content="yes">
@@ -462,10 +493,13 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 <link rel="stylesheet" href="v9.css">
 <link rel="stylesheet" href="v10.css">
 <link rel="stylesheet" href="party.css">
+<link rel="stylesheet" href="v11.css">
 
 
 </head>
 <body>
+<div id="spl" aria-hidden="true"><div class="sg"><i class="gl"></i><svg viewBox="330 255 620 720"><defs><linearGradient id="ksf" gradientUnits="userSpaceOnUse" x1="340" y1="268" x2="938" y2="968"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#e4e1d8"/><stop offset="1" stop-color="#b9b4a8"/></linearGradient><linearGradient id="ksw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><clipPath id="kscl"><path d="M520 272Q538 268 538 292V948Q538 968 516 958L362 862Q340 846 340 820V432Q340 396 366 376Z"/><path d="M548 642L738 406Q752 392 782 392H914Q936 394 924 412L692 660Q672 686 640 676Q586 662 548 642Z"/><path d="M548 690Q650 688 722 726Q790 764 872 884L932 944Q942 958 920 962H772Q724 956 694 912L588 762Q556 726 548 690Z"/></clipPath></defs><g fill="url(#ksf)"><path class="a a1" d="M520 272Q538 268 538 292V948Q538 968 516 958L362 862Q340 846 340 820V432Q340 396 366 376Z"/><path class="a a2" d="M548 642L738 406Q752 392 782 392H914Q936 394 924 412L692 660Q672 686 640 676Q586 662 548 642Z"/><path class="a a3" d="M548 690Q650 688 722 726Q790 764 872 884L932 944Q942 958 920 962H772Q724 956 694 912L588 762Q556 726 548 690Z"/></g><g clip-path="url(#kscl)"><rect class="sw" x="330" y="255" width="240" height="720" fill="url(#ksw)"/></g></svg><b>KINORA</b></div></div>
+<script>(function(){var s=document.getElementById('spl'),t=Date.now();function out(){if(!s)return;var e=s;s=null;e.classList.add('out');setTimeout(function(){e.remove()},900)}window.__kSplash=function(){setTimeout(out,Math.max(0,1500-(Date.now()-t)))};setTimeout(out,6500)})();</script>
 <svg width="0" height="0" style="position:absolute"><defs><linearGradient id="kg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#c9c6be"/></linearGradient></defs></svg>
 <div id="amb"><div></div><div></div></div>
 <header id="dock"></header>
@@ -1488,6 +1522,7 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="v10.js"></script>
 <script src="party.js"></script>
 <script src="auth.js"></script>
+<script src="v11.js"></script>
 <script>boot()</script>
 </body>
 </html>

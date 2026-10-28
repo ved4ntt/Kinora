@@ -1,0 +1,84 @@
+/* Kinora v11: richer glass, calmer pills, profiles, Live TV */
+
+/* ---- glass: a specular corner, a cooler inner glow and a crisper rim ---- */
+:root{
+ --glass:radial-gradient(120% 90% at 0% 0%,rgba(255,255,255,.2),rgba(255,255,255,0) 46%),radial-gradient(90% 70% at 100% 100%,rgba(140,170,255,.09),rgba(140,170,255,0) 55%),linear-gradient(155deg,rgba(255,255,255,.13),rgba(255,255,255,.03) 46%,rgba(255,255,255,.06));
+ --rim:inset 0 1px 0 rgba(255,255,255,.36),inset 1px 0 0 rgba(255,255,255,.1),inset 0 -1px 0 rgba(255,255,255,.07),inset 0 0 30px rgba(255,255,255,.04),inset 0 -22px 34px -24px rgba(130,165,255,.12);
+}
+.grp,#pm,#pop,#rd,#mn,#toast,.seg,.tabs:not(.gen){-webkit-backdrop-filter:blur(var(--bl,32px)) saturate(200%) brightness(1.07);backdrop-filter:blur(var(--bl,32px)) saturate(200%) brightness(1.07);border-color:rgba(255,255,255,.16);box-shadow:var(--rim),0 1px 0 rgba(0,0,0,.4),0 24px 64px rgba(0,0,0,.5)}
+.dcard{border-color:rgba(255,255,255,.17)}
+/* film grain keeps big dark gradients from banding and gives the dark a little life */
+body:after{content:"";position:fixed;inset:0;z-index:9990;pointer-events:none;opacity:.045;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+body.nograd:after{display:none}
+
+/* ---- feel: press, focus, entrance ---- */
+.btn:active,.rb:active,.pill:active,.cb:active,.kpt:active,.ktv:active{transform:scale(.95)}
+.grp a:active{transform:scale(.92)}
+:focus-visible{outline:2px solid rgba(255,255,255,.75);outline-offset:3px;border-radius:10px}
+::selection{background:rgba(120,160,255,.35)}
+@keyframes krise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.row{animation:krise .75s var(--e) both}
+.row:nth-of-type(2){animation-delay:.06s}.row:nth-of-type(3){animation-delay:.12s}.row:nth-of-type(4){animation-delay:.18s}.row:nth-of-type(5){animation-delay:.24s}
+@media(prefers-reduced-motion:reduce){.row{animation:none}}
+
+/* ---- floating pills: one calm, readable style; they step aside for the profile menu ---- */
+#rd,#kj{border-radius:24px;padding:9px 10px 9px 9px;background:var(--glass),rgba(14,16,22,.62);border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(30px) saturate(200%);backdrop-filter:blur(30px) saturate(200%);box-shadow:var(--rim),0 22px 54px rgba(0,0,0,.55);transition:opacity .45s var(--e),transform .6s var(--spring),visibility .45s}
+#rd img,#kj img{width:40px;height:57px;border-radius:11px;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 8px 18px rgba(0,0,0,.4)}
+#rd small,#kj small{font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:#a7adb8}
+#rd b,#kj b{font-size:14.5px;margin:1px 0 7px;font-weight:600}
+#rd .bar{height:3px;border-radius:3px;background:rgba(255,255,255,.18)}
+#rd .bar i{background:linear-gradient(90deg,#fff,#cfd6e6);border-radius:3px}
+#rd .rp{width:42px;height:42px;box-shadow:0 8px 22px rgba(255,255,255,.18)}
+#rd .rp svg{width:18px;height:18px;margin-left:2px;fill:currentColor;stroke:none}
+#rd .rx,.kjx{width:32px;height:32px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:#c5cad3;cursor:pointer;display:grid;place-items:center;flex:none;transition:background .2s,transform .3s var(--spring)}
+#rd .rx:hover,.kjx:hover{background:rgba(255,255,255,.18);transform:scale(1.08)}
+.kjx svg{width:15px;height:15px}
+#kj{width:min(420px,calc(100vw - 24px))}
+#kj b{margin-bottom:0}
+#kj .btn{white-space:nowrap}
+body.pm-open #rd,body.pm-open #kj,body.pm-open #kn,body.pm-open .kchip,body.pm-open #kch,body.pm-open #toast,body.kp-on #kj,body.kp-on #rd{opacity:0!important;visibility:hidden!important;pointer-events:none!important;transform:translate(-50%,16px)!important}
+body.pm-open #kn,body.pm-open #kch{transform:none!important}
+@media(max-width:820px){#rd{bottom:calc(86px + env(safe-area-inset-bottom))}#kj{bottom:calc(90px + env(safe-area-inset-bottom))}body.kj-on #rd{bottom:calc(168px + env(safe-area-inset-bottom))}}
+
+/* ---- dock: room for Live TV ---- */
+@media(max-width:560px){#dock .grp a{padding-left:9px;padding-right:9px}#dock .grp a b{font-size:10.5px}}
+
+/* ---- profiles ---- */
+.kpp{text-align:center;padding-top:clamp(90px,16vh,170px)}
+.kpg{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(16px,3vw,34px);margin:34px 0 26px}
+.kpt{display:grid;justify-items:center;gap:12px;width:clamp(96px,22vw,150px);background:none;border:0;color:inherit;cursor:pointer;font:inherit;transition:transform .45s var(--spring)}
+.kpt:hover{transform:translateY(-6px) scale(1.04)}
+.kpt .avb{width:100%;height:auto;aspect-ratio:1;box-shadow:0 0 0 2px rgba(255,255,255,.1),0 18px 40px rgba(0,0,0,.5);transition:box-shadow .3s}
+.kpt.on .avb{box-shadow:0 0 0 3px #fff,0 18px 40px rgba(0,0,0,.5)}
+.kpt b{font-weight:600;font-size:15px}
+.kpt i{font-style:normal;font-size:11px;padding:1px 9px;border-radius:99px;background:rgba(76,195,174,.18);color:#7fe0cc;margin-top:-6px}
+.kadd .avb{display:grid;place-items:center;background:rgba(255,255,255,.05);border:2px dashed rgba(255,255,255,.25);box-shadow:none;color:var(--mu)}
+.kadd .avb svg{width:34%;height:34%}
+.kpe2{display:flex;gap:16px;align-items:center;margin:14px 0}
+.kpe2 .avb{width:72px;height:72px;flex:none}.kpe2 .t{flex:1}
+.kpa{grid-template-columns:repeat(6,1fr)}
+
+/* ---- Live TV ---- */
+.ktb{display:flex;gap:10px;margin:10px 0 14px;max-width:640px}.ktb .t{flex:1}
+.ktvcs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;scrollbar-width:none}.ktvcs::-webkit-scrollbar{display:none}
+.ktvc{flex:none;border:1px solid var(--gb);background:rgba(255,255,255,.04);color:var(--mu);border-radius:99px;padding:8px 16px;font:500 13.5px Manrope,sans-serif;cursor:pointer;transition:all .25s var(--spring)}
+.ktvc.on{background:#fff;color:#0a0b0e;border-color:#fff}
+.ktvg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.kr2{margin-bottom:8px}
+.ktv{display:grid;gap:6px;text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;min-width:0;transition:transform .4s var(--spring)}
+.ktv:hover{transform:translateY(-4px)}
+.ktl{position:relative;display:grid;place-items:center;aspect-ratio:16/10;border-radius:16px;overflow:hidden;background:var(--glass),rgba(20,23,31,.7);border:1px solid rgba(255,255,255,.1);box-shadow:var(--rim)}
+.ktl img{position:relative;z-index:1;max-width:62%;max-height:62%;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+.ktl em{position:absolute;font:600 28px "Barlow Condensed",sans-serif;font-style:normal;color:rgba(255,255,255,.28);letter-spacing:.04em}
+.ktv b{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.ktv small{color:var(--mu);font-size:12px;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:-4px}
+.ktve{max-width:520px;margin:6vh auto 0;text-align:center;display:grid;justify-items:center;gap:12px}
+.ktve i{width:76px;height:76px;border-radius:26px;display:grid;place-items:center;background:var(--glass),rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);box-shadow:var(--rim)}
+.ktve i svg{width:34px;height:34px}
+.ktve h3{font:600 32px "Barlow Condensed",sans-serif}.ktve p{color:#c6cad2;line-height:1.55;font-size:15px;max-width:420px}
+.ktvp{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.ktpl{display:grid;gap:6px;max-height:34vh;overflow:auto;margin-top:10px}
+.ktp{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:14px;background:rgba(255,255,255,.05)}
+.ktp>div{flex:1;min-width:0}.ktp b{display:block;font-size:14px}.ktp small{display:block;color:var(--mu);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* a live channel has no timeline */
+body.klive #sk,body.klive #b10,body.klive #f10,body.klive #tt,body.klive #nx{display:none!important}
