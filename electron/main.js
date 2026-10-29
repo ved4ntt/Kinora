@@ -4,6 +4,8 @@ const path = require('path');
 const { startServer } = require('./localserver');
 
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+// lets the player list and switch the audio tracks inside a file (dual audio, commentary)
+app.commandLine.appendSwitch('enable-blink-features', 'AudioVideoTracks');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 if (!app.requestSingleInstanceLock()) app.quit();

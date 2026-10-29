@@ -17,7 +17,7 @@ const f9=window.fetch.bind(window);
 const slp=ms=>new Promise(r=>setTimeout(r,ms));
 window.fetch=async function(i,o){
  let u='';try{u=decodeURIComponent(i&&i.url?i.url:String(i))}catch{}
- const n=LS.get('cfg',{}).defSrc;
+ const n=null; /* no add-on is made default any more: Smart source (speed.js) learns what starts fastest */
  if(n&&/\/stream\/(movie|series)\//.test(u)&&/^#\/watch/.test(location.hash)){
   const a=addons.find(x=>x.manifest&&x.manifest.name===n);
   if(a){
@@ -34,7 +34,7 @@ function setDef(n){
  say(n?n+' is now your default source':'Default source cleared');
 }
 function stars(){
- const d=LS.get('cfg',{}).defSrc;
+ const d='';return;
  D.querySelectorAll('#sbx .sg h3').forEach(h3=>{
   if(h3.querySelector('.k9s'))return;
   const n=h3.textContent,b=D.createElement('button');

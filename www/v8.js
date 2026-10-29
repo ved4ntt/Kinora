@@ -106,7 +106,8 @@ async function run(type,id){
 function shape(streams){
  const c=S(),qf=t=>/2160|4k|uhd/i.test(t)?2160:/1080/.test(t)?1080:/720/.test(t)?720:/480/.test(t)?480:0;
  let o=streams.map(s=>({s,t:`${s.name||''} ${s.title||s.description||''}`}));
- if(c.p2p===false)o=o.filter(x=>!(x.s.infoHash&&!x.s.url));
+ if(c.p2p===false){const hid=o.filter(x=>x.s.infoHash&&!x.s.url).length;if(hid)window.__kTor=(window.__kTor||0)+hid;o=o.filter(x=>!(x.s.infoHash&&!x.s.url))}
+ if(window.KSpeed){const keep=o.filter(x=>!KSpeed.dead(x.s));if(keep.length)o=keep}
  if(c.sNoCam!==false)o=o.filter(x=>!/\b(cam|hdcam|camrip|ts|hdts|telesync|tc|telecine)\b/i.test(x.t));
  if(c.sMin)o=o.filter(x=>!qf(x.t)||qf(x.t)>=c.sMin);
  if(c.sLang&&c.sLang!=='any'){const re=new RegExp(c.sLang,'i');o.sort((a,b)=>re.test(b.t)-re.test(a.t))}

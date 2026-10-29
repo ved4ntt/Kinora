@@ -494,6 +494,7 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 <link rel="stylesheet" href="v10.css">
 <link rel="stylesheet" href="party.css">
 <link rel="stylesheet" href="v11.css">
+<link rel="stylesheet" href="speed.css">
 
 
 </head>
@@ -1031,7 +1032,7 @@ play=function(s,ctx,t0){
   if(SRVOK()&&!s._srv&&/Electron/.test(navigator.userAgent)&&/hevc|x265|h\.?265|dts|truehd|e-?ac-?3|\bac3\b/i.test((s.name||'')+' '+(s.title||s.description||'')+' '+(s.url||'')))return play(srvStream(s),ctx,t0);
   const v=document.createElement('video');v.autoplay=true;v.playsInline=true;v.preload='auto';box.append(v);v.defaultPlaybackRate=v.playbackRate=CFG().speed;
   if(/\.m3u8(\?|$)/i.test(s.url)&&window.Hls&&Hls.isSupported()){const pq=CFG().quality,bl=CFG().buf||60;HL=new Hls({maxBufferLength:bl,maxMaxBufferLength:bl*2,backBufferLength:30,maxBufferSize:150*1e6,enableWorker:true,startFragPrefetch:true,fragLoadingMaxRetry:6,manifestLoadingMaxRetry:4,levelLoadingMaxRetry:4,abrBandWidthFactor:.85,abrBandWidthUpFactor:.6});HL.on(Hls.Events.MANIFEST_PARSED,(_,d)=>{if(pq!=='best'){let bi=-1,bd=1e9;d.levels.forEach((l,i)=>{const x=Math.abs((l.height||0)-pq);if(x<bd){bd=x;bi=i}});if(bi>=0){HL.startLevel=bi;HL.autoLevelCapping=bi}}});HL.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal){if(d.type===Hls.ErrorTypes.NETWORK_ERROR&&(HL._nr=(HL._nr||0)+1)<=3)return HL.startLoad();if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&(HL._mr=(HL._mr||0)+1)<=2)return HL.recoverMediaError();bad('This stream could not be loaded. The host may block browsers.')}else if(d.details==='bufferStalledError'&&HL.currentLevel>0&&HL.autoLevelEnabled)HL.nextLevel=HL.currentLevel-1});HL.loadSource(s.url);HL.attachMedia(v)}else v.src=s.url;
-  play.wd=setTimeout(()=>bad('This source took too long to start.'),s._srv?70000:25000);
+  play.wd=setTimeout(()=>bad('This source took too long to start.'),s._srv?70000:(window.KSpeed?KSpeed.limit(s):25000));
   const key=ctx.vid||ctx.id;let last=0;
   const markW=()=>{if(!v.duration||v.currentTime/v.duration<.9)return;if(ctx.vid){const w=EW();if(!w[ctx.vid]){w[ctx.vid]=1;LS.set('ew',w)}}else if(!stOf(ctx).w)setSt(ctx,{w:true})};
   const ui=()=>{const d=v.duration||0,p=$('#pg');if(!p)return;p.style.width=(d?100*v.currentTime/d:0)+'%';$('#tt').textContent=CFG().rem?'-'+ft(d-v.currentTime)+' / '+ft(d):ft(v.currentTime)+' / '+ft(d);try{$('#bf').style.width=d&&v.buffered.length?100*v.buffered.end(v.buffered.length-1)/d+'%':'0'}catch{}};
@@ -1061,6 +1062,7 @@ V.watch=async function(type,id,vid){
     <div id="ctl"><div id="sk"><i id="bf"></i><i id="pg"></i><b id="stp"></b></div><div class="cr"><button class="cb" id="pp" aria-label="Play or pause">${ic('play')}</button><button class="cb" id="b10" title="Back 10 seconds">${ic('rw')}</button><button class="cb" id="f10" title="Forward 10 seconds">${ic('ff')}</button><button class="cb" id="vb" aria-label="Mute">${ic('vol2')}</button><input id="vs" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume"><span id="tt">0:00 / 0:00</span><span class="sp"></span>${nx?`<button class="cb" id="nx" title="Next episode">${ic('next')}</button>`:''}<button class="cb" id="cc" title="Subtitles">${ic('cc')}</button><button class="cb" id="sd" title="Playback">${ic('speed')}</button><button class="cb" id="sb" title="Sources">${ic('cloud')}</button><button class="cb" id="fs" title="Fullscreen">${ic('full')}</button></div></div><div id="mn"></div></div>`;
   const pl=$('#pl'),VID=()=>$('#vw video'),S=[],tried=new Set();
   let it,cur=-1,dead=false,done=false,lastWhy='',mk='';
+  window.KS={S,tried,go:(i,t)=>go(i,t),cur:()=>cur};
   const SL=new Map(),stl=(k,t,c)=>{const b=$('#lst');if(!b)return;let e=SL.get(k);if(!e||!b.contains(e)){e=document.createElement('div');SL.set(k,e);b.append(e)}e.className=c||'';e.textContent=t},stt=t=>{const e=$('#lt');if(e)e.textContent=t};
   window.PS=(k,a)=>{if(k==='buf')stt('Buffering… '+Math.max(0,Math.round(a))+'s ready')};
   const onPlug=e=>{if(!$('#pl'))return removeEventListener('k-plug',onPlug);const d=e.detail;stl('Kinora Plugins','Kinora Plugins · providers '+d.done+'/'+d.total+' · '+d.found+' streams',d.done>=d.total?'ok':'')};addEventListener('k-plug',onPlug);
@@ -1078,7 +1080,7 @@ V.watch=async function(type,id,vid){
   pl.onclick=e=>{if(!e.target.closest('#mn,#ctl,#top'))$('#mn').classList.remove('on')};
   /* fallback logic */
   const ok=s=>s.ytId||(s.url&&!/^(magnet|torrent):/.test(s.url));
-  const rank=s=>{const u=(s.url||'').split('?')[0].toLowerCase();return(s.ytId?6:0)+(wr(s)?0:20)+(/\.(m3u8|mp4|webm)$/.test(u)?0:/\.mkv$/.test(u)?2:3)+qd(s)};
+  const rank=s=>{const u=(s.url||'').split('?')[0].toLowerCase();return(s.ytId?6:0)+(wr(s)?0:20)+(/\.(m3u8|mp4|webm)$/.test(u)?0:/\.mkv$/.test(u)?2:3)+qd(s)+(window.KSpeed?KSpeed.pen(s):0)};
   const PQ=window.KPREF||null;window.KPREF=null;let pref=PQ&&PQ.get?PQ.get():null;
   const sc=s=>pref&&window.KSrc?window.KSrc.score(s,pref):0;
   const next=()=>S.map((s,i)=>[s,i]).filter(([s,i])=>ok(s)&&!tried.has(i)).sort((a,b)=>sc(b[0])-sc(a[0])||rank(a[0])-rank(b[0]))[0];
@@ -1523,6 +1525,7 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="party.js"></script>
 <script src="auth.js"></script>
 <script src="v11.js"></script>
+<script src="speed.js"></script>
 <script>boot()</script>
 </body>
 </html>
