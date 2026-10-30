@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Get the Kinora app</title><meta name="description" content="Download Kinora for Android and Windows.">
+<link rel="icon" href="icon-192.png"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+.ann{margin-top:8px}.pf{display:grid;gap:14px;align-content:start}.pf b{font:600 30px "Barlow Condensed",sans-serif}
+.pf .row small{color:var(--mu)}
+.shots{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}.shots img{height:340px;border-radius:18px;border:1px solid var(--gb);flex:none}
+table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:13px 10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}th{color:var(--mu);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase}td:last-child{font-weight:600}
+.ft{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.ft .card b{display:block;font-size:16px;margin-bottom:4px}.ft .card span{color:var(--mu);font-size:14px}
+.cl{display:grid;gap:12px}.cl .card{padding:18px}.cl pre{white-space:pre-wrap;font:inherit;color:#d4d1ca;margin-top:8px}
+details{margin-top:12px}summary{cursor:pointer;font-weight:600}details p{color:var(--mu);margin-top:8px}
+</style></head><body><div class="w">
+<header class="top"><a class="logo" href="/">KINORA</a><a class="btn" href="/">Open web app</a></header>
+<div id="ann"></div>
+<h1>Kinora,<br>as a real app.</h1>
+<p class="sub">The same Kinora you know, without the browser's limits. Free for Android and Windows.</p>
+<div class="grid" id="dl" style="margin-top:34px"></div>
+<details><summary>Install help</summary><p><b>Android:</b> open the file, allow installs from your browser if asked. Play Protect may ask to scan the app because it is not from the Play Store; choose to scan or install anyway.<br><br><b>Windows:</b> run the installer. If SmartScreen appears, choose More info, then Run anyway.</p></details>
+<h2>Why the app is better than the web</h2>
+<div class="card"><table><thead><tr><th>What you get</th><th>Web</th><th>App</th></tr></thead><tbody>
+<tr><td>Streams that play</td><td>Only what the browser allows</td><td>More streams play: native networking on Android, a built-in playback server on Windows</td></tr>
+<tr><td>Plugins</td><td>Not available</td><td>Plugin repositories and providers</td></tr>
+<tr><td>Player</td><td>Inside a browser tab</td><td>Full screen, landscape on phones, gestures, lock mode</td></tr>
+<tr><td>Window and buttons</td><td>Browser bars</td><td>Clean window; mouse back button on Windows, back goes to the previous page on Android</td></tr>
+<tr><td>Starting up</td><td>Load the page each time</td><td>Opens like an app with its own launch screen</td></tr></tbody></table></div>
+<h2>What's inside</h2>
+<div class="ft"><div class="card"><b>Smart source</b><span>Learns which sources start fastest on your device and tries them first.</span></div><div class="card"><b>Watch together</b><span>Party codes, chat and emoji reactions with friends.</span></div><div class="card"><b>Profiles</b><span>Separate library, history and settings for everyone at home.</span></div><div class="card"><b>Live TV</b><span>Bring your own M3U playlists.</span></div><div class="card"><b>Calendar and Up next</b><span>See new episodes and jump to the next one.</span></div><div class="card"><b>Your add-ons</b><span>Install catalog, subtitle and stream add-ons, refreshed with one tap.</span></div></div>
+<div id="sh"></div><h2>Changelog</h2><div class="cl" id="cl"><p class="mu">Loading…</p></div>
+<p class="mu sm" style="margin-top:50px">Kinora does not host or store any media. Everything comes from the sources you add.</p>
+</div><script>
+const U='https://tmjrxyspvkiluwrpmsax.supabase.co',K='sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq';
+const h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const get=p=>fetch(U+'/rest/v1/'+p,{headers:{apikey:K}}).then(r=>r.json()).then(j=>Array.isArray(j)?j:[]).catch(()=>[]);
+(async()=>{
+ const [R,S]=await Promise.all([get('releases?select=*&order=created_at.desc'),get('site?select=*&key=eq.announcement')]);
+ if(S[0]&&S[0].value)document.getElementById('ann').innerHTML=`<div class="msg ann">${h(S[0].value)}</div>`;
+ const N={android:'Android',windows:'Windows'},mine=/android/i.test(navigator.userAgent)?'android':'windows',order=[mine,mine==='android'?'windows':'android'];
+ document.getElementById('dl').innerHTML=order.map(p=>{
+  const r=R.find(x=>x.platform===p);
+  return`<div class="card pf"><div><b>${N[p]}</b>${p===mine?' <small class="mu">· for your device</small>':''}</div><div class="mu sm">${r?'Version '+h(r.version)+(r.size_mb?' · '+h(r.size_mb)+' MB':'')+' · '+new Date(r.created_at).toLocaleDateString():'Not released yet'}</div><div class="row"><a class="btn p${r?'':' off'}" ${r?`href="${h(r.file_url)}" download`:''}>${r?'Download for '+N[p]:'Coming soon'}</a></div></div>`}).join('');
+ const ph=R.flatMap(r=>r.photos||[]).slice(0,8);
+ if(ph.length)document.getElementById('sh').innerHTML='<h2>Screenshots</h2><div class="shots">'+ph.map(u=>`<img loading="lazy" src="${h(u)}" alt="">`).join('')+'</div>';
+ document.getElementById('cl').innerHTML=R.length?R.slice(0,15).map(r=>`<div class="card"><b>${N[r.platform]} ${h(r.version)}</b> <span class="mu sm">· ${new Date(r.created_at).toLocaleDateString()}</span>${r.changelog?`<pre>${h(r.changelog)}</pre>`:''}</div>`).join(''):'<p class="mu">Nothing here yet.</p>';
+})();
+</script></body></html>

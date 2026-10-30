@@ -283,13 +283,17 @@ addEventListener('hashchange',()=>{
 });
 
 /* ---------- keeping everyone in sync ---------- */
-function mute(ms){P.mute=Date.now()+(ms||900)}
+/* events caused by the sync code itself are recognised one by one (never a blanket "ignore everything" window) */
+const EXP={};
+const expect1=(t,ms)=>{EXP[t]=Date.now()+ms};
+function vPlay(v){if(v.paused)expect1('play',700);return v.play()}
+function vPause(v){if(!v.paused)expect1('pause',700);v.pause()}
+function vSeek(v,t){if(Math.abs(v.currentTime-t)>.01)expect1('seeked',5000);v.currentTime=t}
 function setRate(v,r){if(Math.abs(v.playbackRate-r)<1e-4)return;P.setRate=r;v.playbackRate=r}
 function hardSync(v,exp){
- mute(1600);
- if(Math.abs(v.currentTime-exp)>.8)v.currentTime=exp;
+ if(Math.abs(v.currentTime-exp)>.8)vSeek(v,exp);
  setRate(v,P.pb.rate||1);
- if(P.pb.paused)v.pause();else v.play().catch(()=>chip('kcu','Tap to join the playback','Play',()=>{mute();v.play().catch(()=>{});hideChip('kcu')}));
+ if(P.pb.paused)vPause(v);else vPlay(v).catch(()=>chip('kcu','Tap to join the playback','Play',()=>{vPlay(v).catch(()=>{});hideChip('kcu')}));
 }
 function waiters(){
  if(!P||P.members.length<2)return[];
@@ -319,19 +323,19 @@ function tick(){
  }
  const w=on('pWait')?waiters():[];
  if(w.length&&!P.pb.paused){
-  if(!v.paused){mute();v.pause();P.autoPaused=true}
+  if(!v.paused){vPause(v);P.autoPaused=true}
   chip('kw','Waiting for '+w.slice(0,2).join(' and ')+(w.length>2?' +'+(w.length-2):''),'',null,1);return;
  }
  hideChip('kw');
- if(P.autoPaused){P.autoPaused=false;if(!P.pb.paused){mute();v.play().catch(()=>{})}}
+ if(P.autoPaused){P.autoPaused=false;if(!P.pb.paused)vPlay(v).catch(()=>{})}
  if(P.pb.paused){
-  if(!v.paused){mute();v.pause()}
-  const r=fix(v.currentTime,exp,P.pb,false);if(r.seek!=null){mute();v.currentTime=r.seek}
+  if(!v.paused)vPause(v);
+  const r=fix(v.currentTime,exp,P.pb,false);if(r.seek!=null)vSeek(v,r.seek);
   setRate(v,P.pb.rate||1);return;
  }
- if(v.paused&&!v.ended&&!P.autoPaused){mute();v.play().catch(()=>chip('kcu','Tap to join the playback','Play',()=>{mute();v.play().catch(()=>{});hideChip('kcu')}))}
+ if(v.paused&&!v.ended&&!P.autoPaused)vPlay(v).catch(()=>chip('kcu','Tap to join the playback','Play',()=>{vPlay(v).catch(()=>{});hideChip('kcu')}));
  const r=fix(v.currentTime,exp,P.pb,!!P.nudging);
- if(r.seek!=null){mute();v.currentTime=r.seek;P.nudging=false;setRate(v,P.pb.rate||1)}
+ if(r.seek!=null){vSeek(v,r.seek);P.nudging=false;setRate(v,P.pb.rate||1)}
  else if(r.calm){P.nudging=false;setRate(v,r.rate)}
  else{P.nudging=true;setRate(v,r.rate)}
 }
@@ -346,7 +350,7 @@ function onVid(e){
  if(!P||!P.synced||P.leading)return;
  const v=e.target;if(!v||!v.matches||!v.matches('#vw video'))return;
  const c=curMedia();if(!c||c.key!==P.media.key)return;
- if(Date.now()<(P.mute||0))return;
+ if(EXP[e.type]&&Date.now()<EXP[e.type]){EXP[e.type]=0;return}
  if(e.type==='ratechange'&&Math.abs(v.playbackRate-(P.setRate||1))<1e-4)return;
  if(canCtl()){P.pend=true;clearTimeout(sendT);sendT=setTimeout(()=>{if(P&&vid()===v)sendPb(v);else if(P)P.pend=false},80)}
  else if(!P.detached&&P.pb){P.detached={at:Date.now()};tick()}

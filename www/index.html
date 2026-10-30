@@ -495,12 +495,13 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 <link rel="stylesheet" href="party.css">
 <link rel="stylesheet" href="v11.css">
 <link rel="stylesheet" href="speed.css">
+<link rel="stylesheet" href="v12.css">
 
 
 </head>
 <body>
 <div id="spl" aria-hidden="true"><div class="sg"><i class="gl"></i><svg viewBox="330 255 620 720"><defs><linearGradient id="ksf" gradientUnits="userSpaceOnUse" x1="340" y1="268" x2="938" y2="968"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#e4e1d8"/><stop offset="1" stop-color="#b9b4a8"/></linearGradient><linearGradient id="ksw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><clipPath id="kscl"><path d="M520 272Q538 268 538 292V948Q538 968 516 958L362 862Q340 846 340 820V432Q340 396 366 376Z"/><path d="M548 642L738 406Q752 392 782 392H914Q936 394 924 412L692 660Q672 686 640 676Q586 662 548 642Z"/><path d="M548 690Q650 688 722 726Q790 764 872 884L932 944Q942 958 920 962H772Q724 956 694 912L588 762Q556 726 548 690Z"/></clipPath></defs><g fill="url(#ksf)"><path class="a a1" d="M520 272Q538 268 538 292V948Q538 968 516 958L362 862Q340 846 340 820V432Q340 396 366 376Z"/><path class="a a2" d="M548 642L738 406Q752 392 782 392H914Q936 394 924 412L692 660Q672 686 640 676Q586 662 548 642Z"/><path class="a a3" d="M548 690Q650 688 722 726Q790 764 872 884L932 944Q942 958 920 962H772Q724 956 694 912L588 762Q556 726 548 690Z"/></g><g clip-path="url(#kscl)"><rect class="sw" x="330" y="255" width="240" height="720" fill="url(#ksw)"/></g></svg><b>KINORA</b></div></div>
-<script>(function(){var s=document.getElementById('spl'),t=Date.now();function out(){if(!s)return;var e=s;s=null;e.classList.add('out');setTimeout(function(){e.remove()},900)}window.__kSplash=function(){setTimeout(out,Math.max(0,1500-(Date.now()-t)))};setTimeout(out,6500)})();</script>
+<script>(function(){var s=document.getElementById('spl'),t=Date.now();try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&s){s.remove();s=null}}catch(e){}function out(){if(!s)return;var e=s;s=null;e.classList.add('out');setTimeout(function(){e.remove()},900)}window.__kSplash=function(){setTimeout(out,Math.max(0,1500-(Date.now()-t)))};setTimeout(out,6500)})();</script>
 <svg width="0" height="0" style="position:absolute"><defs><linearGradient id="kg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#c9c6be"/></linearGradient></defs></svg>
 <div id="amb"><div></div><div></div></div>
 <header id="dock"></header>
@@ -581,7 +582,7 @@ const has=(a,res,type,id)=>(a.manifest.resources||[]).some(r=>{
   const t=r.types||a.manifest.types||[],p=r.idPrefixes||a.manifest.idPrefixes;
   return(!t.length||t.includes(type))&&(!p||!id||p.some(x=>id.startsWith(x)));
 });
-const cats=()=>addons.flatMap(a=>(a.manifest.catalogs||[]).filter(c=>!(c.extra||[]).some(e=>e.isRequired)).map(c=>({a,c})));
+const cats=()=>addons.flatMap(a=>(a.manifest.catalogs||[]).map(c=>{const x=(c.extra||[]).map(e=>typeof e==='string'?{name:e}:e),req=new Set(c.extraRequired||[]);(c.extraSupported||[]).forEach(n=>{if(!x.some(e=>e.name===n))x.push({name:n,isRequired:req.has(n)})});return{a,c:Object.assign({},c,{extra:x,name:c.name||c.id,type:c.type==='tv'?'series':c.type})}}).filter(({c})=>!c.extra.some(e=>e.isRequired&&e.name!=='genre')&&c.id&&c.type));
 async function addAddon(raw){
   let u=raw.trim().replace(/^stremio:\/\//,'https://');
   if(!/^https?:\/\//.test(u))throw Error('Enter a full link that starts with https://');
@@ -661,7 +662,7 @@ async function loadSrc(type,id,vid){
 const V={
   async home(){
     if(!addons.length)return app.innerHTML='<div class="msg">Could not load the default catalog. Check your connection and reload.</div>';
-    const cs=cats().slice(0,12),P=cs.map(({a,c})=>call(a,'catalog',c.type,c.id).then(r=>r.metas||[]).catch(()=>[]));
+    const cs=cats().filter(x=>/^(movie|series)$/.test(x.c.type)).slice(0,40),P=cs.map(({a,c})=>call(a,'catalog',c.type,c.id).then(r=>r.metas||[]).catch(()=>[]));
     const cw=Object.values(LS.get('prog',{})).sort((a,b)=>b.at-a.at).slice(0,12);
     app.innerHTML=`<section class="hero" id="hero">${LD}</section>`
       +(cw.length?`<section class="row"><h2>Continue watching</h2><div class="scroll">${cw.map(p=>`<a class="card" href="#/title/${p.type}/${encodeURIComponent(p.id)}"><img src="${h(p.poster||'')}" alt="${h(p.name)}"><div class="bar"><i style="width:${Math.min(100,100*p.t/(p.d||1))}%"></i></div></a>`).join('')}</div></section>`:'')
@@ -1105,7 +1106,7 @@ V.watch=async function(type,id,vid){
       const fit=(v&&v.style.objectFit)||'contain';
       x=`<h3>Speed</h3><div class="sw">${[.5,.75,1,1.25,1.5,2].map(r=>`<button class="ch${v&&v.playbackRate===r?' on':''}" data-r="${r}">${r}×</button>`).join('')}</div>${rng('rate',.25,3,.05,v?v.playbackRate:1,'Custom','p')}<h3>Volume</h3>${rng('vol',0,1,.01,v?(v.muted?0:v.volume):1,'Level','p')}<h3>Picture</h3><div class="sw">${[['contain','Fit'],['cover','Fill'],['fill','Stretch']].map(f=>`<button class="ch${fit===f[0]?' on':''}" data-fit="${f[0]}">${f[1]}</button>`).join('')}</div><h3>More</h3><button class="mi" data-loop="1">Loop: ${v&&v.loop?'On':'Off'}</button>`;
     }
-    if(k==='src')x='<h3>Sources</h3>'+(S.length?S.map((s,i)=>`<button class="mi${i===cur?' on':''}" data-s="${i}">${qc(s)}${h((s.name||'Stream').replace(/\n/g,' '))}<small>${h(s._a)}${wr(s)?'':' · may not play in browser'}</small></button>`).join(''):'<p class="sub" style="padding:8px 12px">Still looking…</p>');
+    if(k==='src')x='<h3>Sources</h3>'+(S.length?S.map((s,i)=>`<button class="mi${i===cur?' on':''}" data-s="${i}">${qc(s)}${h((s.name||'Stream').replace(/\n/g,' '))}<small>${h(s._a)}</small></button>`).join(''):'<p class="sub" style="padding:8px 12px">Still looking…</p>');
     mn.className='on'+(k==='cc'||k==='ccs'?' w':k==='sd'?' sm':'');mn.innerHTML=x;
   };
   const redraw=()=>{const k=mk;mk='';menu(k)};
@@ -1526,6 +1527,8 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="auth.js"></script>
 <script src="v11.js"></script>
 <script src="speed.js"></script>
+<script src="v12.js"></script>
+<script src="v13.js"></script>
 <script>boot()</script>
 </body>
 </html>

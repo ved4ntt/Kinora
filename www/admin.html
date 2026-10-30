@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Kinora admin</title><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>main{display:grid;gap:18px;max-width:640px}form.card{display:grid;gap:14px}.rel{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.rel:last-child{border:0}.bar{height:5px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}.bar i{display:block;height:100%;width:0;background:#f1efea;transition:width .2s}h2{margin:0 0 4px;font-size:26px}</style></head>
+<body><div class="w"><header class="top"><a class="logo" href="/">KINORA</a><button class="btn" id="out" hidden>Sign out</button></header><main id="m"></main></div>
+<script>
+const U='https://tmjrxyspvkiluwrpmsax.supabase.co',K='sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq';
+let T=sessionStorage.getItem('kat');
+const $=s=>document.querySelector(s),h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(p,o={})=>fetch(U+'/rest/v1/'+p,{...o,headers:{apikey:K,Authorization:'Bearer '+(T||K),'Content-Type':'application/json',...(o.headers||{})}});
+const msg=t=>{let e=$('#note');if(!e){e=document.createElement('div');e.id='note';e.className='msg';$('#m').prepend(e)}e.textContent=t};
+const slug=n=>n.replace(/[^\w.\-]+/g,'-');
+const up=(path,file,on)=>new Promise((ok,no)=>{const x=new XMLHttpRequest();x.open('POST',U+'/storage/v1/object/kinora-files/'+path);x.setRequestHeader('apikey',K);x.setRequestHeader('Authorization','Bearer '+T);x.setRequestHeader('x-upsert','true');x.setRequestHeader('Content-Type',file.type||'application/octet-stream');x.upload.onprogress=e=>on&&on(e.loaded/e.total);x.onload=()=>x.status<300?ok(U+'/storage/v1/object/public/kinora-files/'+path):no(new Error(x.status===413?'File is too big for your Supabase plan. Upload it to GitHub Releases and paste the link instead.':x.responseText));x.onerror=()=>no(new Error('Network error'));x.send(file)});
+function loginView(t){$('#out').hidden=true;$('#m').innerHTML=`<form class="card" id="lf"><h2>Admin</h2><p class="mu sm">Sign in to manage Kinora downloads.</p>${t?`<div class="msg">${h(t)}</div>`:''}<label>Email<input id="e" type="email" autocomplete="username" required></label><label>Password<input id="p" type="password" autocomplete="current-password" required></label><button class="btn p">Sign in</button></form>`;
+ $('#lf').onsubmit=async e=>{e.preventDefault();const r=await fetch(U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:K,'Content-Type':'application/json'},body:JSON.stringify({email:$('#e').value.trim(),password:$('#p').value})}),j=await r.json().catch(()=>({}));if(!j.access_token)return loginView('Wrong email or password.');T=j.access_token;sessionStorage.setItem('kat',T);start()}}
+async function start(){
+ if(!T)return loginView();
+ const ok=await api('rpc/is_admin',{method:'POST',body:'{}'}).then(r=>r.json()).catch(()=>false);
+ if(ok!==true){sessionStorage.removeItem('kat');T=null;return loginView('This account is not an admin, or the session ended.')}
+ $('#out').hidden=false;$('#out').onclick=()=>{sessionStorage.removeItem('kat');T=null;loginView()};
+ $('#m').innerHTML=`<form class="card" id="rf"><h2>New release</h2>
+ <label>Platform<select id="pf"><option value="android">Android (.apk)</option><option value="windows">Windows (.exe / .msi / .zip)</option></select></label>
+ <label>Version<input id="ver" placeholder="1.0.0" required></label>
+ <label>App file<input id="file" type="file"></label>
+ <label>or a link to the file (for big files, e.g. GitHub Releases)<input id="link" type="url" placeholder="https://"></label>
+ <label>What's new<textarea id="cl" rows="5" placeholder="One change per line"></textarea></label>
+ <label>Screenshots (optional)<input id="ph" type="file" accept="image/*" multiple></label>
+ <div class="bar" id="bar" hidden><i></i></div><button class="btn p" id="go">Publish</button></form>
+ <form class="card" id="af"><h2>Announcement</h2><p class="mu sm">Shown at the top of the downloads page. Leave empty to hide.</p><textarea id="an" rows="2"></textarea><button class="btn">Save</button></form>
+ <div class="card"><h2>Releases</h2><div id="ls"></div></div>`;
+ $('#rf').onsubmit=async e=>{e.preventDefault();const pl=$('#pf').value,v=$('#ver').value.trim(),f=$('#file').files[0],link=$('#link').value.trim();
+  if(!f&&!link)return msg('Choose the app file or paste a link.');
+  $('#go').disabled=true;$('#bar').hidden=false;
+  try{let url=link,size=null;if(f){size=+(f.size/1048576).toFixed(1);url=await up(`${pl}/${v}/${slug(f.name)}`,f,p=>$('#bar i').style.width=Math.round(p*100)+'%')}
+   const photos=[];let i=0;for(const im of $('#ph').files)photos.push(await up(`shots/${pl}-${v}-${i++}-${slug(im.name)}`,im));
+   const r=await api('releases',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({platform:pl,version:v,file_url:url,size_mb:size,changelog:$('#cl').value.trim(),photos})});
+   if(!r.ok)throw new Error(await r.text());msg('Published. It is live on the downloads page.');$('#rf').reset();list()}
+  catch(x){msg('Failed: '+x.message)}$('#go').disabled=false;$('#bar').hidden=true};
+ $('#af').onsubmit=async e=>{e.preventDefault();const r=await api('site',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'announcement',value:$('#an').value.trim()})});msg(r.ok?'Announcement saved.':'Could not save it.')};
+ api('site?select=value&key=eq.announcement').then(r=>r.json()).then(j=>{if(j[0])$('#an').value=j[0].value||''});
+ list();
+}
+async function list(){
+ const R=await api('releases?select=*&order=created_at.desc').then(r=>r.json()).catch(()=>[]);
+ $('#ls').innerHTML=Array.isArray(R)&&R.length?R.map(r=>`<div class="rel"><div><b>${h(r.platform)} ${h(r.version)}</b><div class="mu sm">${new Date(r.created_at).toLocaleString()}${r.size_mb?' · '+h(r.size_mb)+' MB':''}</div></div><div class="row"><button class="btn" data-e="${r.id}">Edit notes</button><button class="btn" data-d="${r.id}">Delete</button></div></div>`).join(''):'<p class="mu sm">No releases yet.</p>';
+ $('#ls').onclick=async e=>{const d=e.target.dataset.d,ed=e.target.dataset.e;
+  if(d&&confirm('Delete this release?')){await api('releases?id=eq.'+d,{method:'DELETE'});list()}
+  if(ed){const r=R.find(x=>x.id===ed),t=prompt('Changelog',r.changelog||'');if(t!==null){await api('releases?id=eq.'+ed,{method:'PATCH',body:JSON.stringify({changelog:t})});list()}}};
+}
+start();
+</script></body></html>
