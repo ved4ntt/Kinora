@@ -6,19 +6,29 @@
 <body><div class="w"><header class="top"><a class="logo" href="/">KINORA</a><button class="btn" id="out" hidden>Sign out</button></header><main id="m"></main></div>
 <script>
 const U='https://tmjrxyspvkiluwrpmsax.supabase.co',K='sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq';
-let T=sessionStorage.getItem('kat');
+const SK='kadm',MK='sb-tmjrxyspvkiluwrpmsax-auth-token';let T=null;
+const save=j=>{if(j&&j.access_token){T=j.access_token;localStorage.setItem(SK,JSON.stringify({a:j.access_token,r:j.refresh_token,e:j.expires_at||Math.floor(Date.now()/1000)+(+j.expires_in||3600)}))}};
+async function session(){
+ const q=new URLSearchParams(location.hash.slice(1));
+ if(q.get('access_token')){save({access_token:q.get('access_token'),refresh_token:q.get('refresh_token'),expires_in:q.get('expires_in')});history.replaceState(null,'',location.pathname);return T}
+ let s=null;try{s=JSON.parse(localStorage.getItem(SK))}catch{}
+ if(s){if(s.e*1000>Date.now()+60000){T=s.a;return T}
+  if(s.r){const r=await fetch(U+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:K,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.r})}).then(r=>r.json()).catch(()=>({}));if(r.access_token){save(r);return T}}}
+ try{const m=JSON.parse(localStorage.getItem(MK));if(m&&m.access_token&&m.expires_at*1000>Date.now()+60000){T=m.access_token;return T}}catch{}
+ return null}
 const $=s=>document.querySelector(s),h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const api=(p,o={})=>fetch(U+'/rest/v1/'+p,{...o,headers:{apikey:K,Authorization:'Bearer '+(T||K),'Content-Type':'application/json',...(o.headers||{})}});
 const msg=t=>{let e=$('#note');if(!e){e=document.createElement('div');e.id='note';e.className='msg';$('#m').prepend(e)}e.textContent=t};
 const slug=n=>n.replace(/[^\w.\-]+/g,'-');
 const up=(path,file,on)=>new Promise((ok,no)=>{const x=new XMLHttpRequest();x.open('POST',U+'/storage/v1/object/kinora-files/'+path);x.setRequestHeader('apikey',K);x.setRequestHeader('Authorization','Bearer '+T);x.setRequestHeader('x-upsert','true');x.setRequestHeader('Content-Type',file.type||'application/octet-stream');x.upload.onprogress=e=>on&&on(e.loaded/e.total);x.onload=()=>x.status<300?ok(U+'/storage/v1/object/public/kinora-files/'+path):no(new Error(x.status===413?'File is too big for your Supabase plan. Upload it to GitHub Releases and paste the link instead.':x.responseText));x.onerror=()=>no(new Error('Network error'));x.send(file)});
-function loginView(t){$('#out').hidden=true;$('#m').innerHTML=`<form class="card" id="lf"><h2>Admin</h2><p class="mu sm">Sign in to manage Kinora downloads.</p>${t?`<div class="msg">${h(t)}</div>`:''}<label>Email<input id="e" type="email" autocomplete="username" required></label><label>Password<input id="p" type="password" autocomplete="current-password" required></label><button class="btn p">Sign in</button></form>`;
- $('#lf').onsubmit=async e=>{e.preventDefault();const r=await fetch(U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:K,'Content-Type':'application/json'},body:JSON.stringify({email:$('#e').value.trim(),password:$('#p').value})}),j=await r.json().catch(()=>({}));if(!j.access_token)return loginView('Wrong email or password.');T=j.access_token;sessionStorage.setItem('kat',T);start()}}
+function loginView(t){$('#out').hidden=true;$('#m').innerHTML=`<form class="card" id="lf"><h2>Admin</h2><p class="mu sm">Sign in to manage Kinora downloads.</p>${t?`<div class="msg">${h(t)}</div>`:''}<label>Email<input id="e" type="email" autocomplete="username" required></label><label>Password<input id="p" type="password" autocomplete="current-password" required></label><button class="btn p">Sign in</button><button class="btn" type="button" id="gg">Continue with Google</button></form>`;
+ $('#gg').onclick=()=>location.href=U+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(location.origin+'/veduhuuu');
+ $('#lf').onsubmit=async e=>{e.preventDefault();const r=await fetch(U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:K,'Content-Type':'application/json'},body:JSON.stringify({email:$('#e').value.trim(),password:$('#p').value})}),j=await r.json().catch(()=>({}));if(!j.access_token)return loginView('Wrong email or password.');save(j);start()}}
 async function start(){
- if(!T)return loginView();
+ if(!await session())return loginView();
  const ok=await api('rpc/is_admin',{method:'POST',body:'{}'}).then(r=>r.json()).catch(()=>false);
- if(ok!==true){sessionStorage.removeItem('kat');T=null;return loginView('This account is not an admin, or the session ended.')}
- $('#out').hidden=false;$('#out').onclick=()=>{sessionStorage.removeItem('kat');T=null;loginView()};
+ if(ok!==true){localStorage.removeItem(SK);T=null;return loginView('This account is not an admin, or the session ended.')}
+ $('#out').hidden=false;$('#out').onclick=()=>{localStorage.removeItem(SK);T=null;loginView()};
  $('#m').innerHTML=`<form class="card" id="rf"><h2>New release</h2>
  <label>Platform<select id="pf"><option value="android">Android (.apk)</option><option value="windows">Windows (.exe / .msi / .zip)</option></select></label>
  <label>Version<input id="ver" placeholder="1.0.0" required></label>
@@ -28,6 +38,7 @@ async function start(){
  <label>Screenshots (optional)<input id="ph" type="file" accept="image/*" multiple></label>
  <div class="bar" id="bar" hidden><i></i></div><button class="btn p" id="go">Publish</button></form>
  <form class="card" id="af"><h2>Announcement</h2><p class="mu sm">Shown at the top of the downloads page. Leave empty to hide.</p><textarea id="an" rows="2"></textarea><button class="btn">Save</button></form>
+ <form class="card" id="pw"><h2>Password</h2><p class="mu sm">Change the password for signing in here.</p><input id="np" type="password" minlength="6" placeholder="New password" autocomplete="new-password"><button class="btn">Change password</button></form>
  <div class="card"><h2>Releases</h2><div id="ls"></div></div>`;
  $('#rf').onsubmit=async e=>{e.preventDefault();const pl=$('#pf').value,v=$('#ver').value.trim(),f=$('#file').files[0],link=$('#link').value.trim();
   if(!f&&!link)return msg('Choose the app file or paste a link.');
@@ -38,6 +49,7 @@ async function start(){
    if(!r.ok)throw new Error(await r.text());msg('Published. It is live on the downloads page.');$('#rf').reset();list()}
   catch(x){msg('Failed: '+x.message)}$('#go').disabled=false;$('#bar').hidden=true};
  $('#af').onsubmit=async e=>{e.preventDefault();const r=await api('site',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'announcement',value:$('#an').value.trim()})});msg(r.ok?'Announcement saved.':'Could not save it.')};
+ $('#pw').onsubmit=async e=>{e.preventDefault();const r=await fetch(U+'/auth/v1/user',{method:'PUT',headers:{apikey:K,Authorization:'Bearer '+T,'Content-Type':'application/json'},body:JSON.stringify({password:$('#np').value})});msg(r.ok?'Password changed.':'Could not change it (use at least 6 characters).');if(r.ok)$('#np').value=''};
  api('site?select=value&key=eq.announcement').then(r=>r.json()).then(j=>{if(j[0])$('#an').value=j[0].value||''});
  list();
 }

@@ -33,7 +33,7 @@ let n=0,nt;
 D.addEventListener('click',e=>{
  if(!e.target.closest('#ft span'))return;
  n++;clearTimeout(nt);nt=setTimeout(()=>n=0,4000);
- if(n>=5){n=0;location.href='/admin'}
+ if(n>=5){n=0;location.href='/veduhuuu'}
 });
 
 /* iOS-style emoji everywhere (Apple artwork), falling back to the plain character */
@@ -75,4 +75,16 @@ function pick(s){
 }
 const scan=()=>QA('.kdisc select,.k6s').forEach(pick);
 new MutationObserver(()=>scan()).observe(D.getElementById('app'),{childList:true,subtree:true});scan();
+
+/* phones: each catalogue row's cards rise in one after another as the row scrolls into view */
+if(matchMedia('(pointer:coarse)').matches&&'IntersectionObserver' in window){
+ const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;io.unobserve(e.target);const r=e.target;
+  [...r.children].slice(0,9).forEach((c,i)=>c.style.setProperty('--i',i));
+  requestAnimationFrame(()=>r.classList.add('k13in'));
+  setTimeout(()=>{r.classList.remove('k13p','k13in');[...r.children].forEach(c=>c.style.removeProperty('--i'))},1300);
+ },{threshold:.15});
+ const rows=()=>QA('.row:not([data-k13r])').forEach(r=>{r.dataset.k13r=1;if(r.children.length<4)return;const b=r.getBoundingClientRect();if(b.top<innerHeight&&b.bottom>0&&!Q('#pl'))return;r.classList.add('k13p');io.observe(r)});
+ new MutationObserver(rows).observe(D.getElementById('app'),{childList:true,subtree:true});rows();
+}
 })();
