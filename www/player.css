@@ -1,0 +1,49 @@
+/* Kinora player + source chooser skin (Nuvio-style): clean controls, thin glowing progress, blue accent, strong focus rings */
+:root{--ac:#3b82f6}
+/* ---------- player ---------- */
+#pl #top{position:absolute;left:0;right:0;top:0;z-index:6;display:flex;align-items:center;gap:16px;padding:18px clamp(16px,3vw,40px) 64px;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent)}
+#pl #top b{flex:1;min-width:0;font:700 clamp(15px,1.6vw,19px) Manrope,sans-serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pl #top .rb{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:transform .25s var(--e),background .2s}
+#pl #top .rb:hover,#pl #top .rb:focus-visible{background:rgba(255,255,255,.28);transform:scale(1.07);outline:0}
+#pl #ctl{position:absolute;left:0;right:0;bottom:0;z-index:6;padding:84px clamp(16px,3vw,40px) clamp(14px,2.4vh,26px);background:linear-gradient(to top,rgba(0,0,0,.88),transparent)}
+#pl #sk{position:relative;height:5px;margin-bottom:14px;border-radius:9px;background:rgba(255,255,255,.22);cursor:pointer;transition:height .2s var(--e)}
+#pl #sk:hover{height:9px}
+#pl #sk #bf,#pl #sk #pg{position:absolute;left:0;top:0;bottom:0;border-radius:9px}
+#pl #sk #bf{background:rgba(255,255,255,.28)}
+#pl #sk #pg{background:var(--ac);box-shadow:0 0 14px rgba(59,130,246,.6)}
+#pl .cr{display:flex;align-items:center;gap:4px}
+#pl .cb{display:grid;place-items:center;width:46px;height:46px;border:0;border-radius:50%;background:transparent;color:#fff;cursor:pointer;transition:background .2s,transform .25s var(--e)}
+#pl .cb svg{width:22px;height:22px}
+#pl .cb:hover{background:rgba(255,255,255,.16)}
+#pl .cb:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea;transform:scale(1.08)}
+#pl #pp{width:54px;height:54px;margin-right:6px;background:#f1efea;color:#0a0b0e}#pl #pp:hover{background:#fff;transform:scale(1.06)}
+#pl #tt{margin-left:10px;font:600 13.5px Manrope,sans-serif;color:#d6d9de;font-variant-numeric:tabular-nums;white-space:nowrap}
+#pl #vs{width:88px;accent-color:var(--ac)}
+/* player menus (subtitles, speed, sources) */
+#pl #mn.on{background:rgba(16,18,24,.94);-webkit-backdrop-filter:blur(30px) saturate(150%);backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+#pl #mn h3{margin:14px 12px 6px;font:700 11.5px Manrope,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8d94a0}
+#pl #mn .mi{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 14px;border:0;border-radius:14px;background:transparent;color:#eceef2;font:600 14px Manrope,sans-serif;text-align:left;cursor:pointer}
+#pl #mn .mi:hover,#pl #mn .mi:focus-visible{background:rgba(255,255,255,.1);outline:0}
+#pl #mn .mi.on,#pl #mn .ch.on{background:var(--ac);color:#fff}
+#pl #mn .ch{height:38px;padding:0 16px;border:0;border-radius:99px;background:rgba(255,255,255,.09);color:#eceef2;font:600 13px Manrope,sans-serif;cursor:pointer}
+/* ---------- source chooser ---------- */
+#so{position:fixed!important;inset:0;z-index:200;display:flex!important;background:#07080b}
+#so .sl2{position:relative;flex:1;min-width:0;background-size:cover;background-position:center}
+#so .sr2{width:min(660px,50vw);max-width:100%;margin:18px 18px 18px 0;padding:24px;overflow:auto;border-radius:30px;background:rgba(20,23,29,.82);-webkit-backdrop-filter:blur(34px) saturate(150%);backdrop-filter:blur(34px) saturate(150%);border:1px solid rgba(255,255,255,.08);scrollbar-width:none}
+#so .sr2::-webkit-scrollbar{display:none}
+#so .sr2>h2{margin:0 0 4px;font:800 24px Manrope,sans-serif;letter-spacing:-.02em}
+#so #sx{position:absolute;top:22px;left:22px;z-index:5;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+#so #stb{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 12px}
+#so #stb .ind{display:none}
+#so #stb button{height:40px;padding:0 18px;border:0;border-radius:99px;background:rgba(255,255,255,.08);color:#e8eaee;font:600 13.5px Manrope,sans-serif;cursor:pointer;transition:background .2s,transform .25s var(--e)}
+#so #stb button small{margin-left:7px;opacity:.65}
+#so #stb button.on{background:var(--ac);color:#fff}
+#so #stb button:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea;transform:scale(1.05)}
+#so .sps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+#so .spl{display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;background:rgba(255,255,255,.06);color:#9aa1ad;font:600 11.5px Manrope,sans-serif}
+#so .sg h3{margin:16px 2px 8px;font:700 12px Manrope,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8d94a0}
+#so .stream{display:block;width:100%;margin:0 0 10px;padding:14px 16px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.06);color:#fff;font:700 14.5px Manrope,sans-serif;text-align:left;cursor:pointer;transition:background .2s,transform .25s var(--e),box-shadow .2s}
+#so .stream:hover{background:rgba(255,255,255,.11)}
+#so .stream:focus-visible{outline:0;background:rgba(255,255,255,.12);box-shadow:0 0 0 3px var(--ac);transform:scale(1.015)}
+#so .stream small{display:block;margin-top:7px;color:#a9afb9;font:500 12.5px/1.55 Manrope,sans-serif;white-space:pre-line}
+@media(max-width:820px){#so{flex-direction:column}#so .sl2{flex:0 0 26vh}#so .sr2{width:auto;margin:0;border-radius:26px 26px 0 0;flex:1}}

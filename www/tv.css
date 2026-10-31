@@ -1,0 +1,39 @@
+/* Kinora TV shell: left navigation rail (like NuvioTV), big focus states and D-pad / keyboard navigation. Desktop and TV only (phones keep the bottom dock). */
+:root{--rail:76px}
+.tv-rail{display:none}
+@media(min-width:761px){
+#dock{display:none!important}
+.tv-rail{position:fixed;z-index:40;left:0;top:0;bottom:0;width:var(--rail);padding:20px 12px;display:flex;flex-direction:column;gap:6px;background:linear-gradient(90deg,rgba(7,8,11,.94),rgba(7,8,11,.5) 72%,transparent);transition:width .35s var(--e),transform .4s var(--e)}
+.tv-rail:hover,.tv-rail:focus-within{width:252px;background:linear-gradient(90deg,rgba(7,8,11,.97),rgba(7,8,11,.82) 76%,transparent)}
+.tv-hide .tv-rail{transform:translateX(-100%)}
+.tv-logo{display:flex;align-items:center;height:56px;padding:0 14px;margin-bottom:10px}.tv-logo svg,.tv-logo img{height:26px;width:auto}
+.tv-i,.tv-s{display:flex;align-items:center;gap:16px;height:52px;padding:0 15px;flex:0 0 auto;border:0;border-radius:14px;background:none;color:var(--mu);font:600 15px Manrope,sans-serif;white-space:nowrap;overflow:hidden;cursor:pointer;transition:background .2s,color .2s,transform .3s var(--e)}
+.tv-i svg,.tv-s svg{flex:0 0 auto;width:22px;height:22px}
+.tv-i span,.tv-i b+span{opacity:0;transition:opacity .2s}
+.tv-rail:hover .tv-i span,.tv-rail:focus-within .tv-i span{opacity:1}
+.tv-i .av{width:24px;height:24px;border-radius:50%;font-size:11px;display:grid;place-items:center;flex:0 0 auto}
+.tv-i.on{color:var(--tx);background:rgba(255,255,255,.13)}
+.tv-i:hover,.tv-i:focus-visible,.tv-s:focus-within{background:#f1efea;color:#0a0b0e;outline:0;transform:translateX(3px)}
+.tv-s{cursor:text}.tv-s input{width:0;opacity:0;padding:0;border:0;background:none;color:inherit;font:inherit;outline:0;transition:width .3s var(--e),opacity .2s}
+.tv-rail:hover .tv-s input,.tv-rail:focus-within .tv-s input{width:150px;opacity:1}
+.tv-s input::placeholder{color:inherit;opacity:.6}
+.tv-i:last-child{margin-top:auto}
+/* content makes room for the rail */
+.kh-in{left:calc(var(--rail) + 36px)}.kt-in{padding-left:calc(var(--rail) + 36px)}
+.kh-row h2,.kt-s>h2{margin-left:calc(var(--rail) + 36px)}
+.kh-sc,.kt-tabs,#kt-el,.kt-dg{padding-left:calc(var(--rail) + 36px)}
+.kh.nohero{padding-top:32px}
+/* bigger, more cinematic */
+.kh-hero{height:min(84vh,860px)}
+.kh-h{font-size:clamp(38px,5.4vw,72px)}.kh-d{font-size:16px}
+.kh-btn,.kt-b{height:52px}.kh-btn{padding:0 32px;font-size:15.5px}
+.kh-c,.kh-ph{width:clamp(150px,11.5vw,210px)}
+}
+/* focus: strong ring plus lift, so every item is clear from the couch */
+.kh-c:focus,.kt-ep:focus,.kt-pc:focus,.kt-tr:focus,.kt-d:focus{outline:0}
+.kh-c:focus-visible .kh-i{box-shadow:0 0 0 3px #f1efea,0 24px 56px rgba(0,0,0,.65);transform:scale(1.07)}
+.kh-btn:focus-visible,.kt-b:focus-visible,.kt-rx button:focus-visible,.kt-tabs button:focus-visible,.kt-w:focus-visible,.kh-dots i:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea,0 12px 30px rgba(0,0,0,.5);transform:scale(1.06)}
+.kt-ep:focus-visible{outline:0;background:rgba(255,255,255,.16);box-shadow:0 0 0 3px #f1efea}
+.kt-pc:focus-visible img,.kt-pc:focus-visible span{box-shadow:0 0 0 3px #f1efea}
+.kt-tr:focus-visible{box-shadow:0 0 0 3px #f1efea;transform:scale(1.04)}
+.kt-tr,.kt-pc img,.kt-pc span{transition:transform .3s var(--e),box-shadow .3s}
