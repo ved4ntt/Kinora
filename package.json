@@ -1,6 +1,6 @@
 {
   "name": "kinora",
-  "version": "1.1.0",
+  "version": "1.2.0-beta.1",
   "description": "Kinora",
   "author": "Kinora",
   "main": "electron/main.js",
@@ -56,12 +56,6 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ],
       "icon": "build/icon.png"
@@ -70,9 +64,6 @@
       "oneClick": true,
       "perMachine": false,
       "artifactName": "Kinora-Setup-${version}.exe"
-    },
-    "portable": {
-      "artifactName": "Kinora-Portable-${version}.exe"
     }
   }
 }

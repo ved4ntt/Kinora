@@ -33,7 +33,7 @@
 @keyframes splt{from{opacity:0;transform:translateY(8px)}to{opacity:.8;transform:none}}
 @media(prefers-reduced-motion:reduce){#spl *{animation-duration:.01s!important;animation-delay:0s!important}}
 </style>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07080b">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
@@ -1539,6 +1539,10 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <link rel="stylesheet" href="player.css">
 <link rel="stylesheet" href="grid.css">
 <script src="grid.js"></script>
+<link rel="stylesheet" href="settings.css">
+<link rel="stylesheet" href="mobile.css">
+<link rel="stylesheet" href="native.css">
+<script src="native.js"></script>
 <script>boot()</script>
 </body>
 </html>

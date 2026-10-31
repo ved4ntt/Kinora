@@ -1,0 +1,17 @@
+/* Kinora phone layout (Nuvio mobile style): floating bottom bar with a blue active pill, search that drops in from the top */
+@media(min-width:761px){.tv-sb{display:none!important}}
+@media(max-width:760px){
+#dock{display:none!important}
+.tv-rail{display:flex;position:fixed;z-index:40;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));height:70px;padding:6px;gap:2px;align-items:center;border-radius:36px;background:rgba(20,22,28,.84);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 50px rgba(0,0,0,.55);transition:transform .4s var(--e)}
+.tv-hide .tv-rail{transform:translateY(170%)}
+.tv-logo,.tv-i[data-r=settings]{display:none}
+.tv-i{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:58px;padding:0;border:0;border-radius:30px;background:none;color:#9aa1ad;font:600 10.5px Manrope,sans-serif;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .25s,color .25s}
+.tv-i svg{width:23px;height:23px}
+.tv-i.on{background:rgba(59,130,246,.2);color:#4c93ff}
+.tv-i .av{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px}
+.tv-i[data-r=""]{order:1}.tv-sb{order:2}.tv-i[data-r="discover/movie"]{order:3}.tv-i[data-r="discover/series"]{order:4}.tv-i[data-r=library]{order:5}#tv-pb{order:6}
+.tv-s{position:fixed;z-index:60;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:12px;height:54px;padding:0 18px;border-radius:27px;background:rgba(24,26,33,.95);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);border:1px solid rgba(255,255,255,.12);color:#fff;transform:translateY(-220%);transition:transform .4s var(--e)}
+.tv-sopen .tv-s{transform:none}
+.tv-s svg{flex:0 0 auto;width:20px;height:20px;color:#9aa1ad}
+.tv-s input{flex:1;min-width:0;border:0;background:none;color:inherit;font:600 16px Manrope,sans-serif;outline:0}
+}

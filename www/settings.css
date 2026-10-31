@@ -1,0 +1,23 @@
+/* Kinora settings skin: Nuvio-style grouped cards, tinted icon tiles, big section labels */
+.page.k6{padding:clamp(86px,12vh,120px) clamp(18px,4vw,56px) 150px;max-width:980px}
+@media(min-width:761px){.page.k6{padding-left:calc(var(--rail) + 36px)}}
+.k6>h1{margin:0 0 8px;font:800 clamp(34px,4.4vw,50px) Manrope,sans-serif;letter-spacing:-.03em}
+.k6 .k6h{margin:30px 6px 12px;font:700 12.5px Manrope,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8d94a0}
+.k6 .k6c{overflow:hidden;border-radius:28px;background:#14171d;border:1px solid rgba(255,255,255,.05);padding:4px 0}
+.k6 .k6r,.k6 .k6o{display:flex;align-items:center;gap:16px;width:100%;min-height:78px;padding:14px 22px;border:0;border-radius:0;background:none;color:var(--tx);text-align:left;cursor:pointer;transition:background .2s}
+.k6 .k6c>*+*{border-top:1px solid rgba(255,255,255,.06)}
+.k6 .k6r:hover{background:rgba(255,255,255,.04)}
+.k6 .k6r:focus-visible{outline:0;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 3px #f1efea}
+.k6 .k6r>i{flex:0 0 auto;display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:#14263f;color:#3b82f6}
+.k6 .k6r>i svg{width:26px;height:26px}
+.k6 .k6r>span,.k6 .k6o>span{flex:1;min-width:0}
+.k6 .k6r b,.k6 .k6o b{display:block;font:600 17px Manrope,sans-serif}
+.k6 .k6r small,.k6 .k6o small{display:block;margin-top:3px;color:#9aa1ad;font:500 14.5px/1.45 Manrope,sans-serif}
+.k6 .cv{flex:0 0 auto;width:18px;height:18px;color:#6d7480}
+.k6 .k6t{position:relative;flex:0 0 auto;width:54px;height:32px;border:0;border-radius:99px;background:#2b2f38;cursor:pointer;transition:background .25s}
+.k6 .k6t::before{content:none}
+.k6 .k6t::after{content:"";position:absolute;left:4px;top:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .3s var(--e)}
+.k6 .k6t.on{background:var(--ac,#3b82f6)}.k6 .k6t.on::after{transform:translateX(22px)}
+.k6 .k6t:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea}
+.k6 .k6bk{display:inline-flex;align-items:center;gap:6px;height:40px;margin:0 0 14px -8px;padding:0 16px 0 10px;border:0;border-radius:99px;background:rgba(255,255,255,.07);color:var(--tx);font:600 14px Manrope,sans-serif;cursor:pointer}
+.k6 .k6bk:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea}

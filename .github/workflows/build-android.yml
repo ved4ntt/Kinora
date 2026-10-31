@@ -53,12 +53,16 @@ jobs:
         working-directory: android
       - run: cp android/app/build/outputs/apk/release/app-release.apk Kinora.apk
       # Publish a GitHub Release so installed copies can find the update (needs a new version in package.json)
+      # Release notes come from CHANGELOG.md (the section for the version in package.json)
+      - run: node scripts/release-notes.js
       - id: ver
         run: echo "v=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.v }}
           name: Kinora ${{ steps.ver.outputs.v }}
+          body_path: RELEASE_NOTES.md
+          prerelease: ${{ contains(steps.ver.outputs.v, '-') }}
           files: Kinora.apk
       - uses: actions/upload-artifact@v4
         with:

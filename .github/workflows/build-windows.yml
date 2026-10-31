@@ -15,6 +15,8 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npx electron-builder --win --x64 --publish never
+      # Release notes come from CHANGELOG.md (the section for the version in package.json)
+      - run: node scripts/release-notes.js
       # Publish a GitHub Release so installed copies can find the update (needs a new version in package.json)
       - id: ver
         shell: bash
@@ -23,9 +25,12 @@ jobs:
         with:
           tag_name: v${{ steps.ver.outputs.v }}
           name: Kinora ${{ steps.ver.outputs.v }}
+          body_path: RELEASE_NOTES.md
+          prerelease: ${{ contains(steps.ver.outputs.v, '-') }}
+          # The .yml and .blockmap files are the update manifest the Windows app reads to update itself
           files: |
             dist/*.exe
-            dist/latest.yml
+            dist/*.yml
             dist/*.blockmap
       - uses: actions/upload-artifact@v4
         with:

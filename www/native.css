@@ -1,0 +1,37 @@
+/* Kinora native feel: no web-page behaviour, instant touch response, press feedback, smooth screen and sheet transitions */
+html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+*{-webkit-tap-highlight-color:transparent}
+body{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
+a,button,input,.kh-c,.kt-ep,.kt-pc,.k6r,[role=button]{touch-action:manipulation}
+img{-webkit-user-drag:none;user-drag:none}
+/* scrollbars: hidden on touch, slim on desktop */
+@media(hover:none),(max-width:760px){*{scrollbar-width:none}*::-webkit-scrollbar{display:none}}
+@media(hover:hover) and (min-width:761px){
+ ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:transparent}
+ ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+ ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.3);background-clip:padding-box;border:2px solid transparent}
+}
+/* every new screen glides in */
+#app>*{animation:kxIn .45s var(--e) both}
+#app>#pl{animation:none}
+@keyframes kxIn{from{opacity:0;transform:translateY(16px)}}
+/* sheets and menus */
+#so{animation:kxFade .3s var(--e) both}
+#so .sr2{animation:kxSheet .5s var(--e) both}
+@keyframes kxFade{from{opacity:0}}
+@keyframes kxSheet{from{opacity:0;transform:translateY(40px)}}
+@media(max-width:820px){#so .sr2{animation-name:kxSheetM}}
+@keyframes kxSheetM{from{transform:translateY(100%)}}
+#pl #mn.on{animation:kxPop .28s var(--e) both;transform-origin:bottom right}
+@keyframes kxPop{from{opacity:0;transform:scale(.94) translateY(8px)}}
+/* press feedback: things respond the instant a finger lands */
+.kh-c,.kt-ep,.kt-pc,.kt-tr,.k6r,.tv-i,.kg-chips button,.kt-b,.kh-btn,.kt-rx button,.kt-w,#kupdp button,#pl .cb{transition:transform .22s var(--e),opacity .2s,background .2s,box-shadow .2s}
+.kh-c:active,.kt-ep:active,.kt-pc:active,.kt-tr:active{transform:scale(.965);opacity:.9}
+.kh-btn:active,.kt-b:active,.kg-chips button:active,.kt-rx button:active,.tv-i:active,.kt-w:active,#pl .cb:active{transform:scale(.93)}
+.k6r:active{background:rgba(255,255,255,.1)!important}
+/* touch screens have no hover, so nothing may stay lifted after a tap */
+@media(hover:none){
+ .kh-c:hover .kh-i,.kt-b:hover,.kh-btn:hover,.kt-rx button:hover,.kg-chips button:hover,.tv-i:hover,.kt-tr:hover{transform:none;box-shadow:none}
+}
+@media(prefers-reduced-motion:reduce){#app>*,#so,#so .sr2,#pl #mn.on{animation:none}}

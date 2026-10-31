@@ -3,18 +3,19 @@
 const D=document,Q=s=>D.querySelector(s);
 const nav=D.createElement('nav');nav.className='tv-rail';nav.setAttribute('aria-label','Main');
 const items=[['','home','Home'],['discover/movie','film','Movies'],['discover/series','tv','Series'],['library','lib','Library']];
-nav.innerHTML='<a class="tv-logo" href="#/" aria-label="Kinora">'+LOGO+'</a><form class="tv-s" id="tv-sf">'+ic('search')+'<input type="search" placeholder="Search" aria-label="Search"></form>'+
+nav.innerHTML='<a class="tv-logo" href="#/" aria-label="Kinora">'+LOGO+'</a><form class="tv-s" id="tv-sf">'+ic('search')+'<input type="search" placeholder="Search" aria-label="Search"></form><button class="tv-i tv-sb" id="tv-sb" type="button" aria-label="Search">'+ic('search')+'<span>Search</span></button>'+
  items.map(([r,i,t])=>'<a class="tv-i" data-r="'+r+'" href="#/'+r+'">'+ic(i)+'<span>'+t+'</span></a>').join('')+
  '<a class="tv-i" data-r="settings" href="#/settings">'+ic('gear')+'<span>Settings</span></a><button class="tv-i" id="tv-pb" type="button" aria-label="Profile"><b class="av">'+ini(LS.get('me',''))+'</b><span>Profile</span></button>';
 D.body.append(nav);
 nav.querySelector('#tv-sf').onsubmit=e=>{e.preventDefault();const q=e.target.querySelector('input').value.trim();if(q)location.hash='#/search/'+encodeURIComponent(q)};
+nav.querySelector('#tv-sb').onclick=()=>{D.body.classList.toggle('tv-sopen');if(D.body.classList.contains('tv-sopen'))setTimeout(()=>nav.querySelector('#tv-sf input').focus(),60)};
 nav.querySelector('#tv-pb').onclick=e=>{const b=Q('#pb');if(b)b.click()};
 
 function sync(){
  const p=location.hash.replace(/^#\/?/,'');
  const k=/^title\/movie/.test(p)?'discover/movie':/^title\/series/.test(p)?'discover/series':p;
  nav.querySelectorAll('[data-r]').forEach(a=>{const r=a.dataset.r;a.classList.toggle('on',r===''?k==='':k.startsWith(r))});
- D.body.classList.toggle('tv-hide',/^watch\//.test(p));
+ D.body.classList.toggle('tv-hide',/^watch\//.test(p));D.body.classList.remove('tv-sopen');
 }
 addEventListener('hashchange',sync);sync();
 
