@@ -2,6 +2,8 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
 const { startServer } = require('./localserver');
+let autoUpdater = null;
+try { ({ autoUpdater } = require('electron-updater')); } catch {}
 
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
 // lets the player list and switch the audio tracks inside a file (dual audio, commentary)
@@ -83,6 +85,22 @@ ipcMain.on('win', (_e, a) => {
 });
 
 ipcMain.on('open-external', (_e, u) => { if (typeof u === 'string' && /^https:\/\//i.test(u)) shell.openExternal(u); });
+
+// Updates: Windows reads GitHub Releases through electron-updater. The page decides when to check and download.
+const upd = (s) => { if (win && !win.isDestroyed()) win.webContents.send('upd:event', s); };
+if (autoUpdater) {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (i) => upd({ s: 'available', v: i.version, notes: typeof i.releaseNotes === 'string' ? i.releaseNotes : '' }));
+  autoUpdater.on('update-not-available', () => upd({ s: 'uptodate' }));
+  autoUpdater.on('download-progress', (p) => upd({ s: 'downloading', p: Math.round(p.percent) }));
+  autoUpdater.on('update-downloaded', (i) => upd({ s: 'ready', v: i.version }));
+  autoUpdater.on('error', () => upd({ s: 'error', m: 'Could not check for updates' }));
+}
+ipcMain.handle('upd:version', () => app.getVersion());
+ipcMain.handle('upd:check', async () => { if (!autoUpdater || !app.isPackaged) return upd({ s: 'uptodate' }); try { await autoUpdater.checkForUpdates(); } catch {} });
+ipcMain.handle('upd:download', async () => { try { await autoUpdater.downloadUpdate(); } catch {} });
+ipcMain.on('upd:install', () => { if (autoUpdater) autoUpdater.quitAndInstall(false, true); });
 
 app.whenReady().then(createWindow);
 app.on('second-instance', (_e, argv) => { const u = authUrl(argv); if (win) { if (win.isMinimized()) win.restore(); win.focus(); } if (u) sendAuth(u); });

@@ -6,6 +6,8 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
@@ -20,6 +22,11 @@ jobs:
       - run: npm install
       - run: npx cap add android
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/app/kinora/player/MainActivity.java
+      # Stamp the app version so Kinora can tell when a newer build exists
+      - run: |
+          V=$(node -p "require('./package.json').version")
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$V\"/" android/app/build.gradle
+          grep -n "version" android/app/build.gradle | head
       # Let kinora://auth open the app again after Google sign-in in the browser
       - run: |
           python3 - <<'PY'
@@ -45,6 +52,14 @@ jobs:
       - run: ./gradlew assembleRelease
         working-directory: android
       - run: cp android/app/build/outputs/apk/release/app-release.apk Kinora.apk
+      # Publish a GitHub Release so installed copies can find the update (needs a new version in package.json)
+      - id: ver
+        run: echo "v=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.v }}
+          name: Kinora ${{ steps.ver.outputs.v }}
+          files: Kinora.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Kinora-Android-APK

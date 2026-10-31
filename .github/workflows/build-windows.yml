@@ -6,6 +6,8 @@ on:
 jobs:
   win:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -13,6 +15,18 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npx electron-builder --win --x64 --publish never
+      # Publish a GitHub Release so installed copies can find the update (needs a new version in package.json)
+      - id: ver
+        shell: bash
+        run: echo "v=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.v }}
+          name: Kinora ${{ steps.ver.outputs.v }}
+          files: |
+            dist/*.exe
+            dist/latest.yml
+            dist/*.blockmap
       - uses: actions/upload-artifact@v4
         with:
           name: Kinora-Windows
