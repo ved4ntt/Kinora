@@ -86,6 +86,9 @@ ipcMain.on('win', (_e, a) => {
 
 ipcMain.on('open-external', (_e, u) => { if (typeof u === 'string' && /^https:\/\//i.test(u)) shell.openExternal(u); });
 
+// Let Chromium decode HEVC (H.265) with the graphics card, so 4K and HDR files play without re-encoding.
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+
 // Updates: Windows reads GitHub Releases through electron-updater. The page decides when to check and download.
 const upd = (s) => { if (win && !win.isDestroyed()) win.webContents.send('upd:event', s); };
 if (autoUpdater) {

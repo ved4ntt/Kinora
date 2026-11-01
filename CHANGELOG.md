@@ -14,6 +14,11 @@ Each release on GitHub shows the section for its version. Add a new `## [version
 - Redesigned source chooser and video player controls.
 - Native feel: swipe in from the left edge to go back, press feedback on everything you tap, smooth screen transitions, and no zoom, text selection or overscroll bounce.
 
+### Fixed
+- Windows playback is much faster: direct streams now go through a built-in proxy that downloads several pieces at once, so slow hosts no longer load in 10-second bursts, and seeking jumps straight to the timestamp you click.
+- Formats the player can't hear (Dolby Digital Plus, DTS, TrueHD, Atmos) now start through a quick converter that copies the video and only converts the sound, instead of re-encoding the whole movie.
+- Clicking the seek bar past what the converter has made so far now waits and then jumps there, instead of snapping back.
+
 ### Changed
 - Windows is now an installer only. The portable build is gone because portable apps cannot update themselves.
 - Releases are marked as beta, and the Android update check includes beta builds.
