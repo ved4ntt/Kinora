@@ -75,7 +75,7 @@ st.textContent='#kupdp{position:fixed;left:0;right:0;margin:auto;width:max-conte
 D.head.append(st);
 function pill(){
  let p=Q('#kupdp');
- const on=/available|ready/.test(S.s)&&!later&&!Q('#pl')&&!/^#\/settings/.test(location.hash);
+ const on=/available|ready/.test(S.s)&&!later&&!Q('#pl')&&(location.hash===''||location.hash==='#'||location.hash==='#/');
  if(!on){if(p)p.remove();return}
  if(!p){p=D.createElement('div');p.id='kupdp';D.body.append(p)}
  p.innerHTML='<span>'+(S.s==='ready'?'Update ready':'Kinora '+h(S.v)+' is available')+'</span><button data-upd="act">'+(S.s==='ready'?'Restart':'Update')+'</button><button data-upd="later" aria-label="Later">\u00d7</button>';

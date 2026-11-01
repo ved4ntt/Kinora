@@ -8,7 +8,7 @@ const yr=m=>String(m.releaseInfo||m.year||'');
 const tile=m=>{
  if(CFG().hideAdult&&adult(m))return'';
  M[m.type+'|'+m.id]=m;
- return'<a class="kh-c" href="'+dt(m)+'"><div class="kh-i"><img loading="lazy" decoding="async" src="'+h(poster(m))+'" alt="">'+(m.imdbRating?'<em class="kh-r">\u2605 '+h(m.imdbRating)+'</em>':'')+'</div><span>'+h(m.name)+'</span><small>'+h(yr(m))+'</small></a>';
+ return'<a class="kh-c" data-k="'+h(m.type+'|'+m.id)+'" href="'+dt(m)+'"><div class="kh-i"><img loading="lazy" decoding="async" src="'+h(poster(m))+'" alt="">'+(m.imdbRating?'<em class="kh-r">\u2605 '+h(m.imdbRating)+'</em>':'')+'<div class="kh-pk">'+h((m.genres||[]).slice(0,2).join(' \u00b7 ')||yr(m))+'</div></div><span>'+h(m.name)+'</span><small>'+h(yr(m))+'</small></a>';
 };
 
 const cont=()=>{
@@ -39,6 +39,7 @@ function hero(it){
  }
  function start(){clearInterval(t);t=setInterval(()=>{if(!el.isConnected){clearInterval(t);return}show(i+1)},8000)}
  show(0);start();
+ it.slice(0,4).forEach(m=>{const a=addons.find(x=>has(x,'meta',m.type,m.id));if(a)call(a,'meta',m.type,m.id).catch(()=>{});(new Image()).src=m.background});
 }
 const Q1=s=>D.querySelector(s);
 
@@ -48,8 +49,8 @@ V.home=async function(){
  if(!addons.length)return app.innerHTML='<div class="msg">Could not load the default catalog. Check your connection and reload.</div>';
  const cs=cats().filter(x=>/^(movie|series)$/.test(x.c.type)).slice(0,40);
  const P=cs.map(({a,c})=>call(a,'catalog',c.type,c.id).then(r=>r.metas||[]).catch(()=>[]));
- app.innerHTML='<div class="kh"><section class="kh-hero" id="kh-hero">'+LD+'</section>'+cont()+
-  cs.map((x,i)=>'<section class="kh-row" id="khr'+i+'"><h2>'+h((x.c.name||x.c.id)+' '+typeLabel(x.c.type).toLowerCase())+'</h2><div class="kh-sc">'+'<i class="kh-ph"></i>'.repeat(9)+'</div></section>').join('')+'</div>';
+ app.innerHTML='<div class="kh"><section class="kh-hero" id="kh-hero"><div class="kh-sk"></div></section>'+cont()+
+  cs.map((x,i)=>'<section class="kh-row" id="khr'+i+'"><h2>'+h((x.c.name||x.c.id)+' '+typeLabel(x.c.type).toLowerCase())+'<a class="kh-all" href="#/discover/'+x.c.type+'/'+Math.max(0,cats().filter(y=>y.c.type===x.c.type).findIndex(y=>y.c===x.c))+'">See all</a></h2><div class="kh-sc">'+'<i class="kh-ph"></i>'.repeat(9)+'</div></section>').join('')+'</div>';
  P.forEach((p,i)=>p.then(m=>{const s=Q1('#khr'+i+' .kh-sc');if(!s)return;const t=m.slice(0,30).map(tile).join('');t?s.innerHTML=t:s.parentNode.remove()}));
  const [a=[],b=[]]=await Promise.all([P[0],P[1]]);
  const pool=[],A1=a.filter(m=>m.background).slice(0,24),B1=b.filter(m=>m.background).slice(0,24);

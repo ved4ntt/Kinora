@@ -6,7 +6,7 @@
 .kg-chips::-webkit-scrollbar{display:none}
 .kg-chips button{flex:0 0 auto;height:42px;padding:0 20px;border:0;border-radius:99px;background:rgba(255,255,255,.07);color:var(--mu);font:600 14px Manrope,sans-serif;cursor:pointer;transition:background .2s,color .2s,transform .25s var(--e)}
 .kg-chips button:hover{background:rgba(255,255,255,.13);color:var(--tx)}
-.kg-chips button.on{background:var(--ac,#3b82f6);color:#fff}
+.kg-chips button.on{background:#f1efea;color:#0a0b0e}
 .kg-chips button:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea;transform:scale(1.05)}
 .kg-chips.sm{margin-top:0}.kg-chips.sm button{height:34px;padding:0 15px;font-size:13px}
 .kg-t{margin:28px 0 14px;font:700 clamp(18px,2vw,22px) Manrope,sans-serif;letter-spacing:-.01em}

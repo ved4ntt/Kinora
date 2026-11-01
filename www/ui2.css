@@ -1,0 +1,81 @@
+/* Kinora UI 2: dock, rows, hover cards, search, pickers, filters, skeletons. Neutral ivory accent (no blue). */
+#dock,#ks,#spl{display:none!important}
+.tv-rail{display:none!important}
+:root{--rail:0px;--ac:#f1efea}
+/* ---------- dock (iOS style pills with a sliding highlight) ---------- */
+#kd{position:fixed;z-index:40;pointer-events:none}
+.kd-p{pointer-events:auto;position:relative;display:flex;align-items:center;gap:2px;padding:6px;border-radius:99px;background:rgba(20,22,28,.78);-webkit-backdrop-filter:blur(26px) saturate(160%);backdrop-filter:blur(26px) saturate(160%);border:1px solid rgba(255,255,255,.09);box-shadow:0 14px 44px rgba(0,0,0,.45)}
+.kd-ind{position:absolute;left:0;top:0;z-index:0;border-radius:99px;background:rgba(255,255,255,.15);opacity:0;pointer-events:none;transition:transform .5s var(--e),width .5s var(--e),opacity .3s}
+.kd-i{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;height:44px;min-width:44px;padding:0 13px;border:0;border-radius:99px;background:none;color:#aab0ba;font:600 14px Manrope,sans-serif;white-space:nowrap;text-decoration:none;cursor:pointer;transition:color .25s,transform .25s var(--e)}
+.kd-i svg{width:21px;height:21px;flex:0 0 auto}
+.kd-i span{max-width:0;opacity:0;margin-left:0;overflow:hidden;transition:max-width .5s var(--e),opacity .3s,margin .5s var(--e)}
+.kd-i.on,.kd-i:hover{color:#fff}
+.kd-i.on span,.kd-exp .kd-i span{max-width:96px;opacity:1;margin-left:8px}
+.kd-i:active{transform:scale(.94)}.kd-i:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea}
+.kd-i .av{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;overflow:hidden;font-size:11px;background:#2a2e36}.kd-i .av svg{width:100%;height:100%}
+@media(min-width:761px){
+#kd{top:16px;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:0 clamp(18px,3vw,40px)}
+.kd-m{display:none}
+.kd-s{display:flex;align-items:center;margin:0}
+.kd-s input{width:0;opacity:0;padding:0;border:0;background:none;color:#fff;font:600 14px Manrope,sans-serif;outline:0;transition:width .45s var(--e),opacity .25s,padding .45s var(--e)}
+.kd-u.so .kd-s input{width:240px;opacity:1;padding:0 14px 0 2px}
+.kd-s input::placeholder{color:#8d94a0}
+body.kd-hide #kd{transform:translateY(-150%);transition:transform .45s var(--e)}
+.kh-hero{height:min(92vh,1000px)}
+.ks-f{display:none}
+}
+@media(max-width:760px){
+#kd{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.kd-n,.kd-u{display:none}
+.kd-m{justify-content:space-between;padding:6px;gap:0}
+.kd-m .kd-i{flex:1;flex-direction:column;height:56px;padding:0;gap:3px;font-size:10.5px;border-radius:30px}
+.kd-m .kd-i span{max-width:none;opacity:1;margin:0}
+.kd-m .kd-i svg{width:23px;height:23px}
+body.kd-hide #kd{transform:translateY(170%);transition:transform .4s var(--e)}
+#pm{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+}
+/* ---------- rows: see all, arrows, drag, first-card spacing ---------- */
+.kh-row{position:relative}
+.kh-row h2{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.kh-all{color:var(--mu);font:600 13px Manrope,sans-serif;white-space:nowrap}.kh-all:hover{color:var(--tx)}
+.kh-sc{scroll-padding-left:clamp(18px,4vw,56px);cursor:grab}.kh-sc:active{cursor:grabbing}
+.kh-hero{cursor:grab}
+a{-webkit-user-drag:none}
+.kh-ar{position:absolute;top:50%;z-index:5;display:grid;place-items:center;width:44px;height:44px;margin-top:-4px;border:0;border-radius:50%;background:rgba(14,16,22,.82);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:#fff;cursor:pointer;opacity:0;transition:opacity .25s,transform .3s var(--e)}
+.kh-ar.l{left:12px}.kh-ar.r{right:12px}.kh-ar svg{width:22px;height:22px}
+.kh-row:hover .kh-ar:not(.off){opacity:1}.kh-ar:hover{transform:scale(1.08)}
+@media(hover:none){.kh-ar{display:none}}
+.kh-pk{position:absolute;left:0;right:0;bottom:0;padding:28px 10px 9px;background:linear-gradient(to top,rgba(0,0,0,.88),transparent);font:600 11.5px Manrope,sans-serif;opacity:0;transform:translateY(8px);transition:opacity .3s,transform .4s var(--e)}
+@media(hover:none){.kh-c.mid .kh-pk{opacity:1;transform:none}.kh-c.mid .kh-i{transform:scale(1.07);box-shadow:0 18px 44px rgba(0,0,0,.55)}}
+.kh-sk{position:absolute;inset:0;background:linear-gradient(110deg,#0f1116 30%,#171a21 50%,#0f1116 70%);background-size:200% 100%;animation:khs 1.6s linear infinite}
+@keyframes khs{to{background-position:-200% 0}}
+/* ---------- hover card (desktop) ---------- */
+.khp{position:fixed;z-index:60;overflow:hidden;border-radius:18px;background:#14161c;box-shadow:0 30px 90px rgba(0,0,0,.7);opacity:0;transform:scale(.9);transform-origin:center top;transition:opacity .25s,transform .35s var(--e),width .45s var(--e),left .45s var(--e);cursor:pointer}
+.khp.on{opacity:1;transform:none}
+.khp-i{aspect-ratio:16/9;background-size:cover;background-position:center}
+.khp-b{padding:14px 16px 16px}.khp-b h3{margin:0 0 6px;font:800 16px Manrope,sans-serif}
+.khp-m{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--mu);font-size:12.5px}
+.khp-d{margin:10px 0 0;color:#c9ced6;font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.khp-a{display:flex;gap:8px;margin-top:12px}
+.khp-a button{height:36px;padding:0 16px;border:0;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font:700 13px Manrope,sans-serif;cursor:pointer}.khp-a button:first-child{background:#f1efea;color:#0a0b0e}
+/* ---------- search page ---------- */
+.ks-f{display:flex;align-items:center;gap:12px;height:56px;margin:14px 0 6px;padding:0 20px;border-radius:28px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08)}
+.ks-f svg{width:21px;height:21px;color:#8d94a0}.ks-f input{flex:1;min-width:0;border:0;background:none;color:var(--tx);font:600 16px Manrope,sans-serif;outline:0}
+.ks-r{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}.ks-r a{display:flex;align-items:center;height:38px;padding:0 16px;border-radius:99px;background:rgba(255,255,255,.07);color:var(--tx);font:600 13px Manrope,sans-serif}
+#sr.ld{opacity:.45;transition:opacity .2s}
+/* ---------- pickers built into the app ---------- */
+.kg-bar{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 6px}
+.kdd{position:relative}
+.kdd-b{display:flex;align-items:center;gap:10px;height:46px;max-width:80vw;padding:0 16px 0 20px;border:0;border-radius:99px;background:rgba(255,255,255,.08);color:var(--tx);font:600 14px Manrope,sans-serif;cursor:pointer}
+.kdd-b span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kdd-b svg{width:16px;height:16px;transform:rotate(90deg);transition:transform .3s var(--e)}.kdd.open .kdd-b svg{transform:rotate(-90deg)}
+.kdd-l{position:absolute;z-index:30;top:calc(100% + 8px);left:0;min-width:250px;max-height:min(60vh,460px);overflow:auto;padding:8px;border-radius:20px;background:rgba(20,22,28,.97);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);border:1px solid rgba(255,255,255,.1);box-shadow:0 24px 70px rgba(0,0,0,.6);opacity:0;transform:translateY(-6px) scale(.97);transform-origin:top left;pointer-events:none;transition:opacity .2s,transform .3s var(--e)}
+.kdd.open .kdd-l{opacity:1;transform:none;pointer-events:auto}
+.kdd-l button{display:block;width:100%;padding:11px 14px;border:0;border-radius:12px;background:none;color:var(--tx);font:600 14px Manrope,sans-serif;text-align:left;cursor:pointer}
+.kdd-l button:hover{background:rgba(255,255,255,.08)}.kdd-l button.on{background:#f1efea;color:#0a0b0e}
+/* ---------- explore, settings extras, player ---------- */
+.kex{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:20px}
+.kxt{display:flex;flex-direction:column;gap:4px;padding:22px;border-radius:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:var(--tx);transition:background .25s,transform .3s var(--e)}
+.kxt:hover{background:rgba(255,255,255,.1);transform:translateY(-3px)}
+.kxt i{display:grid;place-items:center;width:48px;height:48px;margin-bottom:10px;border-radius:16px;background:rgba(255,255,255,.08)}.kxt svg{width:24px;height:24px}.kxt b{font:700 18px Manrope,sans-serif}.kxt small{color:var(--mu)}
+.k6 .k6o.col{flex-direction:column;align-items:stretch}.k6ch.wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+html.win #fs{display:none}

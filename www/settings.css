@@ -8,7 +8,7 @@
 .k6 .k6c>*+*{border-top:1px solid rgba(255,255,255,.06)}
 .k6 .k6r:hover{background:rgba(255,255,255,.04)}
 .k6 .k6r:focus-visible{outline:0;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 3px #f1efea}
-.k6 .k6r>i{flex:0 0 auto;display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:#14263f;color:#3b82f6}
+.k6 .k6r>i{flex:0 0 auto;display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.07);color:#e8e6e1}
 .k6 .k6r>i svg{width:26px;height:26px}
 .k6 .k6r>span,.k6 .k6o>span{flex:1;min-width:0}
 .k6 .k6r b,.k6 .k6o b{display:block;font:600 17px Manrope,sans-serif}
@@ -17,7 +17,7 @@
 .k6 .k6t{position:relative;flex:0 0 auto;width:54px;height:32px;border:0;border-radius:99px;background:#2b2f38;cursor:pointer;transition:background .25s}
 .k6 .k6t::before{content:none}
 .k6 .k6t::after{content:"";position:absolute;left:4px;top:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .3s var(--e)}
-.k6 .k6t.on{background:var(--ac,#3b82f6)}.k6 .k6t.on::after{transform:translateX(22px)}
+.k6 .k6t.on{background:#f1efea}.k6 .k6t.on::after{transform:translateX(22px);background:#0a0b0e}
 .k6 .k6t:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea}
 .k6 .k6bk{display:inline-flex;align-items:center;gap:6px;height:40px;margin:0 0 14px -8px;padding:0 16px 0 10px;border:0;border-radius:99px;background:rgba(255,255,255,.07);color:var(--tx);font:600 14px Manrope,sans-serif;cursor:pointer}
 .k6 .k6bk:focus-visible{outline:0;box-shadow:0 0 0 3px #f1efea}

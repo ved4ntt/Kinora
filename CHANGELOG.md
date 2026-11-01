@@ -14,6 +14,18 @@ Each release on GitHub shows the section for its version. Add a new `## [version
 - Redesigned source chooser and video player controls.
 - Native feel: swipe in from the left edge to go back, press feedback on everything you tap, smooth screen transitions, and no zoom, text selection or overscroll bounce.
 
+### Also new in this beta
+- New dock: floating pills with a smooth sliding highlight. On desktop you get Home, Movies, Series, Live TV and Library, with search that expands in place, plus Settings and your profile. On phones there is one bottom bar with Home, Search, Explore, Library and Profile. Compact or expanded labels can be chosen in Settings > Look & feel.
+- The profile button works again on desktop and phone, and the "Who's watching?" picker shows first when you have more than one profile.
+- Search is one stable page: results no longer reload, fade or reshuffle while you wait.
+- Every row has a See all button, arrow buttons, and mouse-drag scrolling. The Home banner is bigger and can be dragged or swiped, and the first banners are preloaded so Details open instantly.
+- Movies and Series have built-in catalog and genre pickers.
+- Desktop hover cards are back (small first, then large, with the page background following the title). On phones the card in the middle pops up with its details as you slide.
+- Settings > Playback has preferred languages and qualities, with switches to show only those.
+- Torrent streams and anything below 720p are hidden by default.
+- The blue theme is gone, the original player controls are back, and a few names were changed (plugins are now Kinora add-ons).
+- The app opens on the page with loading placeholders instead of a logo splash.
+
 ### Fixed
 - Windows playback is much faster: direct streams now go through a built-in proxy that downloads several pieces at once, so slow hosts no longer load in 10-second bursts, and seeking jumps straight to the timestamp you click.
 - Formats the player can't hear (Dolby Digital Plus, DTS, TrueHD, Atmos) now start through a quick converter that copies the video and only converts the sound, instead of re-encoding the whole movie.
