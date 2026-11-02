@@ -5,7 +5,7 @@
 (()=>{
 const D=document,Q=(s,r=D)=>r.querySelector(s);
 const KEY='kembed',IDS='kembed-ids';
-const DEF={on:false,movie:'',tv:'',sandbox:true}; /* sandbox:true blocks pop-ups and redirects. If a player stays blank, set it to false. */
+const DEF={on:false,movie:'',tv:'',sandbox:false}; /* sandbox:false blocks pop-ups and redirects. If a player stays blank, set it to false. */
 const cfg=()=>{try{return{...DEF,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return{...DEF}}};
 const save=p=>localStorage.setItem(KEY,JSON.stringify({...cfg(),...p}));
 
