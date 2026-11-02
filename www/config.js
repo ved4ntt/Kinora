@@ -8,5 +8,7 @@ window.KINORA_CONFIG={
   siteUrl:'https://kinor4.vercel.app',
   appName:'Kinora',
   deepLink:'kinora://auth',
-  googleClientId:'286829733855-kv3sr70pfha0480rmm3kqb7ua2vgj6po.apps.googleusercontent.com'
+  googleClientId:'286829733855-kv3sr70pfha0480rmm3kqb7ua2vgj6po.apps.googleusercontent.com',
+  /* TMDB v3 key: Kinora reads titles, posters and details from TMDB first and uses Cinemeta only as a fallback. */
+  tmdbKey:'6754b50af9590cdbe9a1cbfbd8b62889'
 };
