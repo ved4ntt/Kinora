@@ -1,3 +1,4 @@
+
 /* Kinora embed player (optional, off by default).
    Plays a title inside an iframe from a provider you are authorized to use.
    It changes no other code: it only listens for the Play button and episode taps on the details page.
@@ -5,7 +6,7 @@
 (()=>{
 const D=document,Q=(s,r=D)=>r.querySelector(s);
 const KEY='kembed',IDS='kembed-ids';
-const DEF={on:false,movie:'',tv:'',sandbox:false}; /* sandbox:false blocks pop-ups and redirects. If a player stays blank, set it to false. */
+const DEF={on:false,movie:'',tv:''};
 const cfg=()=>{try{return{...DEF,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return{...DEF}}};
 const save=p=>localStorage.setItem(KEY,JSON.stringify({...cfg(),...p}));
 
@@ -15,13 +16,13 @@ async function tmdbId(id,kind){
  const k=kind+':'+id;if(c[k])return c[k];
  const keep=v=>{if(v){c[k]=v;localStorage.setItem(IDS,JSON.stringify(c))}return v||''};
  const pick=m=>m&&(m.moviedb_id||m.tmdb_id||m.tmdbId||'');
- let v=pick(M[kind+'|'+id]);                         /* already loaded by the details page */
+ let v=pick(M[kind+'|'+id]);
  if(v)return keep(v);
- try{                                                /* ask the add-on that knows this title */
+ try{
   const a=addons.find(x=>has(x,'meta',kind,id));
   if(a){const r=await call(a,'meta',kind,id);v=pick(r&&r.meta);if(v)return keep(v)}
  }catch{}
- const key=LS.get('tmdbKey','');if(!key)return '';   /* last resort: look it up on TMDB */
+ const key=LS.get('tmdbKey','');if(!key)return '';
  const r=await fetch('https://api.themoviedb.org/3/find/'+encodeURIComponent(id)+'?external_source=imdb_id&api_key='+encodeURIComponent(key)).then(x=>x.json()).catch(()=>null);
  const hit=r&&((kind==='movie'?r.movie_results:r.tv_results)||[])[0];
  return keep(hit&&hit.id);
@@ -33,7 +34,10 @@ async function openEmbed(type,id,s,e,kind){
  if(!tpl){toast('Add your embed address in Settings > Playback first');return}
  let tmdb='';
  if(/^tmdb:(\d+)/.test(id))tmdb=RegExp.$1;
- else if(/\{tmdb\}/.test(tpl)){tmdb=await tmdbId(id,kind);if(!tmdb){toast('Could not find the TMDB id for this title. Use {imdb} in your address instead.');return}}
+ else if(/\{tmdb\}/.test(tpl)){
+  tmdb=await tmdbId(id,kind);
+  if(!tmdb){toast('Could not find the TMDB id for this title. Use {imdb} in your address instead.');return}
+ }
  const url=fill(tpl,{imdb:id,tmdb,season:s,episode:e});
  if(!/^https:\/\//i.test(url)){toast('The embed address must start with https://');return}
  show(url);
@@ -47,9 +51,9 @@ function close(){const o=Q('#kemb');if(o)o.remove()}
 function show(url){
  close();
  const o=D.createElement('div');o.id='kemb';
- o.innerHTML='<button class="kemb-x" aria-label="Close">'+ic('back')+'</button><iframe src="'+h(url)+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="origin"'+(cfg().sandbox?' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"':'')+'></iframe>';
+ o.innerHTML='<button class="kemb-x" aria-label="Close">'+ic('back')+'</button><iframe src="'+h(url)+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="origin"></iframe>';
  D.body.append(o);
- history.pushState({kemb:1},''); /* the phone's Back button closes the player */
+ history.pushState({kemb:1},'');
  Q('.kemb-x',o).onclick=()=>history.back();
 }
 addEventListener('popstate',close);
