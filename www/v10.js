@@ -293,7 +293,12 @@ function gestures(pl){
    pl.wake&&pl.wake();
   }else{
    tapAt=now;tapX=x;
-   tapT=setTimeout(()=>{tapAt=0;if(wasAct){pl.classList.remove('act')}else pl.wake&&pl.wake()},320);
+   tapT=setTimeout(()=>{
+    tapAt=0;
+    if(v.paused){v.play().catch(()=>{});pl.wake&&pl.wake()}
+    else if(wasAct){pl.classList.remove('act')}
+    else pl.wake&&pl.wake();
+   },320);
   }
  };
  vw.addEventListener('pointerup',end);vw.addEventListener('pointercancel',end);

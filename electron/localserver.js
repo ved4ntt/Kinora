@@ -18,7 +18,17 @@ function bin(name, fallback) {
 }
 
 const isPrivate = (ip) => /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.|::1$|fc|fd|fe80)/i.test(ip);
-const decodeHeaders = (q) => { try { return q ? JSON.parse(Buffer.from(q, 'base64').toString()) : {}; } catch { return {}; } };
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const decodeHeaders = (q) => {
+  try {
+    const h = q ? JSON.parse(Buffer.from(q, 'base64').toString()) : {};
+    if (!h['User-Agent'] && !h['user-agent']) h['User-Agent'] = BROWSER_UA;
+    if (!h['Accept'] && !h['accept']) h['Accept'] = '*/*';
+    return h;
+  } catch {
+    return { 'User-Agent': BROWSER_UA, 'Accept': '*/*' };
+  }
+};
 const headerArg = (h) => Object.entries(h).map(([k, v]) => `${k}: ${v}\r\n`).join('');
 
 function startServer({ www, tmp, port = 38787 }) {
@@ -96,9 +106,13 @@ function startServer({ www, tmp, port = 38787 }) {
       const r = await fetch(u, { headers, redirect: 'follow', signal: ac.signal });
       res.status(r.status);
       for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges']) { const v = r.headers.get(k); if (v) res.set(k, v); }
+      if (!res.get('accept-ranges')) res.set('Accept-Ranges', 'bytes');
       if (!r.body) return res.end();
       Readable.fromWeb(r.body).pipe(res);
-    } catch { if (!res.headersSent) res.status(502).send('Upstream error'); else res.destroy(); }
+    } catch (e) {
+      if (!res.headersSent) res.status(502).send('Upstream error');
+      else { try { res.end(); } catch {} }
+    }
   }
 
   app.get('/proxy', auth, async (req, res) => {
@@ -107,20 +121,8 @@ function startServer({ www, tmp, port = 38787 }) {
     const headers = { ...decodeHeaders(req.query.h) };
     const ac = new AbortController();
     res.on('close', () => ac.abort());
-    const m = await rangeMeta(u, headers);
-    if (!m.ranges || !m.size) return passThrough(req, res, u, headers, ac);
-    let start = 0, end = m.size - 1, partial = false;
-    const rg = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
-    if (rg) {
-      partial = true;
-      if (rg[1] !== '') { start = +rg[1]; if (rg[2] !== '') end = Math.min(+rg[2], m.size - 1); }
-      else if (rg[2] !== '') start = Math.max(0, m.size - +rg[2]);
-      if (start > end || start >= m.size) return res.status(416).set('Content-Range', `bytes */${m.size}`).end();
-    }
-    res.status(partial ? 206 : 200);
-    res.set({ 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), 'Content-Type': m.type || 'video/mp4', 'Cache-Control': 'no-store' });
-    if (partial) res.set('Content-Range', `bytes ${start}-${end}/${m.size}`);
-    try { await pump(u, headers, start, end, res, ac.signal); } catch { res.destroy(); }
+    // Direct robust streaming pass-through for reliable seeking and CDN compatibility
+    return passThrough(req, res, u, headers, ac);
   });
 
   /* ---------- conversion to HLS ---------- */
@@ -147,6 +149,7 @@ function startServer({ www, tmp, port = 38787 }) {
     const hevcCopy = caps.hevc && codec === 'hevc' && /^yuv420p(10le)?$/.test(pix);
     const copyVideo = (codec === 'h264' && (pix === 'yuv420p' || pix === '')) || hevcCopy;
     const args = ['-hide_banner', '-loglevel', 'error', '-analyzeduration', '3000000', '-probesize', '6000000',
+      '-user_agent', BROWSER_UA,
       ...(copyVideo ? [] : ['-hwaccel', 'auto']),
       ...(hs ? ['-headers', hs] : []),
       '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5', '-i', u,

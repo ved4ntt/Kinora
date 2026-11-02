@@ -19,7 +19,7 @@ const save=o=>{const k=Object.keys(o);if(k.length>150)k.sort((a,b)=>o[a].t-o[b].
 const DEAD=new Set();
 const blank=()=>({ms:0,n:0,ok:0,f:0,t:0,lf:0});
 function ok(s,ms){const k=sid(s);if(!k)return;const o=db(),e=o[k]||blank();e.ms=e.ok?Math.round(e.ms*.6+ms*.4):Math.round(ms);e.ok++;e.n++;e.f=0;e.t=Date.now();o[k]=e;save(o);DEAD.delete(s.url)}
-function bad(s){const k=sid(s);if(!k)return;const o=db(),e=o[k]||blank();e.f++;e.n++;e.t=e.lf=Date.now();o[k]=e;save(o);DEAD.add(s.url)}
+function bad(s){const k=sid(s);if(!k)return;const o=db(),e=o[k]||blank();e.f++;e.n++;e.t=e.lf=Date.now();o[k]=e;save(o);if(e.f>=3&&!e.ok)DEAD.add(s.url)}
 const ent=s=>{const e=db()[sid(s)];return e&&Date.now()-e.t<21*DAY?e:null};
 function pen(s){
  const e=ent(s);let p=0;
@@ -27,13 +27,12 @@ function pen(s){
  if(mode()==='quality')return p;
  return p+(e&&e.ok?Math.min(7,e.ms/1400):.9);
 }
-function dead(s){if(!s)return false;if(DEAD.has(s.url))return true;const e=ent(s);return!!(e&&!e.ok&&e.f>=2&&Date.now()-e.lf<12*HR)}
-function limit(s){const e=ent(s);return e&&e.ok?Math.max(9000,Math.min(25000,e.ms*3+4000)):25000}
+function dead(s){if(!s)return false;if(DEAD.has(s.url))return true;const e=ent(s);return!!(e&&!e.ok&&e.f>=3&&Date.now()-e.lf<12*HR)}
+function limit(s){const e=ent(s);return e&&e.ok?Math.max(20000,Math.min(45000,e.ms*3+5000)):35000}
 window.KSpeed={ok,bad,pen,dead,limit,ent,sid,reset(){LS.set('spd',{});DEAD.clear()}};
 try{if(CFG().defSrc)setCfg({defSrc:''})}catch{}
 
 /* ================= full length straight away ================= */
-const realD=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'duration').get;
 const RT={};
 const rt2s=r=>{if(!r)return 0;const s=String(r),h=/(\d+)\s*h/i.exec(s),m=/(\d+)\s*m/i.exec(s);if(h||m)return((h?+h[1]:0)*60+(m?+m[1]:0))*60;const x=/(\d+)/.exec(s);return x?+x[1]*60:0};
 async function runtimeOf(ctx){
@@ -42,29 +41,16 @@ async function runtimeOf(ctx){
  return RT[k];
 }
 function fixDur(v,ctx){
- if(!ctx.type||ctx.type==='tv')return;
- const k=ctx.type+'|'+ctx.id+'|'+(ctx.vid||'');
- let rt=RT[k]||0,last=0,since=performance.now(),trusted=false;
- runtimeOf(ctx).then(x=>{rt=x||0});
- Object.defineProperty(v,'duration',{configurable:true,get(){
-  const d=realD.call(v);
-  if(trusted||!(rt>0))return d;
-  if(isFinite(d)&&d>0){
-   if(Math.abs(d-last)>.5){last=d;since=performance.now()}
-   if(d>=rt*.7||(v.readyState>=3&&d>120&&performance.now()-since>9000)){trusted=true;return d}
-  }
-  return rt;
- }});
+ // Do not override native duration on HTMLMediaElement as it breaks HLS buffer algorithms and seeking
 }
 
 /* ================= measure every real playback attempt ================= */
 {const p0=play;play=function(s,ctx){
  const r=p0.apply(this,arguments);
  const v=Q('#vw video');if(!v||!s||!s.url)return r;
- try{fixDur(v,ctx||{})}catch{}
  const t=performance.now();let fin=false,to=0;
  const done=good=>{if(fin)return;fin=true;clearTimeout(to);if(!v.isConnected||!navigator.onLine)return;good?ok(s,performance.now()-t):bad(s)};
- to=setTimeout(()=>done(false),limit(s)+1500);
+ to=setTimeout(()=>done(false),limit(s)+8000);
  v.addEventListener('playing',()=>done(true),{once:true});
  v.addEventListener('error',()=>done(false),{once:true});
  return r;
