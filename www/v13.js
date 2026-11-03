@@ -1,7 +1,7 @@
 /* Kinora v13: web-only "Get the app", hidden admin entry, Apple-style emoji, glass dropdowns */
 (()=>{
 const D=document,Q=(s,r=D)=>r.querySelector(s),QA=(s,r=D)=>[...r.querySelectorAll(s)];
-const web=!D.documentElement.classList.contains('app')&&!window.kinoraWin&&!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+const web=!D.documentElement.classList.contains('app')&&!window.kinoraWin&&!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())&&!window.KinoraNative;
 const st=D.createElement('style');
 st.textContent=`.k13dl{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:99px;background:#f1efea;color:#0a0b0e;font:600 13.5px Manrope,sans-serif;white-space:nowrap;transition:transform .35s var(--spring)}.k13dl:hover{transform:scale(1.04)}.k13dl svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #ft .k13dl{height:34px;margin-left:14px;font-size:12.5px}
@@ -83,7 +83,7 @@ if(matchMedia('(pointer:coarse)').matches&&'IntersectionObserver' in window){
   [...r.children].slice(0,9).forEach((c,i)=>c.style.setProperty('--i',i));
   requestAnimationFrame(()=>r.classList.add('k13in'));
   setTimeout(()=>{r.classList.remove('k13p','k13in');[...r.children].forEach(c=>c.style.removeProperty('--i'))},1300);
- },{threshold:.15});
+ }),{threshold:.15});
  const rows=()=>QA('.row:not([data-k13r])').forEach(r=>{r.dataset.k13r=1;if(r.children.length<4)return;const b=r.getBoundingClientRect();if(b.top<innerHeight&&b.bottom>0&&!Q('#pl'))return;r.classList.add('k13p');io.observe(r)});
  new MutationObserver(rows).observe(D.getElementById('app'),{childList:true,subtree:true});rows();
 }

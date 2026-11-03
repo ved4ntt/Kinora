@@ -3,7 +3,7 @@
    Anime always uses the embed player. The links are built in; nothing to fill in. */
 (()=>{
 const D=document,Q=s=>D.querySelector(s);
-const APP=!!(window.kinoraWin||(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()));
+const APP=!!(window.kinoraWin||(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||window.KinoraNative);
 const LINK={
  movie:'https://vidly.pro/movie/{tmdb}?autoplay=1&audioPicker=1',
  tv:'https://vidly.pro/tv/{tmdb}/{season}/{episode}?autoplay=1&audioPicker=1',

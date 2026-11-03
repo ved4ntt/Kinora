@@ -5,6 +5,15 @@ const { startServer } = require('./localserver');
 let autoUpdater = null;
 try { ({ autoUpdater } = require('electron-updater')); } catch {}
 
+process.on('uncaughtException', (err) => {
+  if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || String(err).includes('aborted'))) return;
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  if (reason && (reason.name === 'AbortError' || reason.code === 'ABORT_ERR' || String(reason).includes('aborted'))) return;
+  console.error('Unhandled Rejection:', reason);
+});
+
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
 // lets the player list and switch the audio tracks inside a file (dual audio, commentary)
 app.commandLine.appendSwitch('enable-blink-features', 'AudioVideoTracks');

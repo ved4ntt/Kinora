@@ -496,12 +496,11 @@ body.reduce *{animation-duration:.01ms!important;animation-iteration-count:1!imp
 <link rel="stylesheet" href="v11.css">
 <link rel="stylesheet" href="speed.css">
 <link rel="stylesheet" href="v12.css">
-
-
+<script src="capacitor.js"></script>
 </head>
 <body>
 <div id="spl" aria-hidden="true"><div class="sg"><i class="gl"></i><svg viewBox="330 255 620 720"><defs><linearGradient id="ksf" gradientUnits="userSpaceOnUse" x1="340" y1="268" x2="938" y2="968"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#e4e1d8"/><stop offset="1" stop-color="#b9b4a8"/></linearGradient><linearGradient id="ksw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><clipPath id="kscl"><path d="M520 272Q538 268 538 292V948Q538 968 516 958L362 862Q340 846 340 820V432Q340 396 366 376Z"/><path d="M548 642L738 406Q752 392 782 392H914Q936 394 924 412L692 660Q672 686 640 676Q586 662 548 642Z"/><path d="M548 690Q650 688 722 726Q790 764 872 884L932 944Q942 958 920 962H772Q724 956 694 912L588 762Q556 726 548 690Z"/></clipPath></defs><g fill="url(#ksf)"><path class="a a1" d="M520 272Q538 268 538 292V948Q538 968 516 958L362 862Q340 846 340 820V432Q340 396 366 376Z"/><path class="a a2" d="M548 642L738 406Q752 392 782 392H914Q936 394 924 412L692 660Q672 686 640 676Q586 662 548 642Z"/><path class="a a3" d="M548 690Q650 688 722 726Q790 764 872 884L932 944Q942 958 920 962H772Q724 956 694 912L588 762Q556 726 548 690Z"/></g><g clip-path="url(#kscl)"><rect class="sw" x="330" y="255" width="240" height="720" fill="url(#ksw)"/></g></svg><b>KINORA</b></div></div>
-<script>(function(){var s=document.getElementById('spl'),t=Date.now();try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&s){s.remove();s=null}}catch(e){}function out(){if(!s)return;var e=s;s=null;e.classList.add('out');setTimeout(function(){e.remove()},900)}window.__kSplash=function(){setTimeout(out,Math.max(0,1500-(Date.now()-t)))};setTimeout(out,6500)})();</script>
+<script>(function(){var s=document.getElementById('spl'),t=Date.now();try{if((window.KinoraNative||(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()))&&s){s.remove();s=null}}catch(e){}function out(){if(!s)return;var e=s;s=null;e.classList.add('out');setTimeout(function(){e.remove()},900)}window.__kSplash=function(){setTimeout(out,Math.max(0,1500-(Date.now()-t)))};setTimeout(out,6500)})();</script>
 <svg width="0" height="0" style="position:absolute"><defs><linearGradient id="kg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfaf6"/><stop offset="1" stop-color="#c9c6be"/></linearGradient></defs></svg>
 <div id="amb"><div></div><div></div></div>
 <header id="dock"></header>
@@ -1517,8 +1516,16 @@ function bindExtra(){
 /* ----- boot: connect cloud, then show first-visit preferences ----- */
 {const b0=window.boot;window.boot=async()=>{sbInit();await b0();setTimeout(onboard,800)}}
 /* ----- running inside the Windows / Android app, or installed as a PWA ----- */
-const IS_APP=/Electron/.test(navigator.userAgent)||!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
-if(IS_APP)document.documentElement.classList.add('app');
+const IS_APP=/Electron/.test(navigator.userAgent)||!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||!!window.KinoraNative||location.hostname==='localhost'||location.protocol==='capacitor:'||location.protocol==='file:';
+if(IS_APP){
+  document.documentElement.classList.add('app');
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>{for(const r of regs)r.unregister();}).catch(()=>{});
+  }
+  if('caches' in window){
+    caches.keys().then(keys=>{for(const k of keys)caches.delete(k);}).catch(()=>{});
+  }
+}
 if(/Electron/.test(navigator.userAgent))fetch('/native.json').then(r=>r.json()).then(j=>LS.set('srv',{url:j.url,key:j.key})).catch(()=>{});
 else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
@@ -1558,11 +1565,9 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="explore.js"></script>
 <script src="embed.js"></script>
 <link rel="stylesheet" href="kplay.css">
-<link rel="stylesheet" href="kfix.css">
 <script src="ktmdb.js"></script>
 <script src="kanime.js"></script>
 <script src="kplay.js"></script>
-<script src="knative.js"></script>
 <script src="kfix.js"></script>
 <script>boot()</script>
 </body>

@@ -4,7 +4,7 @@
 const D=document,Q=s=>D.querySelector(s),say=m=>{try{toast(m)}catch{}};
 const CF=()=>window.KINORA_CONFIG||{};
 const EL=!!(window.kinoraWin&&window.kinoraWin.openExternal);
-const AN=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+const AN=!!((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||window.KinoraNative);
 const NATIVE=EL||AN;
 const base=()=>NATIVE?(CF().siteUrl||'https://kinor4.vercel.app').replace(/\/?$/,'/'):location.origin+location.pathname;
 const DEEP=()=>CF().deepLink||'kinora://auth';

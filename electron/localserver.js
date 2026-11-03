@@ -108,10 +108,21 @@ function startServer({ www, tmp, port = 38787 }) {
       for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges']) { const v = r.headers.get(k); if (v) res.set(k, v); }
       if (!res.get('accept-ranges')) res.set('Accept-Ranges', 'bytes');
       if (!r.body) return res.end();
-      Readable.fromWeb(r.body).pipe(res);
+      const stream = Readable.fromWeb(r.body);
+      stream.on('error', () => {
+        try { res.destroy(); } catch {}
+      });
+      res.on('close', () => {
+        try { stream.destroy(); } catch {}
+      });
+      stream.pipe(res);
     } catch (e) {
-      if (!res.headersSent) res.status(502).send('Upstream error');
-      else { try { res.end(); } catch {} }
+      if (ac.signal.aborted || e?.name === 'AbortError') return;
+      if (!res.headersSent && !res.writableEnded && !res.destroyed) {
+        try { res.status(502).send('Upstream error'); } catch {}
+      } else {
+        try { res.end(); } catch {}
+      }
     }
   }
 
@@ -120,7 +131,11 @@ function startServer({ www, tmp, port = 38787 }) {
     if (!(await safeUrl(u))) return res.status(400).send('Bad url');
     const headers = { ...decodeHeaders(req.query.h) };
     const ac = new AbortController();
-    res.on('close', () => ac.abort());
+    res.on('close', () => {
+      try {
+        if (!ac.signal.aborted) ac.abort();
+      } catch {}
+    });
     // Direct robust streaming pass-through for reliable seeking and CDN compatibility
     return passThrough(req, res, u, headers, ac);
   });

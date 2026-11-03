@@ -5,7 +5,7 @@
    Phones keep their own bottom dock. */
 (()=>{
 const D=document,Q=(s,r=D)=>r.querySelector(s),QA=(s,r=D)=>[...r.querySelectorAll(s)];
-const AND=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+const AND=!!((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||window.KinoraNative);
 const WINAPP=!!window.kinoraWin,APP=AND||WINAPP;
 const REPO='ved4ntt/Kinora';
 const HDHUB='https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyIsImNhdGFsb2dzIjoiZmVhdHVyZWQscG9wdWxhciJ9/manifest.json';

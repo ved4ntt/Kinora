@@ -1,7 +1,7 @@
 /* Kinora updates: version check, optional auto-download (Windows), one-tap download (Android). Settings > App updates. */
 (()=>{
 const D=document,Q=s=>D.querySelector(s),REPO='vedantt/Kinora';
-const W=window.kinoraWin&&window.kinoraWin.upd,CAP=window.Capacitor,AND=!!(CAP&&CAP.isNativePlatform&&CAP.isNativePlatform());
+const W=window.kinoraWin&&window.kinoraWin.upd,CAP=window.Capacitor,AND=!!((CAP&&CAP.isNativePlatform&&CAP.isNativePlatform())||window.KinoraNative);
 const KIND=W?'win':AND?'and':'web';
 const S={s:KIND==='web'?'web':'idle',cur:'',v:'',notes:'',p:0,url:'',m:'',at:0};
 let later=0,last='';
@@ -13,7 +13,7 @@ const CV='<svg class="cv" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
 const opt=(t,s,c)=>'<div class="k6o"><span><b>'+t+'</b><small>'+s+'</small></span>'+c+'</div>';
 const tg=(k,on)=>'<button class="k6t'+(on?' on':'')+'" data-tg="'+k+'" role="switch" aria-checked="'+on+'" aria-label="toggle"></button>';
 
-(async()=>{try{S.cur=W?await W.version():AND?(await CAP.Plugins.App.getInfo()).version:''}catch{}render()})();
+(async()=>{try{S.cur=W?await W.version():AND?(CAP&&CAP.Plugins&&CAP.Plugins.App?(await CAP.Plugins.App.getInfo()).version:''):''}catch{}render()})();
 
 /* ---- checking, downloading, installing ---- */
 async function check(){
@@ -34,7 +34,7 @@ async function check(){
 function act(){
  if(S.s==='available'){
   if(W){S.s='downloading';S.p=0;render();W.download()}
-  else{try{CAP.Plugins.Browser.open({url:S.url})}catch{window.open(S.url,'_blank')}}
+  else{try{if(CAP&&CAP.Plugins&&CAP.Plugins.Browser)CAP.Plugins.Browser.open({url:S.url});else window.open(S.url,'_blank')}catch{window.open(S.url,'_blank')}}
  }else if(S.s==='ready'&&W)W.install();
  else check();
 }

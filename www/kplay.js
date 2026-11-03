@@ -11,7 +11,7 @@
 const D=document,Q=(s,r=D)=>r.querySelector(s),QA=(s,r=D)=>[...r.querySelectorAll(s)];
 const say=m=>{try{toast(m)}catch{}};
 const WIN=/Electron/.test(navigator.userAgent);
-const ANDROID=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+const ANDROID=!!((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||window.KinoraNative);
 const withT=(p,ms)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),ms))]);
 const qlab=q=>q>=2160?'4K':q?q+'p':'Auto';
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return''}};
