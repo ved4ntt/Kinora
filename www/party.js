@@ -463,7 +463,7 @@ let kp=null;
 function ensurePanel(){
  if(kp)return kp;
  kp=D.createElement('aside');kp.id='kp';kp.setAttribute('aria-label','Watch party');
- kp.innerHTML=`<header><h2>Watch party</h2><span class="kst2" id="kcn"></span><button class="rb" data-a="close" aria-label="Close">${ic('x')}</button></header><nav class="seg kt" id="ktab"><button data-t="party" class="on">Party</button><button data-t="chat">Chat<i class="kdot"></i></button></nav><div class="kv" id="kvp"></div><div class="kv" id="kvc" hidden><div class="kmsgs" id="kmsgs"></div><div class="krow">${EMO.map(e=>`<button data-e="${e}" aria-label="React ${e}">${e}</button>`).join('')}</div><form id="kcf"><input maxlength="500" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="rb" aria-label="Send">${ic('send')}</button></form></div>`;
+ kp.innerHTML=`<header><h2>Watch party</h2><span class="kst2" id="kcn"></span><button class="rb" data-a="close" aria-label="Close">${ic('x')}</button></header><nav class="seg kpt" id="ktab"><button data-t="party" class="on">Party</button><button data-t="chat">Chat<i class="kdot"></i></button></nav><div class="kv" id="kvp"></div><div class="kv" id="kvc" hidden><div class="kmsgs" id="kmsgs"></div><div class="krow">${EMO.map(e=>`<button data-e="${e}" aria-label="React ${e}">${e}</button>`).join('')}</div><form id="kcf"><input maxlength="500" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="rb" aria-label="Send">${ic('send')}</button></form></div>`;
  D.body.append(kp);
  kp.onclick=async e=>{
   const t=e.target.closest('#ktab button');

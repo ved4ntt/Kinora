@@ -66,7 +66,7 @@ const rank=(p,sel,pref,bad)=>{
  const lm=sel.lang?(p.langs.includes(sel.lang)?0:p.langs.length?1:.5):0;
  const qd=sel.q?Math.abs(qIdx(p.q)-qIdx(sel.q))+(p.q>sel.q?.3:0):0;
  const ps=pref&&window.KSrc?-window.KSrc.score(p.raw,pref):0;
- return[bad&&bad.has(p.key)?1:0,ps,lm,qd,(!HEVC_OK&&p.hevc&&!nativeOK())?1:0,provRank(p),webScore(p),p.q?0:1];
+ return[bad&&bad.has(p.key)?1:0,ps,lm,qd,((CFG().hdr===true)===!!(p.hdr||p.dv))?0:1,(!HEVC_OK&&p.hevc&&!nativeOK())?1:0,provRank(p),webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
@@ -225,6 +225,13 @@ E.play=function(s,ctx,t0){
  v.addEventListener('playing',()=>{
   const first=!started;started=true;clearTimeout(wd);clearTimeout(stallT);setBuf(false);
   if(ld)ld.classList.remove('on');H('state');if(first)H('playing',s);
+  if(first&&!nat&&'webkitAudioDecodedByteCount' in v)setTimeout(()=>{
+   if(my!==seq||dead||v.paused||v.muted||v.volume===0||v.currentTime<1.5)return;
+   if(v.webkitAudioDecodedByteCount===0){
+    if(SRVOK()&&!s._srv){say('Fixing the sound\u2026');play(srvStream({...s}),ctx,v.currentTime);return}
+    fail('This source has no sound on this device.','audio');
+   }
+  },4500);
  });
  v.addEventListener('pause',()=>H('state'));v.addEventListener('play',()=>H('state'));
  v.addEventListener('volumechange',()=>H('vol'));
@@ -411,7 +418,7 @@ V.watch=async function(type,id,vid){
  /* ---------- controls ---------- */
  const tog=()=>{const v=VID();v&&(v.paused?v.play().catch(()=>{}):v.pause())};
  const fsOn=()=>D.fullscreenElement||D.webkitFullscreenElement;
- const fs=()=>fsOn()?(D.exitFullscreen||D.webkitExitFullscreen).call(D):(pl.requestFullscreen||pl.webkitRequestFullscreen||(()=>{})).call(pl);
+ const fs=()=>fsOn()?(D.exitFullscreen||D.webkitExitFullscreen).call(D):(D.documentElement.requestFullscreen||D.documentElement.webkitRequestFullscreen||(()=>{})).call(D.documentElement);
  Q('#pp').onclick=tog;Q('#fs').onclick=fs;
  Q('#tt').onclick=()=>{setCfg({rem:!CFG().rem});tick()};
  Q('#vb').onclick=()=>{const v=VID();if(v)v.muted=!v.muted};
@@ -448,6 +455,7 @@ V.watch=async function(type,id,vid){
   mn.innerHTML='<h4>Subtitles</h4><button class="kmi'+(T.every(t=>t.mode!=='showing')?' on':'')+'" data-t="-1">Off</button>'+T.map((t,i)=>'<button class="kmi'+(t.mode==='showing'?' on':'')+'" data-t="'+i+'">'+h(t.label)+'</button>').join('')+(T.length?'':'<p class="kn">No subtitles from your add-ons yet.</p>')+
    (A.length>1?'<h4>Audio track</h4>'+A.map((a,i)=>'<button class="kmi'+(a.on?' on':'')+'" data-a="'+i+'">'+h(a.n)+'</button>').join(''):'')+
    '<h4>Subtitle size</h4><div class="kch">'+[['S',70],['M',100],['L',140],['XL',190]].map(([n,z])=>'<button class="kc'+(Math.abs((o.sz||100)-z)<18?' on':'')+'" data-z="'+z+'">'+n+'</button>').join('')+'</div>'+
+   '<h4>HDR</h4><div class="kch"><button class="kc'+(CFG().hdr===true?' on':'')+'" data-h="1">On</button><button class="kc'+(CFG().hdr===true?'':' on')+'" data-h="0">Off</button></div>'+
    '<h4>Speed</h4><div class="kch">'+[.5,.75,1,1.25,1.5,2].map(r=>'<button class="kc'+(rate===r?' on':'')+'" data-r="'+r+'">'+r+'\u00d7</button>').join('')+'</div>'+
    (ANDROID&&cur&&cur.url?'<button class="kmi" data-ext>Open in a player app</button>':'');
   mn.classList.add('on');
@@ -458,6 +466,7 @@ V.watch=async function(type,id,vid){
   if(b.dataset.t!=null&&v){[...v.textTracks].forEach((t,i)=>t.mode=i===+b.dataset.t?'showing':'hidden');QA('[data-t]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}
   if(b.dataset.a!=null&&v&&v.kAudioSet){v.kAudioSet(+b.dataset.a);QA('[data-a]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}
   if(b.dataset.z)try{updateSub({sz:+b.dataset.z});QA('[data-z]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}catch{}
+  if(b.dataset.h!=null){setCfg({hdr:b.dataset.h==='1'});QA('[data-h]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b));choose(null,st.q)}
   if(b.dataset.r&&v){v.playbackRate=+b.dataset.r;QA('[data-r]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}
   if(b.hasAttribute('data-ext'))openExternal(cur);
  };
@@ -473,7 +482,7 @@ V.watch=async function(type,id,vid){
 };
 
 /* Play goes straight to the player (there is no source chooser any more) */
-playTitle=function(m,type,id,vid){PICK=null;location.hash=watchUrl(type,id,vid)};
+playTitle=function(m,type,id,vid){PICK=null;if(window.KEmbed&&KEmbed.should(type)){KEmbed.open(type,id,vid,m);return}location.hash=watchUrl(type,id,vid)};
 
 /* hardware back / Escape closes the bar and menu first */
 {const b0=window.__kBack;window.__kBack=function(){const o=Q('#kmn.on,#kbar.on');if(o){o.classList.remove('on');return 1}return b0?b0():0}}

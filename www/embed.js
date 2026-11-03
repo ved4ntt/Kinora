@@ -1,94 +1,76 @@
-
-/* Kinora embed player (optional, off by default).
-   Plays a title inside an iframe from a provider you are authorized to use.
-   It changes no other code: it only listens for the Play button and episode taps on the details page.
-   Turn it on in Settings > Playback > Embed player. Turn it off and your add-on player works exactly as before. */
+/* Kinora embed player (vidly).
+   Browser: always on. Windows / Android apps: Settings > Playback > "Embed player" (off by default, the apps use their own player).
+   Anime always uses the embed player. The links are built in; nothing to fill in. */
 (()=>{
-const D=document,Q=(s,r=D)=>r.querySelector(s);
-const KEY='kembed',IDS='kembed-ids';
-const DEF={on:false,movie:'',tv:''};
-const cfg=()=>{try{return{...DEF,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return{...DEF}}};
-const save=p=>localStorage.setItem(KEY,JSON.stringify({...cfg(),...p}));
+const D=document,Q=s=>D.querySelector(s);
+const APP=!!(window.kinoraWin||(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()));
+const LINK={
+ movie:'https://vidly.pro/movie/{tmdb}?autoplay=1&audioPicker=1',
+ tv:'https://vidly.pro/tv/{tmdb}/{season}/{episode}?autoplay=1&audioPicker=1',
+ anime:'https://vidly.pro/anime/mal/{mal_id}/{episode}/sub?autoplay=1&audioPicker=1'
+};
+const fill=(t,o)=>t.replace(/\{(\w+)\}/g,(_,k)=>encodeURIComponent(o[k]));
+const on=()=>!APP||(typeof CFG==='function'&&CFG().embed===true);
+const should=(type)=>type==='anime'||on();
+const sayE=m=>{try{toast(m)}catch{}};
 
-/* find the TMDB id automatically: catalog data first, then the catalog add-on, then TMDB (only if you added a key) */
-async function tmdbId(id,kind){
- let c={};try{c=JSON.parse(localStorage.getItem(IDS)||'{}')}catch{}
- const k=kind+':'+id;if(c[k])return c[k];
- const keep=v=>{if(v){c[k]=v;localStorage.setItem(IDS,JSON.stringify(c))}return v||''};
- const pick=m=>m&&(m.moviedb_id||m.tmdb_id||m.tmdbId||'');
- let v=pick(M[kind+'|'+id]);
- if(v)return keep(v);
- try{
-  const a=addons.find(x=>has(x,'meta',kind,id));
-  if(a){const r=await call(a,'meta',kind,id);v=pick(r&&r.meta);if(v)return keep(v)}
- }catch{}
- const key=LS.get('tmdbKey','');if(!key)return '';
- const r=await fetch('https://api.themoviedb.org/3/find/'+encodeURIComponent(id)+'?external_source=imdb_id&api_key='+encodeURIComponent(key)).then(x=>x.json()).catch(()=>null);
- const hit=r&&((kind==='movie'?r.movie_results:r.tv_results)||[])[0];
- return keep(hit&&hit.id);
+async function metaOf(type,id){
+ try{const a=addons.find(x=>has(x,'meta',type,id));if(a)return((await call(a,'meta',type,id)).meta)||{}}catch{}
+ return{};
 }
-const fill=(t,v)=>t.replace(/\{(imdb|tmdb|season|episode)\}/g,(_,k)=>encodeURIComponent(v[k]==null?'':v[k]));
-
-async function openEmbed(type,id,s,e,kind){
- const c=cfg(),tpl=type==='movie'?c.movie:c.tv;
- if(!tpl){toast('Add your embed address in Settings > Playback first');return}
- let tmdb='';
- if(/^tmdb:(\d+)/.test(id))tmdb=RegExp.$1;
- else if(/\{tmdb\}/.test(tpl)){
-  tmdb=await tmdbId(id,kind);
-  if(!tmdb){toast('Could not find the TMDB id for this title. Use {imdb} in your address instead.');return}
+async function tmdbOf(type,id,m){
+ if(m&&m.moviedb_id)return m.moviedb_id;
+ if(/^tmdb:/.test(id))return id.split(':')[1];
+ const imdb=(m&&m.imdb_id)||(/^tt\d+/.test(id)?id.split(':')[0]:'');
+ if(imdb&&window.KTmdb){
+  try{const f=await KTmdb.api('find/'+imdb,{external_source:'imdb_id'}),h=((type==='movie'?f.movie_results:f.tv_results)||[])[0];if(h)return h.id}catch{}
  }
- const url=fill(tpl,{imdb:id,tmdb,season:s,episode:e});
- if(!/^https:\/\//i.test(url)){toast('The embed address must start with https://');return}
- show(url);
+ return '';
 }
+async function open(type,id,vid,m){
+ id=decodeURIComponent(id);vid=vid?decodeURIComponent(vid):'';
+ m=m&&m.name?m:await metaOf(type,id);
+ const ep=/:(\d+):(\d+)$/.exec(vid||''),season=ep?ep[1]:1,episode=ep?ep[2]:1;
+ let u='';
+ if(type==='anime'){
+  u=fill(LINK.anime,{mal_id:id.split(':')[1],episode});
+ }else{
+  const tmdb=await tmdbOf(type,id,m);
+  if(!tmdb){sayE('Could not find this title for the embed player');return false}
+  u=type==='movie'?fill(LINK.movie,{tmdb}):fill(LINK.tv,{tmdb,season,episode});
+ }
+ show(u,(m&&m.name)||'',type,id);
+ return true;
+}
+function close(){
+ const e=Q('#kemb');if(!e)return;
+ e.remove();
+ if(/^#\/watch\/anime/.test(location.hash))history.back();
+}
+function show(u,name,type,id){
+ const old=Q('#kemb');if(old)old.remove();
+ const e=D.createElement('div');e.id='kemb';
+ e.innerHTML='<iframe src="'+u+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen></iframe><button class="rb" id="kemb-x" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>';
+ D.body.append(e);
+ Q('#kemb-x').onclick=()=>{close();if(!/^#\/watch\//.test(location.hash)&&history.state&&history.state.kemb)history.back()};
+ try{history.pushState({kemb:1},'')}catch{}
+}
+addEventListener('popstate',()=>{const e=Q('#kemb');if(e&&!(history.state&&history.state.kemb)){e.remove();}});
+{const b0=window.__kBack;window.__kBack=function(){if(Q('#kemb')){close();return 1}return b0?b0():0}}
+D.addEventListener('keydown',e=>{if(e.key==='Escape'&&Q('#kemb'))close()});
 
-/* full-screen overlay with the iframe */
 const st=D.createElement('style');
-st.textContent='#kemb{position:fixed;inset:0;z-index:500;background:#000}#kemb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.kemb-x{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;z-index:2;display:grid;place-items:center;width:46px;height:46px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;cursor:pointer}.kemb-x svg{width:22px;height:22px}.kemb-in{width:100%;height:46px;margin-top:10px;padding:0 16px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.06);color:var(--tx);font:500 14px Manrope,sans-serif;outline:0}';
+st.textContent='#kemb{position:fixed;inset:0;z-index:70;background:#000}#kemb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}#kemb .rb{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;width:42px;height:42px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;cursor:pointer;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}#kemb .rb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}html.win #kemb .rb{top:44px}';
 D.head.append(st);
-function close(){const o=Q('#kemb');if(o)o.remove()}
-function show(url){
- close();
- const o=D.createElement('div');o.id='kemb';
- o.innerHTML='<button class="kemb-x" aria-label="Close">'+ic('back')+'</button><iframe src="'+h(url)+'" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="origin"></iframe>';
- D.body.append(o);
- history.pushState({kemb:1},'');
- Q('.kemb-x',o).onclick=()=>history.back();
-}
-addEventListener('popstate',close);
-D.addEventListener('keydown',e=>{if(e.key==='Escape'&&Q('#kemb')){e.preventDefault();history.back()}});
 
-/* Play button and episode taps on the details page */
-D.addEventListener('click',e=>{
- if(!cfg().on)return;
- const m=location.hash.match(/^#\/title\/(movie|series)\/([^/?]+)/);if(!m)return;
- const hit=e.target.closest('#kt-play,.kt-ep');if(!hit||e.target.closest('.kt-w'))return;
- const type=m[1]==='movie'?'movie':'tv',id=decodeURIComponent(m[2]);
- let s=1,ep=1;
- if(type==='tv'){
-  const el=e.target.closest('.kt-ep'),vid=el?el.dataset.v:'',p=vid.split(':');
-  if(p.length>=3){s=+p[p.length-2];ep=+p[p.length-1]}
-  else{const x=/S(\d+)\s*E(\d+)/i.exec((Q('#kt-play')||{}).textContent||'');if(x){s=+x[1];ep=+x[2]}}
- }
- e.preventDefault();e.stopImmediatePropagation();
- openEmbed(type,id,s,ep,m[1]);
-},true);
-
-/* settings: Settings > Playback > Embed player */
-if(window.K6&&K6.PAGES.play){
+/* the setting only exists in the apps */
+if(APP&&window.K6&&K6.PAGES&&K6.PAGES.play){
  const pp=K6.PAGES.play;
  K6.PAGES.play=()=>{
-  pp();const p=Q('.k6');if(!p)return;const c=cfg();
-  p.insertAdjacentHTML('beforeend','<h4 class="k6h">Embed player</h4><div class="k6c"><div class="k6o"><span><b>Use embed player</b><small>Play titles in a player from a provider you are authorized to use. Turn off to use your add-ons.</small></span><button class="k6t'+(c.on?' on':'')+'" id="kemb-on" role="switch" aria-checked="'+c.on+'" aria-label="Use embed player"></button></div><div class="k6o col"><span><b>Movie address</b><small>Use {tmdb} or {imdb}. TMDB ids are found automatically. It must start with https://</small></span><input class="kemb-in" id="kemb-m" value="'+h(c.movie)+'" placeholder="https://your-provider/movie/{tmdb}" autocapitalize="off" spellcheck="false"></div><div class="k6o col"><span><b>Series address</b><small>Use {tmdb} or {imdb}, plus {season} and {episode}</small></span><input class="kemb-in" id="kemb-t" value="'+h(c.tv)+'" placeholder="https://your-provider/tv/{tmdb}/{season}/{episode}" autocapitalize="off" spellcheck="false"></div></div>');
+  pp();const p=Q('.k6');if(!p)return;
+  const c=CFG().embed===true;
+  p.insertAdjacentHTML('beforeend','<h4 class="k6h">Embed player</h4><div class="k6c"><div class="k6o"><span><b>Use the embed player</b><small>Plays from the embed provider instead of your add-ons. Off uses the Kinora player with your add-ons.</small></span><button class="k6t'+(c?' on':'')+'" data-tg="embed" role="switch" aria-checked="'+c+'" aria-label="Embed player"></button></div></div>');
  };
 }
-D.addEventListener('click',e=>{
- const b=e.target.closest('#kemb-on');if(!b)return;
- const on=!cfg().on;save({on});b.classList.toggle('on',on);b.setAttribute('aria-checked',on);
-});
-D.addEventListener('input',e=>{
- if(e.target.id==='kemb-m')save({movie:e.target.value.trim()});
- if(e.target.id==='kemb-t')save({tv:e.target.value.trim()});
-});
+window.KEmbed={open,should,on,close,links:LINK};
 })();
