@@ -11,7 +11,7 @@ const recent=()=>LS.get('recent',[]);
 function suggestions(){
  const box=Q('#sr');if(!box)return;const r=recent();
  box.classList.remove('ld');
- box.innerHTML=r.length?'<h2 class="kg-t">Recent searches</h2><div class="ks-r">'+r.map(x=>'<a href="#/search/'+encodeURIComponent(x)+'">'+h(x)+'</a>').join('')+'</div>':'<p class="kg-e">Type a movie or series name to search.</p>';
+ box.innerHTML=(r.length?'<h2 class="kg-t">Recent searches</h2><div class="ks-r">'+r.map(x=>'<a href="#/search/'+encodeURIComponent(x)+'">'+h(x)+'</a>').join('')+'</div>':'<p class="kg-e">Type a movie, series or anime name to search.</p>')+(window.KExploreTiles?KExploreTiles():'');
 }
 async function run(q){
  const my=++tok;if(!Q('#sr'))return;
@@ -24,18 +24,19 @@ async function run(q){
  const sc=m=>{const n=(m.name||'').toLowerCase();return n===ql?0:n.startsWith(ql)?1:n.includes(ql)?2:3},rt=m=>parseFloat(m.imdbRating)||0;
  out.forEach(r=>(r.metas||[]).forEach(m=>{if(!seen.has(m.type+m.id)){seen.add(m.type+m.id);(res[m.type]||(res[m.type]=[])).push(m)}}));
  const b=Q('#sr');b.classList.remove('ld');
- b.innerHTML=['movie','series'].map(t=>res[t]&&res[t].length?'<h2 class="kg-t">'+typeLabel(t)+'</h2><div class="kg-grid">'+res[t].sort((a,b)=>sc(a)-sc(b)||rt(b)-rt(a)).map(tile).join('')+'</div>':'').join('')||'<p class="kg-e">No results for \u201c'+h(q)+'\u201d. Try another spelling.</p>';
+ b.innerHTML=['movie','series','anime'].map(t=>res[t]&&res[t].length?'<h2 class="kg-t">'+typeLabel(t)+'</h2><div class="kg-grid">'+res[t].sort((a,b)=>sc(a)-sc(b)||rt(b)-rt(a)).map(tile).join('')+'</div>':'').join('')||'<p class="kg-e">No results for \u201c'+h(q)+'\u201d. Try another spelling.</p>';
  LS.set('recent',[q,...recent().filter(x=>x.toLowerCase()!==ql)].slice(0,8));
 }
 V.search=function(q=''){
  q=un(q).trim();
- app().innerHTML='<div class="kg">'+head('Search')+'<form class="ks-f" id="ks-f">'+ic('search')+'<input type="search" id="ks-i" placeholder="Search movies and series" autocomplete="off" enterkeyhint="search" value="'+h(q)+'"></form><div id="sr"></div></div>';
+ app().innerHTML='<div class="kg">'+head('Search')+'<form class="ks-f" id="ks-f">'+ic('search')+'<input type="text" inputmode="search" id="ks-i" placeholder="Search movies, series and anime" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" value="'+h(q)+'"><button type="button" class="ks-x" id="ks-x" aria-label="Clear and go home">'+ic('x')+'</button></form><div id="sr"></div></div>';
  const i=Q('#ks-i');let t;
  const go=v=>{v=v.trim();if(v.length<2){tok++;suggestions();return}history.replaceState(null,'','#/search/'+encodeURIComponent(v));run(v)};
  i.oninput=()=>{clearTimeout(t);t=setTimeout(()=>go(i.value),450)};
  Q('#ks-f').onsubmit=e=>{e.preventDefault();clearTimeout(t);go(i.value);i.blur()};
  window.KSearch={set:v=>{i.value=v;go(v)}};
- if(q.length>=2)run(q);else{suggestions();if(matchMedia('(max-width:760px)').matches)setTimeout(()=>i.focus(),300)}
+ Q('#ks-x').onclick=()=>{i.value='';i.blur();tok++;location.hash='#/'};
+ if(q.length>=2)run(q);else suggestions();
 };
 
 /* ---------------- Movies / Series ---------------- */

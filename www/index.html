@@ -577,12 +577,12 @@ const getJSON=u=>{
 };
 const bs=u=>u.replace(/\/manifest\.json.*$/,'').replace(/\/$/,'');
 const call=(a,res,type,id,extra)=>getJSON(`${bs(a.url)}/${res}/${type}/${encodeURIComponent(id)}${extra?'/'+extra:''}.json`);
-const has=(a,res,type,id)=>(a.manifest.resources||[]).some(r=>{
+const has=(a,res,type,id)=>!a.off&&(a.manifest.resources||[]).some(r=>{
   if((r.name||r)!==res)return false;
   const t=r.types||a.manifest.types||[],p=r.idPrefixes||a.manifest.idPrefixes;
   return(!t.length||t.includes(type))&&(!p||!id||p.some(x=>id.startsWith(x)));
 });
-const cats=()=>addons.flatMap(a=>(a.manifest.catalogs||[]).map(c=>{const x=(c.extra||[]).map(e=>typeof e==='string'?{name:e}:e),req=new Set(c.extraRequired||[]);(c.extraSupported||[]).forEach(n=>{if(!x.some(e=>e.name===n))x.push({name:n,isRequired:req.has(n)})});return{a,c:Object.assign({},c,{extra:x,name:c.name||c.id,type:c.type==='tv'?'series':c.type})}}).filter(({c})=>!c.extra.some(e=>e.isRequired&&e.name!=='genre')&&c.id&&c.type));
+const cats=()=>addons.filter(a=>!a.off&&!(a.fb&&addons.some(x=>x.tmdb&&!x.off))).flatMap(a=>(a.manifest.catalogs||[]).map(c=>{const x=(c.extra||[]).map(e=>typeof e==='string'?{name:e}:e),req=new Set(c.extraRequired||[]);(c.extraSupported||[]).forEach(n=>{if(!x.some(e=>e.name===n))x.push({name:n,isRequired:req.has(n)})});return{a,c:Object.assign({},c,{extra:x,name:c.name||c.id,type:c.type==='tv'?'series':c.type})}}).filter(({c})=>!c.extra.some(e=>e.isRequired&&e.name!=='genre')&&c.id&&c.type));
 async function addAddon(raw){
   let u=raw.trim().replace(/^stremio:\/\//,'https://');
   if(!/^https?:\/\//.test(u))throw Error('Enter a full link that starts with https://');
@@ -600,7 +600,7 @@ const dt=m=>`#/title/${m.type}/${encodeURIComponent(m.id)}`;
 const card=(m,i)=>{if(CFG().hideAdult&&adult(m))return'';const k=m.type+'|'+m.id;M[k]=m;return`<a class="card" data-k="${h(k)}" style="--i:${Math.min(i||0,24)}" href="${dt(m)}"><img loading="lazy" decoding="async" src="${h(poster(m))}" alt="${h(m.name)}">${adult(m)?'<i class="eb">E</i>':''}<div class="co"><span class="cp">${ic('play')}</span><b>${h(m.name)}</b><small>${h(m.releaseInfo||m.year||'')}${m.imdbRating?' ★ '+h(m.imdbRating):''}</small></div></a>`};
 const row=(t,items)=>`<section class="row"><h2>${h(t)}</h2><div class="scroll">${items.join('')}</div></section>`;
 const mt=m=>[m.imdbRating&&'★ '+m.imdbRating,m.releaseInfo||m.year,m.runtime,(m.genres||[]).slice(0,3).join(', ')].filter(Boolean).map(h).join(' · ');
-const typeLabel=t=>t==='movie'?'Movies':t==='series'?'Series':t;
+const typeLabel=t=>t==='movie'?'Movies':t==='series'?'Series':t==='anime'?'Anime':t;
 const qc=s=>{const m=((s.name||'')+' '+(s.title||s.description||'')).match(/2160p|4k|1080p|720p|480p/i);return m?`<b class="qc">${m[0].toUpperCase()}</b>`:''};
 const ft=s=>{s=Math.max(0,s|0);const H=s/3600|0,m=(s%3600)/60|0;return(H?H+':'+String(m).padStart(2,'0'):m)+':'+String(s%60).padStart(2,'0')};
 const logoOrName=m=>m.logo?`<img class="lg" src="${h(m.logo)}" alt="${h(m.name)}">`:`<h1>${h(m.name)}</h1>`;
@@ -1022,7 +1022,7 @@ V.title=async function(type,id){
 };
 
 /* ----- player: plain bottom bar, automatic fallback to the next source ----- */
-play=function(s,ctx,t0){
+play=function(s,ctx,t0){if(window.KEngine)return KEngine.play(s,ctx,t0);
   const box=$('#vw'),ld=$('#ld');if(!box)return;
   if(HL){HL.destroy();HL=null}clearTimeout(play.wd);box.innerHTML='';ld.classList.add('on');
   const lt=$('#lt');if(lt)lt.textContent='Connecting to '+(s._a||'the source')+'…';
@@ -1557,6 +1557,13 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="shell.js"></script>
 <script src="explore.js"></script>
 <script src="embed.js"></script>
+<link rel="stylesheet" href="kplay.css">
+<link rel="stylesheet" href="kfix.css">
+<script src="ktmdb.js"></script>
+<script src="kanime.js"></script>
+<script src="kplay.js"></script>
+<script src="knative.js"></script>
+<script src="kfix.js"></script>
 <script>boot()</script>
 </body>
 </html>

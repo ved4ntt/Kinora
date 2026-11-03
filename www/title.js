@@ -19,7 +19,7 @@ V.title=async function(type,id){
  const trl=[...(m.trailerStreams||[]).map(t=>t.ytId),...(m.trailers||[]).map(t=>t.source)].filter(Boolean).slice(0,4);
  const rel=m.released?new Date(m.released).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}):(m.releaseInfo||m.year);
  const info=[['Released',rel],['Language',m.language],['Country',m.country],['Director',[].concat(m.director||[]).join(', ')],['Writers',[].concat(m.writer||[]).join(', ')],['Awards',m.awards],['IMDb rating',m.imdbRating&&m.imdbRating+' / 10']].filter(x=>x[1]);
- const label=()=>{const c=cur(),p=progFor(m),res=p&&(type!=='series'||p.vid===sel);return ic('play')+(res?'Resume':'Play')+(type==='series'&&c.season!=null?' S'+c.season+' E'+c.episode:'')};
+ const label=()=>{const c=cur(),p=progFor(m),res=p&&(type==='movie'||p.vid===sel);return ic('play')+(res?'Resume':'Play')+(type!=='movie'&&c.season!=null?' S'+c.season+' E'+c.episode:'')};
  const s0=stOf(m),saved=inLib(m),RXK=['love','like','dislike'];
  const ep=v=>'<div class="kt-ep'+(v.id===sel?' on':'')+(EW()[v.id]?' wtd':'')+'" data-v="'+h(v.id)+'"><img loading="lazy" src="'+h(v.thumbnail||'')+'" alt=""><div><b>'+v.episode+'. '+h(v.title||v.name||'Episode '+v.episode)+'</b><small>'+(v.released?new Date(v.released).toLocaleDateString():'')+'</small><p>'+h((v.overview||v.description||'').slice(0,160))+'</p></div><button class="kt-w'+(EW()[v.id]?' on':'')+'" data-w="'+h(v.id)+'" aria-label="Mark as watched">'+ic('check')+'</button></div>';
  const epList=s=>vids.filter(v=>v.season===s).map(ep).join('');
@@ -31,7 +31,7 @@ V.title=async function(type,id){
   '<p class="kh-d kt-d" id="kt-d">'+h(m.description||'')+'</p>'+
   '<div class="kt-ac"><button class="kh-btn" id="kt-play">'+label()+'</button><button class="kt-b" id="kt-src">Sources</button><button class="kt-b'+(saved?' on':'')+'" id="kt-lib">'+(saved?'In my list':'My list')+'</button><button class="kt-b'+(s0.l?' on':'')+'" id="kt-wl">Watch later</button><button class="kt-b'+(s0.w?' on':'')+'" id="kt-wd">Watched</button>'+
   '<span class="kt-rx">'+RXK.map(r=>'<button data-r="'+r+'" class="'+(s0.r===r?'on '+r:'')+'" aria-label="'+r+'">'+ic(RX[r])+'</button>').join('')+'</span></div></div></section>'+
-  (type==='series'&&vids.length?sec('Episodes','<div class="kt-tabs" id="kt-st">'+seasons.map(s=>'<button class="'+(s===season?'on':'')+'" data-s="'+s+'">'+(s?'Season '+s:'Specials')+'</button>').join('')+'</div><div id="kt-el">'+epList(season)+'</div>'):'')+
+  (type!=='movie'&&vids.length?sec('Episodes','<div class="kt-tabs" id="kt-st">'+seasons.map(s=>'<button class="'+(s===season?'on':'')+'" data-s="'+s+'">'+(s?'Season '+s:'Specials')+'</button>').join('')+'</div><div id="kt-el">'+epList(season)+'</div>'):'')+
   (cast.length?sec('Cast','<div class="kh-sc kt-cast" id="kt-cast">'+cast.map(pc).join('')+'</div>'):'')+
   (trl.length?sec('Trailers','<div class="kh-sc">'+trl.map(y=>'<div class="kt-tr" data-y="'+h(y)+'" style="background-image:url(\'https://img.youtube.com/vi/'+h(y)+'/hqdefault.jpg\')">'+ic('play')+'</div>').join('')+'</div>'):'')+
   (info.length?sec('Details','<div class="kt-dg">'+info.map(x=>'<div><small>'+h(x[0])+'</small>'+h(x[1])+'</div>').join('')+'</div>'):'')+
@@ -55,7 +55,7 @@ V.title=async function(type,id){
  bindCast();
  if(window.KCredits&&LS.get('tmdbKey','')&&cast.length<20)KCredits(type,id).then(l=>{const b=$('#kt-cast');if(b&&l.length>cast.length){b.innerHTML=l.map(pc).join('');bindCast()}}).catch(()=>{});
 
- if(type==='series'&&vids.length){
+ if(type!=='movie'&&vids.length){
   const bind=()=>QA('.kt-ep',app).forEach(e=>e.onclick=ev=>{
    const w=ev.target.closest('.kt-w');
    if(w){const x=EW();if(x[w.dataset.w])delete x[w.dataset.w];else x[w.dataset.w]=1;LS.set('ew',x);w.classList.toggle('on');e.classList.toggle('wtd');return}

@@ -1,9 +1,12 @@
-/* Kinora player v2
-   - Play opens the player straight away: no source chooser. Streams are ranked (4KHDHub is the main source, the rest are fallbacks).
-   - A small bar over the video lists the audio languages and qualities found (4K down to 360p). Tapping one switches the stream and keeps your place.
-   - A language that exists only at another quality shows that quality next to its name.
-   - The engine below replaces the old one and fixes: autoplay being blocked, a missing play() error handler, over-eager HLS error recovery,
-     a watchdog that fired too early on slow networks, error/watchdog races, and stalled HLS playback that never recovered. */
+/* Kinora player v2.2
+   - Play opens the player straight away (no source chooser). Streams are ranked: the main source first, the rest are fallbacks.
+   - Sources are looked up while you are still on the details page, so Play usually starts at once.
+   - A dead or slow source is dropped after a few seconds (not 45) and the next one is tried automatically.
+   - A small bar (a small popup on phones) lists the audio languages and the qualities found (4K down to 360p).
+     Picking one switches the stream and keeps your place. A language that only exists at another quality shows it next to its name.
+   - In the Android app the video is decoded by ExoPlayer (knative.js), in the Windows app mpv / VLC can take over, in the browser the web engine below plays it.
+   - The engine fixes: blocked autoplay, missing play() handler, over-eager HLS recovery, a too-short watchdog, error/watchdog races,
+     stalled HLS that never recovered, and `crossorigin` that made many hosts refuse to play. */
 (()=>{
 const D=document,Q=(s,r=D)=>r.querySelector(s),QA=(s,r=D)=>[...r.querySelectorAll(s)];
 const say=m=>{try{toast(m)}catch{}};
@@ -21,7 +24,7 @@ try{
 
 /* ================= reading what an add-on returned ================= */
 const LANGS=[['Hindi',/\b(hindi|hin)\b/i],['English',/\b(english|eng)\b/i],['Tamil',/\b(tamil|tam)\b/i],['Telugu',/\b(telugu|tel)\b/i],['Malayalam',/\bmalayalam\b/i],['Kannada',/\bkannada\b/i],['Bengali',/\b(bengali|bangla)\b/i],['Marathi',/\bmarathi\b/i],['Punjabi',/\bpunjabi\b/i],['Gujarati',/\bgujarati\b/i],['Urdu',/\burdu\b/i],['Spanish',/\b(spanish|espa[n\u00f1]ol|castellano|latino|spa)\b/i],['French',/\b(french|fran[c\u00e7]ais|fre)\b/i],['German',/\b(german|deutsch|ger)\b/i],['Italian',/\b(italian|italiano|ita)\b/i],['Portuguese',/\b(portugu[e\u00ea]s|portuguese)\b/i],['Russian',/\b(russian|rus)\b/i],['Arabic',/\barabic\b/i],['Turkish',/\bturkish\b/i],['Japanese',/\b(japanese|jpn)\b/i],['Korean',/\b(korean|kor)\b/i],['Chinese',/\b(chinese|mandarin|cantonese)\b/i],['Thai',/\bthai\b/i],['Vietnamese',/\bvietnamese\b/i],['Indonesian',/\bindonesian\b/i],['Malay',/\bmalay\b/i],['Polish',/\bpolish\b/i]];
-const PROV=[['4KHDHub',/4khdhub/],['HDHub4u',/hdhub4u/],['MoviesDrives',/moviesdrives?/],['VegaMovies',/vegamovies/],['MovieBox',/moviebox/],['VidLink',/vidlink/],['VidFast',/vidfast/],['VAPlayer',/vaplayer/],['2Peckle',/2peckle/],['Cinejoy',/cinejoy/],['Miruro',/miruro/],['KissKH',/kisskh/],['Anikoto',/anikoto/],['Vidy',/\bvidy\b/],['Obejrzyj',/obejrzyj/],['Arctic',/arctic/],['ToonWorld4All',/toonworld4all/],['Ani.pm',/anipm/],['Reanime',/reanime/],['LaMovie',/lamovie/],['SoloLatino',/sololatino/],['Moflix',/moflix/],['PremiumSmart',/premiumsmart/]];
+const PROV=[['4KHDHub',/4khdhub/],['HDHub4u',/hdhub4u/],['HdHub',/hdhub/],['MoviesDrives',/moviesdrives?/],['VegaMovies',/vegamovies/],['MovieBox',/moviebox/],['VidLink',/vidlink/],['VidFast',/vidfast/],['VAPlayer',/vaplayer/],['2Peckle',/2peckle/],['Cinejoy',/cinejoy/],['Miruro',/miruro/],['KissKH',/kisskh/],['Anikoto',/anikoto/],['Vidy',/\bvidy\b/],['Obejrzyj',/obejrzyj/],['Arctic',/arctic/],['ToonWorld4All',/toonworld4all/],['Ani.pm',/anipm/],['Reanime',/reanime/],['LaMovie',/lamovie/],['SoloLatino',/sololatino/],['Moflix',/moflix/],['PremiumSmart',/premiumsmart/]];
 const ORDER=PROV.map(x=>x[0]);
 const DON=/donat|buy\s*me\s*a?\s*coffee|\bko-?fi\b|patreon|sponsor|support\s+(the\s+)?(dev|developer|project|us|add-?on)|tip\s*jar/i,DONH=/ko-fi\.com|buymeacoffee|patreon\.com|paypal\.me|razorpay\.com|upi:\/\//i;
 const resOf=t=>/\b(2160p?|4k|uhd)\b|3840\s*x\s*2160/i.test(t)?2160:/\b1440p?\b|2560\s*x\s*1440|\b2k\b/i.test(t)?1440:/\b1080p?\b|1920\s*x\s*1080|\bfhd\b/i.test(t)?1080:/\b720p?\b|1280\s*x\s*720/i.test(t)?720:/\b480p?\b|\bsd\b|854\s*x\s*480/i.test(t)?480:/\b(360p?|240p?)\b/i.test(t)?360:0;
@@ -38,7 +41,6 @@ function parse(raw,an){
  p.q=resOf(txt);
  p.langs=LANGS.filter(x=>x[1].test(txt)).map(x=>x[0]);
  p.hevc=/hevc|x265|h\.?265/i.test(txt);
- p.av1=/\bav1\b/i.test(txt);
  p.dv=/dolby.?vision|\bdovi\b|\bdv\b/i.test(txt);
  p.hdr=/hdr10\+?|\bhdr\b/i.test(txt);
  p.exotic=/dts|truehd|e-?ac-?3|\bdd\+|\bac-?3\b/i.test(txt);
@@ -48,12 +50,14 @@ function parse(raw,an){
  p.size=b.videoSize?b.videoSize/1e9:m?(m[2].toLowerCase()==='gb'?+m[1]:+m[1]/1000):0;
  return p;
 }
-const main=()=>String(CFG().mainSrc||'4KHDHub');
+const main=()=>String(CFG().mainSrc||'HdHub');
 const provRank=p=>p.prov===main()?0:1+(ORDER.indexOf(p.prov)<0?40:ORDER.indexOf(p.prov));
+const nativeOK=()=>!!(window.KNative&&KNative.on&&KNative.on());
 const webScore=p=>{
  let s=0;const ext=(p.url.split('?')[0].match(/\.([a-z0-9]{2,4})$/i)||[])[1]||'';
- if(p.kind==='hls')s-=1;else if(/^(mp4|m4v|webm)$/i.test(ext))s+=0;else if(/^mkv$/i.test(ext))s+=1.5;else s+=1;
- if(p.exotic&&!(WIN&&SRVOK()))s+=2;
+ if(p.kind==='hls')s-=1;else if(/^(mp4|m4v|webm)$/i.test(ext))s+=0;else if(/^mkv$/i.test(ext))s+=nativeOK()?0:1.5;else s+=1;
+ if(p.exotic&&!nativeOK()&&!(WIN&&SRVOK()))s+=2;
+ if(window.KSpeed){try{s+=Math.min(3,KSpeed.pen(p.raw)/3)}catch{}}
  return s;
 };
 const QL=[2160,1440,1080,720,480,360];
@@ -62,41 +66,77 @@ const rank=(p,sel,pref,bad)=>{
  const lm=sel.lang?(p.langs.includes(sel.lang)?0:p.langs.length?1:.5):0;
  const qd=sel.q?Math.abs(qIdx(p.q)-qIdx(sel.q))+(p.q>sel.q?.3:0):0;
  const ps=pref&&window.KSrc?-window.KSrc.score(p.raw,pref):0;
- return[bad&&bad.has(p.key)?1:0,ps,lm,qd,(!HEVC_OK&&p.hevc)?1:0,provRank(p),webScore(p),p.q?0:1];
+ return[bad&&bad.has(p.key)?1:0,ps,lm,qd,(!HEVC_OK&&p.hevc&&!nativeOK())?1:0,provRank(p),webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
+/* ================= finding streams (cached, and started early) ================= */
+const SC=new Map();
+function formsOf(type,id,vid,meta){
+ const vs=(meta.videos||[]).filter(v=>v.season>0),ep=vs.find(v=>v.id===vid);
+ const m=/:(\d+):(\d+)$/.exec(vid||''),sn=ep?ep.season:m&&m[1],en=ep?ep.episode:m&&m[2];
+ const imdb=meta.imdb_id||(/^tt\d+/.test(id)?id.split(':')[0]:''),tmdb=meta.moviedb_id||(/^tmdb:/.test(id)?id.split(':')[1]:'');
+ return[imdb&&(type==='series'?imdb+':'+sn+':'+en:imdb),tmdb&&(type==='series'?'tmdb:'+tmdb+':'+sn+':'+en:'tmdb:'+tmdb),vid||id].filter(x=>x&&!/undefined/.test(x));
+}
+function entryFor(type,id,vid,meta){
+ const key=type+'|'+(vid||id),old=SC.get(key);
+ if(old&&Date.now()-old.t<9e5&&!(old.finished&&!old.S.length&&Date.now()-old.t>3e4))return old;
+ const forms=formsOf(type,id,vid,meta||{});
+ const e={t:Date.now(),S:[],seen:new Set(),don:[],finished:false,subs:new Set(),emit(){e.subs.forEach(f=>{try{f()}catch{}})}};
+ SC.set(key,e);if(SC.size>14)SC.delete(SC.keys().next().value);
+ const list=addons.filter(a=>forms.find(x=>has(a,'stream',type,x)));
+ if(!list.length){e.finished=true;return e}
+ Promise.all(list.map(async a=>{
+  const sid=forms.find(x=>has(a,'stream',type,x));
+  const r=await withT(call(a,'stream',type,sid),14000).catch(()=>({}));
+  (r.streams||[]).forEach(raw=>{
+   const p=parse(raw,a.manifest.name);if(!p)return;
+   if(p.donate){if(p.kind==='ext'||p.url)e.don.push(p);return}
+   if(e.seen.has(p.key))return;e.seen.add(p.key);e.S.push(p);
+  });
+  e.emit();
+ })).then(()=>{e.finished=true;e.emit()});
+ return e;
+}
+
 /* ================= the playback engine ================= */
 const E=window.KEngine={};
-const KPlay=window.KPlay={hooks:null,fail:null,report:()=>'',last:[]};
+const KPlay=window.KPlay={hooks:null,fail:null,alts:null,report:()=>'',last:[],_t:{parse,rank,cmp,resOf}};
 const H=(n,...a)=>{try{KPlay.hooks&&KPlay.hooks[n]&&KPlay.hooks[n](...a)}catch{}};
 let seq=0,wd=0,stallT=0,vel=null;
 function cleanup(){
  clearTimeout(wd);clearTimeout(stallT);
  if(HL){try{HL.destroy()}catch{}HL=null}
  if(vel){try{vel.pause();vel.removeAttribute('src');vel.load()}catch{}vel=null}
+ try{window.KNative&&KNative.detach()}catch{}
+ D.documentElement.classList.remove('knat');
 }
-E.stop=()=>{seq++;cleanup()};
+E.stop=()=>{seq++;cleanup();try{window.KExt&&KExt.stop()}catch{}};
 E.play=function(s,ctx,t0){
  const box=Q('#vw'),ld=Q('#ld');if(!box)return;
  const my=++seq;cleanup();box.innerHTML='';
  const setLt=t=>{const e=Q('#lt');if(e)e.textContent=t};
- if(ld)ld.classList.add('on');setLt('Connecting to '+(s._a||'the source')+'\u2026');
- const pl=Q('#pl');if(pl)pl.classList.remove('buf');
+ if(ld)ld.classList.add('on');setLt('Starting\u2026');
+ const pl=Q('#pl');if(pl)pl.classList.remove('buf','knat');
  if(s.ytId&&!s.url){if(ld)ld.classList.remove('on');return box.innerHTML='<iframe src="https://www.youtube.com/embed/'+encodeURIComponent(s.ytId)+'?autoplay=1" allow="autoplay;fullscreen" allowfullscreen></iframe>'}
  let dead=false;
- const fail=why=>{if(dead||my!==seq)return;dead=true;clearTimeout(wd);clearTimeout(stallT);const x=vel;KPlay.fail&&KPlay.fail(why,x&&x.currentTime>5?x.currentTime:t0||0,s)};
+ const fail=(why,kind)=>{if(dead||my!==seq)return;dead=true;clearTimeout(wd);clearTimeout(stallT);const x=vel;KPlay.fail&&KPlay.fail(why,x&&x.currentTime>5?x.currentTime:t0||0,s,kind)};
  if(!s.url||/^(magnet|torrent):/i.test(s.url)){setTimeout(()=>fail('This source is a torrent, which a player cannot open directly.'),0);return}
- if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders)return play(srvStream(s),ctx,t0);
+ /* Windows app: hand hard files to mpv or VLC when the user allows it */
+ try{if(window.KExt&&KExt.handle&&KExt.handle(s,ctx,t0,why=>fail(why)))return}catch{}
+ if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders&&!(window.KNative&&KNative.can(s)))return play(srvStream(s),ctx,t0);
  if(SRVOK()&&!s._srv&&WIN&&/hevc|x265|h\.?265|dts|truehd|e-?ac-?3|\bac3\b/i.test((s.name||'')+' '+(s.title||s.description||'')+' '+s.url))return play(srvStream(s),ctx,t0);
 
  const v=D.createElement('video');
+ /* no crossorigin attribute: many hosts send no CORS headers and would refuse to play */
  v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.playsInline=true;v.preload='auto';v.autoplay=true;
  v.defaultPlaybackRate=v.playbackRate=CFG().speed||1;
  box.append(v);vel=v;
  let started=false;const deadline=Date.now()+150000;
- const arm=ms=>{clearTimeout(wd);wd=setTimeout(()=>{if(my===seq&&!started)fail('This source took too long to start.')},Math.max(5000,Math.min(ms,deadline-Date.now())))};
- arm(s._srv?75000:Math.max(45000,(window.KSpeed?KSpeed.limit(s):35000)+12000));
+ const arm=ms=>{clearTimeout(wd);wd=setTimeout(()=>{if(my===seq&&!started)fail('This source took too long to start.')},Math.max(4000,Math.min(ms,deadline-Date.now())))};
+ /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
+ const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
+ arm(s._srv?60000:alts>0?Math.max(9000,Math.min(14000,(window.KSpeed?KSpeed.limit(s):30000)*.35)):45000);
 
  /* play() can be refused by the browser: fall back to muted playback, then to a tap */
  let tried=false;
@@ -109,11 +149,17 @@ E.play=function(s,ctx,t0){
  };
 
  const isHls=s.kind==='hls'||/\.m3u8(\?|$)/i.test(s.url);
- if(isHls&&window.Hls&&Hls.isSupported()){
+ const nat=!!(window.KNative&&KNative.can(s));
+ if(nat){
+  /* Android app: ExoPlayer draws behind the page; this <video> is only a stand-in so the controls, party sync and progress keep working */
+  KNative.attach(v,s,t0||0);
+  D.documentElement.classList.add('knat');if(pl)pl.classList.add('knat');
+ }else if(isHls&&window.Hls&&Hls.isSupported()){
   const bl=Math.max(40,CFG().buf||60),want=+s._q||0;
   const hl=HL=new Hls({enableWorker:true,lowLatencyMode:false,maxBufferLength:bl,maxMaxBufferLength:bl*3,backBufferLength:30,maxBufferSize:150e6,maxBufferHole:.5,startFragPrefetch:true,testBandwidth:false,abrEwmaDefaultEstimate:6e6,
-   manifestLoadingMaxRetry:4,manifestLoadingRetryDelay:800,levelLoadingMaxRetry:4,levelLoadingRetryDelay:800,fragLoadingMaxRetry:6,fragLoadingRetryDelay:700,fragLoadingMaxRetryTimeout:20000,nudgeMaxRetry:8});
+   manifestLoadingMaxRetry:2,manifestLoadingRetryDelay:700,levelLoadingMaxRetry:3,levelLoadingRetryDelay:700,fragLoadingMaxRetry:6,fragLoadingRetryDelay:700,fragLoadingMaxRetryTimeout:15000,nudgeMaxRetry:8});
   hl.on(Hls.Events.MANIFEST_PARSED,(_,d)=>{
+   if(!started)arm(25000);
    if(want){let bi=-1,bd=1e9;d.levels.forEach((l,i)=>{const k=Math.abs((l.height||0)-want)+((l.height||0)>want?50:0);if(k<bd){bd=k;bi=i}});if(bi>=0){hl.startLevel=bi;hl.autoLevelCapping=bi}}
    tryPlay();
   });
@@ -123,7 +169,7 @@ E.play=function(s,ctx,t0){
    if(d.fatal){
     if(d.type===Hls.ErrorTypes.NETWORK_ERROR){
      hl._nr=(hl._nr||0)+1;
-     if(hl._nr<=4){setTimeout(()=>{if(hl===HL&&my===seq)hl.startLoad()},Math.min(4000,600*Math.pow(2,hl._nr)));return}
+     if(hl._nr<=3){setTimeout(()=>{if(hl===HL&&my===seq)hl.startLoad()},Math.min(3000,500*Math.pow(2,hl._nr)));return}
      return fail('The stream stopped loading. The host may be down or blocking requests.');
     }
     if(d.type===Hls.ErrorTypes.MEDIA_ERROR){
@@ -135,7 +181,6 @@ E.play=function(s,ctx,t0){
     return fail('This stream could not be loaded.');
    }
    if(d.details==='bufferStalledError'){
-    /* keep trying first; only step the quality down after repeated stalls */
     hl._st=(hl._st||0)+1;
     clearTimeout(E._sr);E._sr=setTimeout(()=>{try{if(vel&&!vel.paused&&vel.readyState<3){hl.startLoad();vel.currentTime+=0.1}}catch{}},1500);
     if(hl._st>=3&&hl.currentLevel>0&&hl.autoLevelEnabled){hl.nextLoadLevel=hl.currentLevel-1;hl._st=0}
@@ -153,24 +198,28 @@ E.play=function(s,ctx,t0){
   if(HL){try{HL.startLoad()}catch{}}
   try{v.currentTime+=0.05}catch{}
   clearTimeout(stallT);
-  stallT=setTimeout(()=>{if(my===seq&&!v.paused&&v.readyState<3&&CFG().autoSwitch!==false)fail('This source keeps stalling.')},30000);
+  stallT=setTimeout(()=>{if(my===seq&&!v.paused&&v.readyState<3&&CFG().autoSwitch!==false)fail('This source keeps stalling.','slow')},20000);
  };
 
- v.addEventListener('loadstart',()=>{if(!started)arm(40000)});
  v.addEventListener('loadedmetadata',()=>{
-  if(!started)arm(35000);
-  const p=CFG().resume&&!window.START0?LS.get('prog',{})[key]:null,t=t0||(p&&p.t>30&&p.t<v.duration-60?p.t:0);
-  if(t)try{v.currentTime=t}catch{}
+  if(!started)arm(30000);
+  if(!nat){
+   const p=CFG().resume&&!window.START0?LS.get('prog',{})[key]:null,t=t0||(p&&p.t>30&&p.t<v.duration-60?p.t:0);
+   if(t)try{v.currentTime=t}catch{}
+  }
   window.START0=false;H('time');
  });
  v.addEventListener('loadeddata',()=>{if(!started)arm(30000);if(!tried){tried=true;tryPlay()}});
  v.addEventListener('canplay',()=>{if(!started)arm(25000);setBuf(false);if(v.paused&&v.autoplay&&!tried){tried=true;tryPlay()}});
- v.addEventListener('progress',()=>{if(!started)arm(25000);H('time');if(!started&&Q('#ld.on')&&v.buffered.length)setLt('Buffering\u2026 '+Math.max(0,Math.round(v.buffered.end(v.buffered.length-1)-v.currentTime))+'s ready')});
- v.addEventListener('waiting',()=>{
-  if(!started){const e=Q('#lt');if(e)e.textContent='Buffering\u2026';return}
-  setBuf(true);clearTimeout(stallT);stallT=setTimeout(stallRecover,6000);
+ v.addEventListener('progress',()=>{
+  H('time');
+  if(!started&&v.buffered.length){arm(25000);setLt('Buffering\u2026')}
  });
- v.addEventListener('stalled',()=>{if(started&&v.readyState<3){setBuf(true);clearTimeout(stallT);stallT=setTimeout(stallRecover,6000)}});
+ v.addEventListener('waiting',()=>{
+  if(!started)return;
+  setBuf(true);clearTimeout(stallT);stallT=setTimeout(stallRecover,5000);
+ });
+ v.addEventListener('stalled',()=>{if(started&&v.readyState<3){setBuf(true);clearTimeout(stallT);stallT=setTimeout(stallRecover,5000)}});
  v.addEventListener('seeking',()=>{if(started)setBuf(true)});
  v.addEventListener('seeked',()=>{if(v.readyState>=3)setBuf(false)});
  v.addEventListener('playing',()=>{
@@ -188,9 +237,9 @@ E.play=function(s,ctx,t0){
  v.addEventListener('error',()=>{
   if(my!==seq)return;
   const c=v.error&&v.error.code;
-  if(c===2&&!v._net&&!HL){v._net=1;const ct=v.currentTime;try{v.load();v.addEventListener('loadedmetadata',()=>{try{v.currentTime=ct}catch{}tryPlay()},{once:true});return}catch{}}
+  if(c===2&&!v._net&&!HL&&!nat&&started){v._net=1;const ct=v.currentTime;try{v.load();v.addEventListener('loadedmetadata',()=>{try{v.currentTime=ct}catch{}tryPlay()},{once:true});return}catch{}}
   if(HL&&started)return; /* the HLS handler already decides */
-  fail(c===3?'This device cannot decode this video or audio (often HEVC video or DTS/AC3 sound).':c===4?'This stream cannot be opened here. It may be blocked by the host or not meant for players.':'A network error stopped this stream.');
+  fail((v.error&&v.error.message)||(c===3?'This device cannot decode this video or audio (often HEVC video or DTS/AC3 sound).':c===4?'This stream cannot be opened here. It may be blocked by the host or not meant for players.':'A network error stopped this stream.'));
  });
  tryPlay();
  try{addSubs(v,ctx)}catch{}
@@ -201,8 +250,11 @@ addEventListener('hashchange',()=>{if(!/^#\/watch\//.test(location.hash)){E.stop
 const stIcon=v=>ic(v&&!v.paused?'pause':'play');
 V.watch=async function(type,id,vid){
  id=decodeURIComponent(id);vid=vid?decodeURIComponent(vid):'';
+ if(type==='anime'&&window.KEmbed){app.innerHTML=LD;KEmbed.open(type,id,vid);return}
+ const token=window.__kw={};
  const ma=addons.find(a=>has(a,'meta',type,id));
- const meta=ma?((await withT(call(ma,'meta',type,id),4500).catch(()=>({}))).meta||{}):{};
+ const meta=ma?((await withT(call(ma,'meta',type,id),3000).catch(()=>({}))).meta||{}):{};
+ if(window.__kw!==token)return;
  const vids=(meta.videos||[]).filter(v=>v.season>0).sort((x,y)=>x.season-y.season||x.episode-y.episode);
  const ep=vids.find(v=>v.id===vid),nx=ep?vids[vids.indexOf(ep)+1]:null,nm=meta.name?meta:{name:id};
  const ctx={type,id,vid,name:nm.name,poster:meta.poster,label:ep?'S'+ep.season+'E'+ep.episode:''};
@@ -224,18 +276,16 @@ V.watch=async function(type,id,vid){
  pl.onmousemove=pl.wake;pl.wake();
 
  /* ---------- streams ---------- */
- const S=[],seen=new Set(),bad=new Set(),don=[];
- let cur=null,st={lang:'',q:0},finished=false,started=false,graceT=0,waiting=false;
- KPlay.last=S;
- const imdb=meta.imdb_id||(/^tt\d+/.test(id)?id.split(':')[0]:''),tmdb=meta.moviedb_id||(/^tmdb:/.test(id)?id.split(':')[1]:'');
- const sn=ep?ep.season:(/:(\d+):(\d+)$/.exec(vid||'')||[])[1],en=ep?ep.episode:(/:(\d+):(\d+)$/.exec(vid||'')||[])[2];
- const forms=[imdb&&(type==='series'?imdb+':'+sn+':'+en:imdb),tmdb&&(type==='series'?'tmdb:'+tmdb+':'+sn+':'+en:'tmdb:'+tmdb),vid||id].filter(x=>x&&!/undefined/.test(x));
- const sidFor=a=>forms.find(x=>has(a,'stream',type,x))||'';
+ const E0=(pick&&pick._a==='Live TV')?{S:[],don:[],finished:true,subs:new Set()}:entryFor(type,id,vid,meta),extra=[],bad=new Set(),don=E0.don;
+ let cur=null,st={lang:'',q:0},started=false,graceT=0,waiting=false;
+ KPlay.last=E0.S;
+ const all=()=>extra.concat(E0.S);
+ const playable=()=>all().filter(x=>x.playable);
  const curTime=()=>{const v=VID();return v&&v.currentTime>5?v.currentTime:0};
- const playable=()=>S.filter(x=>x.playable);
+ const live=()=>window.__kw===token&&!!Q('#pl');
 
- const langList=pl2=>{
-  const c={};pl2.forEach(p=>p.langs.forEach(l=>c[l]=(c[l]||0)+1));
+ const langList=pls=>{
+  const c={};pls.forEach(p=>p.langs.forEach(l=>c[l]=(c[l]||0)+1));
   const pr=[LS.get('kpick',{}).lang,...(CFG().prefLangs||[])].filter(Boolean);
   return Object.keys(c).sort((a,b)=>(pr.includes(b)-pr.includes(a))||c[b]-c[a]).map(n=>({n,c:c[n]}));
  };
@@ -243,11 +293,16 @@ V.watch=async function(type,id,vid){
   const pool=playable().filter(x=>!lang||x.langs.includes(lang)||(!x.langs.length&&!st.lang));
   return pool.map(s=>({s,k:rank(s,{lang,q},null,bad)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s)[0];
  };
- const order=sel=>playable().filter(x=>!bad.has(x.key)).map(s=>({s,k:rank(s,sel,pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
+ const okS=x=>!bad.has(x.key)&&!(window.KSpeed&&KSpeed.dead(x.raw));
+ const order=sel=>playable().filter(okS).map(s=>({s,k:rank(s,sel,pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
+ KPlay.alts=()=>order({lang:st.lang,q:st.q}).filter(x=>x!==cur).length;
  const defSel=()=>{
   const kp=LS.get('kpick',{}),pls=playable(),langs=langList(pls).map(x=>x.n);
   const lang=kp.lang&&langs.includes(kp.lang)?kp.lang:((CFG().prefLangs||[]).find(l=>langs.includes(l))||'');
-  const pool=lang?pls.filter(x=>x.langs.includes(lang)||!x.langs.length):pls;
+  const pool0=lang?pls.filter(x=>x.langs.includes(lang)||!x.langs.length):pls;
+  /* do not start on a codec this device cannot play when another choice exists */
+  const okc=x=>HEVC_OK||nativeOK()||!x.hevc;
+  const pool=pool0.filter(okc).length?pool0.filter(okc):pool0;
   const have=[...new Set(pool.map(x=>x.q).filter(Boolean))].sort((a,b)=>b-a);
   let q=kp.q&&have.includes(kp.q)?kp.q:0;
   if(!q){const pq=CFG().quality,cap=!pq||pq==='best'?(LS.get('maxq',2160)||2160):+pq;q=have.find(x=>x<=cap)||have[have.length-1]||0}
@@ -272,19 +327,17 @@ V.watch=async function(type,id,vid){
   }).join('');
   const qc=qs.map(q=>'<button class="kc'+(q===st.q?' on':'')+'" data-q="'+q+'">'+qlab(q)+'</button>').join('');
   const heart=don.length?'<button class="kc kheart" data-d aria-label="Support the add-on" title="Support the add-on">'+ic('heart')+'</button>':'';
-  el.innerHTML='<div class="kbx">'+(L.length>1?'<div class="kbrow" data-r="a">'+lc+'<button class="kmore" data-m aria-label="More">'+ic('chev')+'</button></div>':'')+(qs.length?'<div class="kbrow" data-r="q">'+qc+'</div>':'')+'<div class="kbtl">'+heart+'<button class="kc kx" data-x aria-label="Close">'+ic('x')+'</button></div></div>';
-  QA('.kbrow',el).forEach(r=>{const m=Q('.kmore',r);if(m)m.hidden=r.scrollWidth<=r.clientWidth+4});
+  el.innerHTML='<div class="kbx">'+(L.length>1?'<div class="kbrow" data-r="a">'+lc+'<button class="kmore" data-m aria-label="More">'+ic('chev')+'</button></div>':'')+(qs.length>1||(qs.length&&L.length<2)?'<div class="kbrow" data-r="q">'+qc+'</div>':'')+'<div class="kbtl">'+heart+'<button class="kc kx" data-x aria-label="Close">'+ic('x')+'</button></div></div>';
  };
  const fitMore=()=>QA('#kbar .kbrow').forEach(r=>{const m=Q('.kmore',r);if(m)m.hidden=r.scrollWidth<=r.clientWidth+4});
- const showBar=(ms)=>{const el=Q('#kbar');if(!el)return;renderBar();if(!el.innerHTML)return;el.classList.add('on');fitMore();clearTimeout(showBar.t);if(ms)showBar.t=setTimeout(()=>{if(!el.matches(':hover'))el.classList.remove('on')},ms)};
+ const showBar=ms=>{const el=Q('#kbar');if(!el)return;renderBar();if(!el.innerHTML)return;el.classList.add('on');fitMore();clearTimeout(showBar.t);if(ms)showBar.t=setTimeout(()=>{if(!el.matches(':hover'))el.classList.remove('on')},ms)};
  const hideBar=()=>{const el=Q('#kbar');if(el)el.classList.remove('on')};
 
  /* ---------- starting, switching and falling back ---------- */
  function use(p,t0){
   cur=p;st.q=p.q||st.q;st.lang=st.lang&&p.langs.includes(st.lang)?st.lang:(p.langs[0]||'');
   started=true;setPill();renderBar();
-  const r={...p.raw,_q:p.q,_kk:p.key};
-  play(r,ctx,t0||0);
+  play({...p.raw,_q:p.q,_kk:p.key},ctx,t0||0);
  }
  function start(){
   if(started)return;
@@ -292,29 +345,34 @@ V.watch=async function(type,id,vid){
   st={lang:sel.lang,q:sel.q};use(n);
  }
  function onBatch(){
+  if(!live())return E0.subs.delete(onBatch);
   renderBar();
-  if(waiting&&!started)return;
-  const pls=playable();
-  if(waiting){const n=order({lang:st.lang,q:st.q})[0];if(n){waiting=false;say('Switching source\u2026');use(n,curTime());}else if(finished){waiting=false;showFail('No other source could play this title.')}return}
+  if(waiting){
+   const n=order({lang:st.lang,q:st.q})[0];
+   if(n){waiting=false;use(n,curTime())}else if(E0.finished){waiting=false;showFail('No other source could play this title.')}
+   return;
+  }
   if(started)return;
-  if(!pls.length){if(finished){const e=Q('#lt');showFail(S.length?'These sources only offer torrents, which cannot be played here.':'No source returned a stream for this title.')}return}
-  const hasMain=pls.some(x=>x.prov===main());
-  if(hasMain||finished)start();
-  else if(!graceT)graceT=setTimeout(()=>{if(!started)start()},2200);
+  const pls=playable();
+  if(!pls.length){if(E0.finished)showFail(E0.S.length?'These sources only offer torrents, which cannot be played here.':'No source returned a stream for this title.');return}
+  if(pls.some(x=>x.prov===main())||E0.finished)start();
+  else if(!graceT)graceT=setTimeout(()=>{if(live()&&!started)start()},1200);
  }
- KPlay.fail=(why,t,s)=>{
-  if(!cur||(s&&s._kk&&s._kk!==cur.key))return;
+ KPlay.fail=(why,t,s,kind)=>{
+  if(!live()||!cur||(s&&s._kk&&s._kk!==cur.key))return;
   bad.add(cur.key);
-  const n=order({lang:st.lang,q:st.q})[0];
-  if(n){say('That source failed. Trying another\u2026');use(n,t);return}
-  if(!finished){waiting=true;const l=Q('#ld');if(l)l.classList.add('on');const e=Q('#lt');if(e)e.textContent='Looking for another source\u2026';return}
+  let n=null;
+  if(kind==='slow'&&st.q){n=order({lang:st.lang,q:st.q}).find(x=>x.q&&x.q<st.q);if(n)say('Slow connection: switching to '+qlab(n.q))}
+  if(!n){n=order({lang:st.lang,q:st.q})[0];if(n)say('That source did not work. Trying another\u2026')}
+  if(n){use(n,t);return}
+  if(!E0.finished){waiting=true;const l=Q('#ld');if(l)l.classList.add('on');const e=Q('#lt');if(e)e.textContent='Looking for another source\u2026';return}
   showFail(why);
  };
  function showFail(why){
   const l=Q('#ld');if(l)l.classList.remove('on');
   const box=Q('#vw');if(!box)return;
-  box.innerHTML='<div class="msg kmsg">'+h(why)+'<div class="kacts"><button class="btn p" id="kre">Try again</button>'+(cur&&cur.url?'<button class="btn" id="kcp">Copy link</button>':'')+(ANDROID&&cur&&cur.url?'<button class="btn" id="kext">Open in a player app</button>':'')+'</div></div>';
-  const re=Q('#kre');if(re)re.onclick=()=>{bad.clear();started=false;waiting=false;const b=Q('#ld');if(b)b.classList.add('on');start()};
+  box.innerHTML='<div class="kmsg">'+h(why)+'<div class="kacts"><button class="btn p" id="kre">Try again</button>'+(cur&&cur.url?'<button class="btn" id="kcp">Copy link</button>':'')+(ANDROID&&cur&&cur.url?'<button class="btn" id="kext">Open in a player app</button>':'')+'</div></div>';
+  const re=Q('#kre');if(re)re.onclick=()=>{bad.clear();started=false;waiting=false;SC.delete(type+'|'+(vid||id));const b=Q('#ld');if(b)b.classList.add('on');start()};
   const cp=Q('#kcp');if(cp)cp.onclick=()=>navigator.clipboard.writeText(cur.url).then(()=>say('Link copied. Paste it into VLC or MX Player.')).catch(()=>say('Could not copy the link'));
   const ex=Q('#kext');if(ex)ex.onclick=()=>openExternal(cur);
  }
@@ -341,9 +399,13 @@ V.watch=async function(type,id,vid){
  KPlay.hooks={
   state:sync,time:tick,
   vol:()=>{const v=VID();if(!v)return;const b=Q('#vb');if(b)b.innerHTML=volIc(v);const r=Q('#vs');if(r)r.value=v.muted?0:v.volume},
-  playing:()=>{sync();pl.classList.remove('buf');if(!pl.dataset.shown){pl.dataset.shown=1;showBar(7000)}},
-  muted:()=>{const b=Q('#kun');if(b)return;pl.insertAdjacentHTML('beforeend','<button id="kun" class="btn p">'+ic('mute')+' Tap to unmute</button>');Q('#kun').onclick=()=>{const v=VID();if(v)v.muted=false;Q('#kun').remove()};setTimeout(()=>{const b=Q('#kun');if(b)b.remove()},9000)},
-  tap:()=>{const l=Q('#ld');if(l){l.classList.add('on');const t=Q('#lt');if(t)t.innerHTML='<button id="ktap" class="btn p" style="margin-top:14px">'+ic('play')+' Tap to play</button>';const b=Q('#ktap');if(b)b.onclick=e=>{e.stopPropagation();const v=VID();if(v)v.play().catch(()=>{});l.classList.remove('on')}}}
+  playing:()=>{
+   sync();pl.classList.remove('buf');
+   if(!pl.dataset.shown){pl.dataset.shown=1;showBar(5000)}
+   if(nx)setTimeout(()=>{if(live())entryFor(type,id,nx.id,meta)},8000);
+  },
+  muted:()=>{if(Q('#kun'))return;pl.insertAdjacentHTML('beforeend','<button id="kun" class="btn p">'+ic('mute')+' Tap to unmute</button>');Q('#kun').onclick=()=>{const v=VID();if(v)v.muted=false;Q('#kun').remove()};setTimeout(()=>{const b=Q('#kun');if(b)b.remove()},9000)},
+  tap:()=>{const l=Q('#ld');if(l){l.classList.add('on');const t=Q('#lt');if(t)t.innerHTML='<button id="ktap" class="btn p">'+ic('play')+' Tap to play</button>';const b=Q('#ktap');if(b)b.onclick=e=>{e.stopPropagation();const v=VID();if(v)v.play().catch(()=>{});l.classList.remove('on')}}}
  };
 
  /* ---------- controls ---------- */
@@ -375,15 +437,16 @@ V.watch=async function(type,id,vid){
   else if(x)hideBar();
   else if(d&&don[0]){const u=don[0].raw.externalUrl||don[0].url;if(window.kinoraWin&&kinoraWin.openExternal)kinoraWin.openExternal(u);else open(u,'_blank','noopener')}
  };
- pl.onclick=e=>{if(!e.target.closest('#kmn,#ctl,#top,#kbar')){Q('#kmn').classList.remove('on')}};
+ pl.onclick=e=>{if(!e.target.closest('#kmn,#ctl,#top,#kbar'))Q('#kmn').classList.remove('on')};
 
- /* subtitles and speed */
+ /* subtitles, audio tracks inside the file, and speed */
  const menu=()=>{
   const mn=Q('#kmn'),v=VID();
   if(mn.classList.contains('on')){mn.classList.remove('on');return}
   hideBar();
-  const T=v?[...v.textTracks]:[],o={...SUBD,...LS.get('sub',{})},rate=v?v.playbackRate:1;
+  const T=v?[...v.textTracks]:[],o={...SUBD,...LS.get('sub',{})},rate=v?v.playbackRate:1,A=v&&v.kAudio?v.kAudio():[];
   mn.innerHTML='<h4>Subtitles</h4><button class="kmi'+(T.every(t=>t.mode!=='showing')?' on':'')+'" data-t="-1">Off</button>'+T.map((t,i)=>'<button class="kmi'+(t.mode==='showing'?' on':'')+'" data-t="'+i+'">'+h(t.label)+'</button>').join('')+(T.length?'':'<p class="kn">No subtitles from your add-ons yet.</p>')+
+   (A.length>1?'<h4>Audio track</h4>'+A.map((a,i)=>'<button class="kmi'+(a.on?' on':'')+'" data-a="'+i+'">'+h(a.n)+'</button>').join(''):'')+
    '<h4>Subtitle size</h4><div class="kch">'+[['S',70],['M',100],['L',140],['XL',190]].map(([n,z])=>'<button class="kc'+(Math.abs((o.sz||100)-z)<18?' on':'')+'" data-z="'+z+'">'+n+'</button>').join('')+'</div>'+
    '<h4>Speed</h4><div class="kch">'+[.5,.75,1,1.25,1.5,2].map(r=>'<button class="kc'+(rate===r?' on':'')+'" data-r="'+r+'">'+r+'\u00d7</button>').join('')+'</div>'+
    (ANDROID&&cur&&cur.url?'<button class="kmi" data-ext>Open in a player app</button>':'');
@@ -393,30 +456,20 @@ V.watch=async function(type,id,vid){
  Q('#kmn').onclick=e=>{
   e.stopPropagation();const b=e.target.closest('button'),v=VID();if(!b)return;
   if(b.dataset.t!=null&&v){[...v.textTracks].forEach((t,i)=>t.mode=i===+b.dataset.t?'showing':'hidden');QA('[data-t]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}
+  if(b.dataset.a!=null&&v&&v.kAudioSet){v.kAudioSet(+b.dataset.a);QA('[data-a]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}
   if(b.dataset.z)try{updateSub({sz:+b.dataset.z});QA('[data-z]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}catch{}
   if(b.dataset.r&&v){v.playbackRate=+b.dataset.r;QA('[data-r]',Q('#kmn')).forEach(x=>x.classList.toggle('on',x===b))}
   if(b.hasAttribute('data-ext'))openExternal(cur);
  };
 
  /* ---------- go ---------- */
- const addP=(raw,an,flag)=>{const p=parse(raw,an);if(!p)return null;p[flag]=true;if(!seen.has(p.key)){seen.add(p.key);S.unshift(p)}return p};
- if(pick){const p=addP({...pick},pick._a||'Source','pinned');if(p&&!p.playable){/* chosen link that is not http(s): let the engine report it */p.playable=true}}
+ const addP=(raw,an,flag)=>{const p=parse(raw,an);if(!p)return null;p[flag]=true;extra.unshift(p);return p};
+ if(pick){const p=addP({...pick},pick._a||'Source','pinned');if(p)p.playable=true}
  if(pref&&pref.url&&/^https?:\/\/(?!localhost|127\.)/i.test(pref.url))addP({url:pref.url,name:pref.name,title:pref.title,behaviorHints:pref.headers?{proxyHeaders:{request:pref.headers}}:undefined},'Shared by the host','shared');
- if(pick||(pref&&pref.url&&S.length)){
-  const p=S[0];if(p){st={lang:p.langs[0]||'',q:p.q};use(p)}
- }
- const list=pick&&pick._a==='Live TV'?[]:addons.filter(a=>sidFor(a));
- if(!list.length&&!S.length){finished=true;onBatch();return}
- await Promise.all(list.map(async a=>{
-  const r=await withT(call(a,'stream',type,sidFor(a)),25000).catch(()=>({}));
-  (r.streams||[]).forEach(raw=>{
-   const p=parse(raw,a.manifest.name);if(!p)return;
-   if(p.donate){if(p.kind==='ext'||p.url)don.push(p);return}
-   if(seen.has(p.key))return;seen.add(p.key);S.push(p);
-  });
-  onBatch();
- }));
- finished=true;onBatch();
+ if(extra.length){const p=extra[0];st={lang:p.langs[0]||'',q:p.q};use(p)}
+ E0.subs.add(onBatch);
+ const lt=Q('#lt');if(lt&&!started&&!E0.S.length)lt.textContent='Finding sources\u2026';
+ onBatch();
 };
 
 /* Play goes straight to the player (there is no source chooser any more) */
@@ -425,6 +478,29 @@ playTitle=function(m,type,id,vid){PICK=null;location.hash=watchUrl(type,id,vid)}
 /* hardware back / Escape closes the bar and menu first */
 {const b0=window.__kBack;window.__kBack=function(){const o=Q('#kmn.on,#kbar.on');if(o){o.classList.remove('on');return 1}return b0?b0():0}}
 
+/* ================= details page: look up streams early, icon buttons ================= */
+async function prefetchTitle(){
+ const m=/^#\/title\/(movie|series)\/([^/?]+)/.exec(location.hash);if(!m)return;
+ const type=m[1],id=decodeURIComponent(m[2]),a=addons.find(x=>has(x,'meta',type,id));if(!a)return;
+ const meta=((await call(a,'meta',type,id).catch(()=>({}))).meta)||{};
+ if(!/^#\/title\//.test(location.hash))return;
+ let vid='';
+ if(type==='series'){
+  const vs=(meta.videos||[]).filter(v=>v.season>0).sort((x,y)=>x.season-y.season||x.episode-y.episode);
+  const pr=Object.values(LS.get('prog',{})).filter(p=>p&&p.id===id&&p.vid).sort((x,y)=>y.at-x.at)[0];
+  vid=(pr&&vs.find(v=>v.id===pr.vid)?pr.vid:(vs.find(v=>!EW()[v.id])||vs[0]||{}).id)||'';
+  if(!vid)return;
+ }
+ entryFor(type,id,vid,meta);
+}
+let pft=0;
+const early=()=>{clearTimeout(pft);pft=setTimeout(()=>{prefetchTitle().catch(()=>{})},350)};
+addEventListener('hashchange',early);early();
+const LAB={'kt-lib':'My list','kt-wl':'Watch later','kt-wd':'Watched'};
+new MutationObserver(()=>{
+ Object.keys(LAB).forEach(k=>{const b=Q('#'+k);if(b&&!b.getAttribute('aria-label')){b.setAttribute('aria-label',LAB[k]);b.title=LAB[k]}});
+}).observe(D.getElementById('app'),{childList:true,subtree:true});
+
 /* ================= settings: main source and a stream report ================= */
 KPlay.report=()=>KPlay.last.map(p=>[p.addon,p.prov,qlab(p.q),p.langs.join('+')||'-',p.kind,p.playable?'':'(not playable)',p.hevc?'HEVC':'',p.size?p.size.toFixed(1)+'GB':'',host(p.url),String(p.raw.name||'').replace(/\s+/g,' ').slice(0,60),String(p.raw.title||p.raw.description||'').replace(/\s+/g,' ').slice(0,140)].filter(Boolean).join(' | ')).join('\n');
 if(window.K6&&K6.PAGES.play){
@@ -432,7 +508,7 @@ if(window.K6&&K6.PAGES.play){
  K6.PAGES.play=()=>{
   pp();const p=Q('.k6');if(!p)return;
   const m=main();
-  p.insertAdjacentHTML('beforeend','<h4 class="k6h">Main source</h4><div class="k6c"><div class="k6o col"><span><b>Play from</b><small>Kinora tries this source first and uses the others as fallbacks.</small></span><div class="k6ch wrap">'+['4KHDHub','HDHub4u','MoviesDrives','VegaMovies','MovieBox'].map(x=>'<button class="ch'+(x===m?' on':'')+'" data-ksrc="'+x+'">'+x+'</button>').join('')+'</div></div><div class="k6o"><span><b>Stream report</b><small>Copies the sources found for the last title you opened. Paste it when something will not play.</small></span><button class="btn" id="krep">Copy</button></div></div>');
+  p.insertAdjacentHTML('beforeend','<h4 class="k6h">Main source</h4><div class="k6c"><div class="k6o col"><span><b>Play from</b><small>Kinora tries this source first and uses the others as fallbacks.</small></span><div class="k6ch wrap">'+['HdHub','4KHDHub','HDHub4u','MoviesDrives','VegaMovies','MovieBox'].map(x=>'<button class="ch'+(x===m?' on':'')+'" data-ksrc="'+x+'">'+x+'</button>').join('')+'</div></div><div class="k6o"><span><b>Stream report</b><small>Copies the sources found for the last title you opened. Paste it when something will not play.</small></span><button class="btn" id="krep">Copy</button></div></div>');
  };
 }
 D.addEventListener('click',e=>{
