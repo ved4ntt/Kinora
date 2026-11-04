@@ -10,10 +10,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm install
+      # Every push gets its own version (0.3.<number of commits>), so every build is a new release
+      - run: node scripts/stamp-version.js
       - run: npx electron-builder --win --x64 --publish never
       # Release notes come from CHANGELOG.md (the section for the version in package.json)
       - run: node scripts/release-notes.js
@@ -26,7 +30,7 @@ jobs:
           tag_name: v${{ steps.ver.outputs.v }}
           name: Kinora ${{ steps.ver.outputs.v }}
           body_path: RELEASE_NOTES.md
-          prerelease: ${{ contains(steps.ver.outputs.v, '-') }}
+          prerelease: true
           # The .yml and .blockmap files are the update manifest the Windows app reads to update itself
           files: |
             dist/*.exe

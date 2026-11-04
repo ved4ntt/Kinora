@@ -27,7 +27,7 @@ V.title=async function(type,id){
 
  app.innerHTML='<div class="kt"><section class="kt-hero"><div class="kt-bg" style="background-image:url(\''+h(m.background||m.poster||'')+'\')"></div><div class="kt-in kh-fade">'+
   (m.logo?'<img class="kh-logo" src="'+h(m.logo)+'" alt="'+h(m.name)+'">':'<h1 class="kh-h">'+h(m.name)+'</h1>')+
-  '<div class="kh-meta">'+(m.imdbRating?'<b>\u2605 '+h(m.imdbRating)+'</b>':'')+[m.releaseInfo||m.year,m.runtime].filter(Boolean).map(x=>'<span>'+h(String(x))+'</span>').join('')+(m.genres||[]).slice(0,3).map(g=>'<span>'+h(g)+'</span>').join('')+(adult(m)?'<span>E \u00b7 Adult content</span>':'')+'</div>'+
+  '<div class="kh-meta">'+(m.imdbRating?'<b>'+(window.KSTAR||'\u2605 ')+h(m.imdbRating)+'</b>':'')+[m.releaseInfo||m.year,m.runtime].filter(Boolean).map(x=>'<span>'+h(String(x))+'</span>').join('')+(m.genres||[]).slice(0,3).map(g=>'<span>'+h(g)+'</span>').join('')+(adult(m)?'<span>E \u00b7 Adult content</span>':'')+'</div>'+
   '<p class="kh-d kt-d" id="kt-d">'+h(m.description||'')+'</p>'+
   '<div class="kt-ac"><button class="kh-btn" id="kt-play">'+label()+'</button><button class="kt-b" id="kt-src">Sources</button><button class="kt-b'+(saved?' on':'')+'" id="kt-lib">'+(saved?'In my list':'My list')+'</button><button class="kt-b'+(s0.l?' on':'')+'" id="kt-wl">Watch later</button><button class="kt-b'+(s0.w?' on':'')+'" id="kt-wd">Watched</button>'+
   '<span class="kt-rx">'+RXK.map(r=>'<button data-r="'+r+'" class="'+(s0.r===r?'on '+r:'')+'" aria-label="'+r+'">'+ic(RX[r])+'</button>').join('')+'</span></div></div></section>'+

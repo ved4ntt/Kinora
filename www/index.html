@@ -1386,7 +1386,7 @@ async function pull(){
     if(d.sub)LS.set('sub',{...LS.get('sub',{}),...d.sub});
     for(const u of d.addons||[])if(!addons.some(a=>a.url===u))await addAddon(u).catch(()=>{});
   }else if(!LS.get('me','')){LS.set('me',meta.full_name||meta.name||(USER.email||'').split('@')[0])}
-  pulling=false;applyCfg();renderPm();await push();toast('Your data is synced');
+  pulling=false;applyCfg();renderPm();await push();
 }
 const signIn=async(e,p)=>{const {error}=await SB.auth.signInWithPassword({email:e,password:p});if(error)throw error};
 const signUp=async(e,p)=>{const {data,error}=await SB.auth.signUp({email:e,password:p});if(error)throw error;if(!data.session)toast('Check your email to confirm your account, then sign in')};
@@ -1565,9 +1565,11 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="explore.js"></script>
 <script src="embed.js"></script>
 <link rel="stylesheet" href="kplay.css">
+<link rel="stylesheet" href="kfix.css">
 <script src="ktmdb.js"></script>
 <script src="kanime.js"></script>
 <script src="kplay.js"></script>
+<script src="knative.js"></script>
 <script src="kfix.js"></script>
 <script>boot()</script>
 </body>

@@ -1,6 +1,6 @@
 {
   "name": "kinora",
-  "version": "1.3.0",
+  "version": "0.3.0",
   "description": "Kinora",
   "author": "Kinora",
   "main": "electron/main.js",

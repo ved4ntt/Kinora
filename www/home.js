@@ -4,11 +4,13 @@
 const D=document,A=()=>D.getElementById('app');
 const mins=s=>{const m=Math.max(1,Math.round(s/60));return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m'};
 const yr=m=>String(m.releaseInfo||m.year||'');
+const STAR='<svg class="kst" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>';
+window.KSTAR=STAR;
 
 const tile=m=>{
  if(CFG().hideAdult&&adult(m))return'';
  M[m.type+'|'+m.id]=m;
- return'<a class="kh-c" data-k="'+h(m.type+'|'+m.id)+'" href="'+dt(m)+'"><div class="kh-i"><img loading="lazy" decoding="async" src="'+h(poster(m))+'" alt="">'+(m.imdbRating?'<em class="kh-r">\u2605 '+h(m.imdbRating)+'</em>':'')+'<div class="kh-pk">'+h((m.genres||[]).slice(0,2).join(' \u00b7 ')||yr(m))+'</div></div><span>'+h(m.name)+'</span><small>'+h(yr(m))+'</small></a>';
+ return'<a class="kh-c" data-k="'+h(m.type+'|'+m.id)+'" href="'+dt(m)+'"><div class="kh-i"><img loading="lazy" decoding="async" src="'+h(poster(m))+'" alt="">'+(m.imdbRating?'<em class="kh-r">'+STAR+h(m.imdbRating)+'</em>':'')+'<div class="kh-pk">'+h((m.genres||[]).slice(0,2).join(' \u00b7 ')||yr(m))+'</div></div><span>'+h(m.name)+'</span><small>'+h(yr(m))+'</small></a>';
 };
 
 const cont=()=>{
@@ -33,7 +35,7 @@ function hero(it){
   i=(k+it.length)%it.length;const m=it[i];
   bgs.forEach((b,j)=>b.classList.toggle('on',j===i));dots.forEach((d,j)=>d.classList.toggle('on',j===i));
   inn.innerHTML=(m.logo?'<img class="kh-logo" src="'+h(m.logo)+'" alt="'+h(m.name)+'">':'<h1 class="kh-h">'+h(m.name)+'</h1>')+
-   '<div class="kh-meta">'+(m.imdbRating?'<b>\u2605 '+h(m.imdbRating)+'</b>':'')+'<span>'+h(typeLabel(m.type))+'</span>'+(yr(m)?'<span>'+h(yr(m))+'</span>':'')+(m.genres||[]).slice(0,3).map(g=>'<span>'+h(g)+'</span>').join('')+'</div>'+
+   '<div class="kh-meta">'+(m.imdbRating?'<b>'+STAR+h(m.imdbRating)+'</b>':'')+'<span>'+h(typeLabel(m.type))+'</span>'+(yr(m)?'<span>'+h(yr(m))+'</span>':'')+(m.genres||[]).slice(0,3).map(g=>'<span>'+h(g)+'</span>').join('')+'</div>'+
    '<p class="kh-d">'+h(m.description||'')+'</p><a class="kh-btn" href="'+dt(m)+'">'+ic('play')+'Play</a>';
   inn.classList.remove('kh-fade');void inn.offsetWidth;inn.classList.add('kh-fade');
  }

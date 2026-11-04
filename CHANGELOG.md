@@ -2,7 +2,9 @@
 
 Each release on GitHub shows the section for its version. Add a new `## [version] - date` section at the top before you bump the version in `package.json`.
 
-## [1.3.0] - 2026-11-04
+## [0.3.x] - 2026-11-04
+
+Kinora is a beta, so version numbers now start with 0. Every push builds a new version (0.3 and the number of commits), and every build is published as its own release with a Windows installer and an Android APK.
 
 ### New
 - New player: a floating glass control island with a glowing seek bar, fewer buttons, and a small popup instead of a wide bar on phones. Subtitles, subtitle size, HDR and speed live in one small menu.
@@ -20,6 +22,10 @@ Each release on GitHub shows the section for its version. Add a new `## [version
 - Search no longer opens the keyboard by itself, and its clear button now takes you back to Home. Dropdowns are Kinora's own instead of the default ones.
 
 ### Fixed
+- The Android build failed after the FFmpeg decoder was added (it needs core library desugaring). That is switched on now.
+- The "Your data is synced" pop-up is gone.
+- Ratings on the Home banner, cards and details page use a drawn star, so they show correctly on Windows.
+- The new dock and the new player styles were not loaded by the page, so the dock showed as plain text at the bottom of the page and the player looked unfinished. Fixed.
 - Watch party works in full screen: the party panel, chat and reactions stay on top of the video.
 - The Party and Chat tabs of the watch party panel no longer leave a huge empty box over the invite code.
 - Sources that played with no sound are detected after a few seconds, fixed through the built-in converter on Windows, or skipped for the next source.
