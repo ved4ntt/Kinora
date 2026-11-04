@@ -95,6 +95,45 @@ ipcMain.on('win', (_e, a) => {
 
 ipcMain.on('open-external', (_e, u) => { if (typeof u === 'string' && /^https:\/\//i.test(u)) shell.openExternal(u); });
 
+// Smooth playback: hand a stream to mpv or VLC when one is installed (Windows)
+const { spawn, execFileSync } = require('child_process');
+const fsx = require('fs');
+let extFound;
+function findPlayer() {
+  if (extFound !== undefined) return extFound;
+  const pf = process.env['ProgramFiles'] || 'C:\\Program Files', pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', la = process.env.LOCALAPPDATA || '', home = process.env.USERPROFILE || '';
+  const mpv = [path.join(pf, 'mpv', 'mpv.exe'), path.join(pf86, 'mpv', 'mpv.exe'), path.join(la, 'Programs', 'mpv', 'mpv.exe'), path.join(home, 'scoop', 'apps', 'mpv', 'current', 'mpv.exe'), 'C:\\ProgramData\\chocolatey\\bin\\mpv.exe'];
+  const vlc = [path.join(pf, 'VideoLAN', 'VLC', 'vlc.exe'), path.join(pf86, 'VideoLAN', 'VLC', 'vlc.exe')];
+  let hit = mpv.find((p) => fsx.existsSync(p));
+  if (hit) return (extFound = { kind: 'mpv', exe: hit });
+  try { const w = execFileSync('where', ['mpv'], { encoding: 'utf8', timeout: 2500 }).split(/\r?\n/)[0].trim(); if (w && fsx.existsSync(w)) return (extFound = { kind: 'mpv', exe: w }); } catch {}
+  hit = vlc.find((p) => fsx.existsSync(p));
+  return (extFound = hit ? { kind: 'vlc', exe: hit } : null);
+}
+ipcMain.handle('ext:info', () => { const p = findPlayer(); return p ? { kind: p.kind } : null; });
+ipcMain.handle('ext:play', (_e, o) => {
+  const p = findPlayer();
+  if (!p || !o || typeof o.url !== 'string' || !/^https?:\/\//i.test(o.url)) return { ok: false };
+  const h = o.headers && typeof o.headers === 'object' ? o.headers : {};
+  const ua = h['User-Agent'] || h['user-agent'] || '', ref = h['Referer'] || h['referer'] || '';
+  const start = Math.max(0, Math.floor(+o.start || 0));
+  let args;
+  if (p.kind === 'mpv') {
+    args = ['--fullscreen', '--force-window=yes', '--hwdec=auto-safe', '--cache=yes', '--demuxer-max-bytes=300MiB', '--title=' + String(o.title || 'Kinora').slice(0, 120)];
+    if (start) args.push('--start=' + start);
+    if (ua) args.push('--user-agent=' + ua);
+    if (ref) args.push('--referrer=' + ref);
+    args.push(o.url);
+  } else {
+    args = ['--fullscreen', '--play-and-exit', '--no-video-title-show', '--file-caching=3000', '--network-caching=5000'];
+    if (start) args.push('--start-time=' + start);
+    if (ua) args.push('--http-user-agent=' + ua);
+    if (ref) args.push('--http-referrer=' + ref);
+    args.push(o.url);
+  }
+  try { const c = spawn(p.exe, args, { detached: true, stdio: 'ignore' }); c.on('error', () => {}); c.unref(); return { ok: true, player: p.kind }; } catch { return { ok: false }; }
+});
+
 // Let Chromium decode HEVC (H.265) with the graphics card, so 4K and HDR files play without re-encoding.
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
 
@@ -102,6 +141,7 @@ app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
 const upd = (s) => { if (win && !win.isDestroyed()) win.webContents.send('upd:event', s); };
 if (autoUpdater) {
   autoUpdater.autoDownload = false;
+  autoUpdater.allowPrerelease = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('update-available', (i) => upd({ s: 'available', v: i.version, notes: typeof i.releaseNotes === 'string' ? i.releaseNotes : '' }));
   autoUpdater.on('update-not-available', () => upd({ s: 'uptodate' }));

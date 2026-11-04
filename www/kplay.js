@@ -45,7 +45,8 @@ function parse(raw,an){
  p.hdr=/hdr10\+?|\bhdr\b/i.test(txt);
  p.exotic=/dts|truehd|e-?ac-?3|\bdd\+|\bac-?3\b/i.test(txt);
  const nt=(txt+' '+host(url)+' '+an).toLowerCase().replace(/[^a-z0-9]/g,'');
- p.prov=(PROV.find(x=>x[1].test(nt))||[an||'Source'])[0];
+ const pn=(an+' '+host(url)).toLowerCase().replace(/[^a-z0-9]/g,'');
+ p.prov=(PROV.find(x=>x[1].test(pn))||PROV.find(x=>x[1].test(nt))||[an||'Source'])[0];
  const m=/(\d+(?:\.\d+)?)\s*(gb|mb)/i.exec(txt);
  p.size=b.videoSize?b.videoSize/1e9:m?(m[2].toLowerCase()==='gb'?+m[1]:+m[1]/1000):0;
  return p;
@@ -152,7 +153,7 @@ E.play=function(s,ctx,t0){
  const nat=!!(window.KNative&&KNative.can(s));
  if(nat){
   /* Android app: ExoPlayer draws behind the page; this <video> is only a stand-in so the controls, party sync and progress keep working */
-  KNative.attach(v,s,t0||0);
+  KNative.attach(v,s,t0||0,ctx);
   D.documentElement.classList.add('knat');if(pl)pl.classList.add('knat');
  }else if(isHls&&window.Hls&&Hls.isSupported()){
   const bl=Math.max(40,CFG().buf||60),want=+s._q||0;

@@ -18,15 +18,14 @@ async function ensure(url,stub){
  let a=addons.find(x=>x.url===url);
  if(!a){a={url,manifest:stub,core:1,kin:1};addons.push(a)}
  a.core=1;a.kin=1;
- try{const m=await withT(getJSON(url),6000);if(m&&m.name)a.manifest=m}catch{}
+ try{const m=await withT(getJSON(url),3500);if(m&&m.name)a.manifest=m}catch{}
  return a;
 }
 async function installSources(){
  try{
-  const hd=await ensure(HDHUB,STUB('hdhub','HdHub')),cn=await ensure(CNC,STUB('cncverse','CNCVerse'));
+  const [hd,cn]=await Promise.all([ensure(HDHUB,STUB('hdhub','HdHub')),ensure(CNC,STUB('cncverse','CNCVerse'))]);
   /* HdHub first, CNCVerse right after it as the fallback, before every other source */
   addons=addons.filter(a=>a!==hd&&a!==cn);
-  const i=addons.findIndex(a=>!a.tmdb&&!a.anime&&!a.fb&&!(a.manifest.catalogs||[]).length&&true);
   addons.splice(Math.max(0,addons.findIndex(a=>a.manifest&&(a.manifest.resources||[]).some(r=>(r.name||r)==='stream'))),0,hd,cn);
   /* the old PenguPlay source is switched off once; you can switch it back on in Settings > Add-ons */
   if(!LS.get('khd2',0)){addons.forEach(a=>{if(/pengu\.uk/i.test(a.url||''))a.off=true});LS.set('khd2',1)}

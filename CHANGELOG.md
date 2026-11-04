@@ -2,6 +2,32 @@
 
 Each release on GitHub shows the section for its version. Add a new `## [version] - date` section at the top before you bump the version in `package.json`.
 
+## [1.3.0] - 2026-11-04
+
+### New
+- New player: a floating glass control island with a glowing seek bar, fewer buttons, and a small popup instead of a wide bar on phones. Subtitles, subtitle size, HDR and speed live in one small menu.
+- Audio and quality bar: when a video starts, a bar lists every audio language and every quality found (4K down to 360p). Tap one and the stream switches at the same moment. A language that only exists at another quality shows that quality next to its name.
+- Play now opens the player straight away. The Sources button is gone from the details page (your add-ons are still in Settings > Add-ons) and the list, watch later and watched buttons are icons.
+- New built-in sources: HdHub is the main source and CNCVerse is the fallback. Every add-on now has an on/off switch in Settings > Add-ons.
+- Streams are looked up while you are still on the details page, a dead source is dropped after a few seconds, and Kinora tries the next one by itself.
+- Android app: video now plays in ExoPlayer, the same kind of native player Nuvio uses, with hardware decoding, MKV and HEVC support, many more sound formats, audio track and subtitle choice inside the file. It can be turned off in Settings > Playback.
+- Windows app: hard files (HEVC, DTS, AC3, MKV) can play in mpv or VLC when one is installed (Settings > Playback > mpv or VLC).
+- HDR switch (player menu and Settings > Playback): on prefers HDR and Dolby Vision files, off prefers normal files.
+- Anime tab (MyAnimeList data) on desktop and in Explore on phones. Anime plays from the embed player.
+- Embed player: the browser always uses it. In the Windows and Android apps it is a switch in Settings > Playback. The links are built in.
+- New desktop dock for the Windows app and desktop browsers: one pill at the top with Home, Movies, Series, Anime, Live TV, Search, Library and Settings (your avatar). The website has a Get the app button that fetches the newest Windows and Android downloads from GitHub.
+- TMDB is now the main source for titles, posters and details. Cinemeta is the fallback.
+- Search no longer opens the keyboard by itself, and its clear button now takes you back to Home. Dropdowns are Kinora's own instead of the default ones.
+
+### Fixed
+- Watch party works in full screen: the party panel, chat and reactions stay on top of the video.
+- The Party and Chat tabs of the watch party panel no longer leave a huge empty box over the invite code.
+- Sources that played with no sound are detected after a few seconds, fixed through the built-in converter on Windows, or skipped for the next source.
+- Many hosts refused to play because the video asked for cross-origin access it did not need. It no longer does.
+- Video that never started now fails after a few seconds instead of 45, autoplay being blocked is handled, and HLS streams recover from network and decoding hiccups.
+- Windows: the window buttons are smaller and no longer cover the player.
+- App updates: Kinora was looking for updates in the wrong GitHub repository, and it ignored beta releases. Both are fixed, so new versions now show up in Settings > App updates.
+
 ## [1.2.0-beta.1] - 2026-10-31
 
 ### New

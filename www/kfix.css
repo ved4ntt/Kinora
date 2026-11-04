@@ -1,0 +1,110 @@
+/* Kinora fixes: desktop dock, glowing player, window buttons, dropdowns, Explore, downloads */
+
+/* ---------- desktop dock: one pill at the top. Phones keep their bottom dock ---------- */
+#kdk{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:42;display:flex;align-items:center;gap:2px;padding:5px;border-radius:99px;background:rgba(16,18,22,.8);-webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);border:1px solid rgba(255,255,255,.07);box-shadow:0 12px 40px rgba(0,0,0,.45);-webkit-app-region:no-drag;transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .3s}
+#kdk a,#kdk button{position:relative;display:flex;align-items:center;gap:9px;height:42px;padding:0 18px;border:0;border-radius:99px;background:none;color:#98a1ac;font:600 15px Manrope,system-ui,sans-serif;white-space:nowrap;text-decoration:none;cursor:pointer;transition:color .25s,background .3s}
+#kdk a:hover,#kdk button:hover{color:#fff}
+#kdk a.on{color:#fff;background:rgba(36,72,124,.5)}
+#kdk svg{width:21px;height:21px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#kdk .kav{width:30px;height:30px;margin:0 -2px;border-radius:50%;overflow:hidden;display:block}
+#kdk .kav svg{width:100%;height:100%;stroke:none}
+#kdk.hide{transform:translate(-50%,-160%);pointer-events:none}
+#kdk #kdl-b{margin-left:4px;background:rgba(255,255,255,.08);color:#e9ecf0}
+@media(max-width:1060px){#kdk span{display:none}#kdk a,#kdk button{padding:0 14px}}
+@media(max-width:760px),(pointer:coarse){html:not(.win) #kdk{display:none}}
+@media(min-width:761px) and (pointer:fine){#kd,.kd-m{display:none!important}}
+html.win #kd,html.win .kd-m{display:none!important}
+html.win #kdk{top:10px}
+
+/* ---------- Windows window buttons: small, quiet, never over the player ---------- */
+html.win #wc{top:8px;right:10px;gap:2px;padding:0;background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-radius:0;opacity:.75;transition:opacity .25s}
+html.win #wc:hover{opacity:1}
+html.win #wc button{width:38px;height:30px;padding:0;border:0;border-radius:9px;background:none;color:#d6dae0;display:grid;place-items:center;transition:background .2s,color .2s}
+html.win #wc button svg{width:15px;height:15px}
+html.win #wc button:hover{background:rgba(255,255,255,.12);color:#fff}
+html.win #wc button:last-child:hover{background:#e5484d;color:#fff}
+body:has(#pl.kp:not(.act)) #wc{opacity:0;pointer-events:none}
+
+/* ---------- the player: floating glass island with a glowing seek bar ---------- */
+#pl.kp #ctl{left:clamp(12px,3vw,44px)!important;right:clamp(12px,3vw,44px)!important;bottom:calc(16px + env(safe-area-inset-bottom))!important;top:auto!important;display:block!important;width:auto!important;padding:14px 20px 8px!important;border-radius:26px!important;background:rgba(14,16,22,.52)!important;border:1px solid rgba(255,255,255,.09)!important;-webkit-backdrop-filter:blur(28px) saturate(170%)!important;backdrop-filter:blur(28px) saturate(170%)!important;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06)!important}
+#pl.kp #ctl>*{flex:none}
+#pl.kp .kr{display:flex!important;flex-direction:row!important;align-items:center;justify-content:space-between;width:100%;margin-top:4px}
+#pl.kp #sk{display:flex!important;width:100%!important;flex:none!important;height:22px;margin:0 0 2px}
+#pl.kp #sk::before{height:4px;background:rgba(255,255,255,.16)}
+#pl.kp #sk:hover::before{height:6px}
+#pl.kp #sk #bf{height:4px;margin-top:-2px;background:rgba(255,255,255,.26)!important}
+#pl.kp #sk #pg{height:4px;margin-top:-2px;background:linear-gradient(90deg,#9fc2ff,#fff 85%)!important;box-shadow:0 0 10px 1px rgba(168,201,255,.75),0 0 26px 5px rgba(140,180,255,.35)!important}
+#pl.kp #sk:hover #bf,#pl.kp #sk:hover #pg{height:6px;margin-top:-3px}
+#pl.kp #sk #pg::after{right:-7px;width:14px;height:14px;margin-top:-7px;background:#fff;box-shadow:0 0 12px 3px rgba(168,201,255,.9);transform:scale(.0)}
+#pl.kp #sk:hover #pg::after,#pl.kp #sk:active #pg::after{transform:scale(1)}
+#pl.kp .cb,#pl.kp #krb{flex:none;width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:none;color:#fff;cursor:pointer;box-shadow:none}
+#pl.kp .cb:hover,#pl.kp #krb:hover{background:rgba(255,255,255,.14)}
+#pl.kp .cb svg,#pl.kp #krb svg{width:22px;height:22px}
+#pl.kp #top{padding-top:calc(14px + env(safe-area-inset-top))}
+#pl.kp #top .rb,#pl.kp #kpb{width:42px;height:42px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(18,20,26,.55)!important;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff}
+#pl.kp #kpb{position:relative;flex:none}
+#pl.kp #top b{text-align:center;font-size:15px;letter-spacing:.01em}
+@media(max-width:820px),(pointer:coarse){#pl.kp #ctl{left:10px!important;right:10px!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;padding:10px 14px 6px!important;border-radius:22px!important}}
+
+/* ---------- watch party: it now stays visible in full screen, tidier panel ---------- */
+#kp{z-index:2147483000}
+#krp,.kfl,#kch,.kchip,#kn,#kj{z-index:2147482990}
+#kp .kmg p{font-size:14.5px}
+#kcf input{background:rgba(255,255,255,.06)}
+.kfl{font-size:46px;filter:drop-shadow(0 10px 22px rgba(0,0,0,.55))}
+
+/* ---------- add-on switches ---------- */
+.k6o.koff>span,.k6o.koff>img{opacity:.45}
+
+/* ---------- custom dropdowns ---------- */
+.kdsel{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:120px;max-width:100%;height:42px;padding:0 14px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(255,255,255,.07);color:inherit;font:600 14px Manrope,system-ui,sans-serif;cursor:pointer;transition:background .2s,border-color .2s}
+.kdsel:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22)}
+.kdsel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kdsel svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+#kdsheet{position:fixed;inset:0;z-index:2147483200;display:grid;align-items:end;justify-items:center;opacity:0;transition:opacity .2s}
+#kdsheet.on{opacity:1}
+#kdsheet .kdbg{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+#kdsheet .kdbox{position:relative;width:min(420px,100%);max-height:72vh;display:flex;padding:8px;border-radius:26px 26px 0 0;background:rgba(18,20,26,.96);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,.08);border-bottom:0;box-shadow:0 -20px 60px rgba(0,0,0,.5);transform:translateY(30px);transition:transform .35s cubic-bezier(.2,.8,.2,1);padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+#kdsheet.on .kdbox{transform:none}
+#kdsheet .kdlist{width:100%;overflow-y:auto;scrollbar-width:none}
+#kdsheet .kdlist::-webkit-scrollbar{display:none}
+#kdsheet .kdo{display:block;width:100%;padding:14px 16px;border:0;border-radius:14px;background:none;color:#e6e8ec;font:600 15px Manrope,system-ui,sans-serif;text-align:left;cursor:pointer}
+#kdsheet .kdo:hover{background:rgba(255,255,255,.07)}
+#kdsheet .kdo.on{background:#f1efea;color:#0a0b0e}
+@media(min-width:761px){#kdsheet{align-items:center}#kdsheet .kdbox{border-radius:22px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;max-height:60vh}}
+
+/* ---------- Explore and the tiles on Search ---------- */
+.kxp2{padding:calc(22px + env(safe-area-inset-top)) 18px 150px}
+.kxp2 h1{margin:0 0 14px;font:800 30px Manrope,system-ui,sans-serif}
+.kxs{display:flex;align-items:center;gap:12px;height:52px;padding:0 18px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#aab0bb;font:600 15px Manrope,system-ui,sans-serif;text-decoration:none}
+.kxs svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round}
+.kxg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.kxt{position:relative;display:grid;gap:3px;align-content:end;min-height:112px;padding:16px;border-radius:22px;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.09);color:#f1efea;text-decoration:none;overflow:hidden;transition:transform .25s,background .25s}
+.kxt:active{transform:scale(.97)}
+.kxt i{position:absolute;top:14px;left:14px;width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.1)}
+.kxt i svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.kxt b{font:700 17px Manrope,system-ui,sans-serif}
+.kxt small{color:#98a1ac;font-size:12px;line-height:1.35}
+@media(min-width:761px){.kxg{grid-template-columns:repeat(4,minmax(0,1fr))}.kxp2{max-width:1000px;margin:0 auto;padding-top:96px}}
+/* search page: the field is shown on every screen now, with its own clear button that goes home */
+.ks-f{position:relative;display:flex!important}
+.ks-f input{padding-right:48px}
+.ks-x{position:absolute;right:8px;top:50%;width:34px;height:34px;margin-top:-17px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.ks-x svg{width:16px;height:16px}
+.ks-f:has(input:placeholder-shown) .ks-x{display:none}
+@media(min-width:761px){#app>.kg:has(.ks-f){padding-top:100px}}
+
+/* ---------- download popup ---------- */
+#kdl{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:60;width:min(380px,92vw);padding:16px;border-radius:24px;background:rgba(16,18,22,.94);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,.09);box-shadow:0 24px 70px rgba(0,0,0,.55);color:#f1efea;font-family:Manrope,system-ui,sans-serif}
+#kdl h3{margin:2px 4px 10px;font:800 18px Manrope,system-ui,sans-serif}
+#kdl .kdr{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.06);color:inherit;text-decoration:none;margin-bottom:8px;transition:background .2s}
+#kdl a.kdr:hover{background:rgba(255,255,255,.12)}
+#kdl .kdr.off{opacity:.5}
+#kdl .kdr i{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.1)}
+#kdl .kdr svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#kdl .kdr span{flex:1;min-width:0;display:grid;gap:2px}
+#kdl .kdr b{font-size:15px}
+#kdl .kdr small{color:#98a1ac;font-size:12px}
+#kdl .kdr em{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:#f1efea;color:#0a0b0e}
+#kdl .kdn{margin:8px 4px 2px;color:#98a1ac;font-size:12.5px;line-height:1.45}
+@media(max-width:760px){#kdl{top:auto;bottom:calc(90px + env(safe-area-inset-bottom))}}

@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld('kinoraWin', {
   onState: (cb) => ipcRenderer.on('win-state', (_e, s) => cb(s)),
   // Open a secure link in the system browser (used for Google sign-in) and receive kinora://auth links back.
   openExternal: (u) => ipcRenderer.send('open-external', u),
+  // mpv / VLC for the smoothest playback when one is installed
+  playerInfo: () => ipcRenderer.invoke('ext:info'),
+  playExternal: (o) => ipcRenderer.invoke('ext:play', o),
   onAuth: (cb) => ipcRenderer.on('auth-url', (_e, u) => cb(u)),
   // App updates (electron-updater reads GitHub Releases; the page decides when to check, download and install).
   upd: {

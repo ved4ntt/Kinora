@@ -1,6 +1,6 @@
 /* Kinora updates: version check, optional auto-download (Windows), one-tap download (Android). Settings > App updates. */
 (()=>{
-const D=document,Q=s=>D.querySelector(s),REPO='vedantt/Kinora';
+const D=document,Q=s=>D.querySelector(s),REPO='ved4ntt/Kinora';
 const W=window.kinoraWin&&window.kinoraWin.upd,CAP=window.Capacitor,AND=!!((CAP&&CAP.isNativePlatform&&CAP.isNativePlatform())||window.KinoraNative);
 const KIND=W?'win':AND?'and':'web';
 const S={s:KIND==='web'?'web':'idle',cur:'',v:'',notes:'',p:0,url:'',m:'',at:0};
@@ -21,9 +21,9 @@ async function check(){
  S.s='checking';S.m='';later=0;render();
  try{
   if(W){await W.check();S.at=Date.now();return} /* Windows answers through events */
-  const r=await fetch('https://api.github.com/repos/'+REPO+'/releases/latest');
+  const r=await fetch('https://api.github.com/repos/'+REPO+'/releases?per_page=8');
   if(!r.ok)throw 0;
-  const j=await r.json(),a=(j.assets||[]).find(x=>/\.apk$/i.test(x.name));
+  const L=await r.json(),j=(Array.isArray(L)?L:[]).find(x=>!x.draft&&(x.assets||[]).some(y=>/\.apk$/i.test(y.name)))||{},a=(j.assets||[]).find(x=>/\.apk$/i.test(x.name));
   if(a&&newer(j.tag_name,S.cur)){
    Object.assign(S,{s:'available',v:String(j.tag_name).replace(/^v/,''),notes:j.body||'',url:a.browser_download_url});
    if(cfg().updAuto===true)act();
