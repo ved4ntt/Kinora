@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
 <title>Kinora admin</title><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
-<style>main{display:grid;gap:18px;max-width:640px}form.card{display:grid;gap:14px}.rel{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.rel:last-child{border:0}.bar{height:5px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}.bar i{display:block;height:100%;width:0;background:#f1efea;transition:width .2s}h2{margin:0 0 4px;font-size:26px}</style></head>
+<style>main{display:grid;gap:18px;max-width:760px}form.card{display:grid;gap:14px}.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.platform{display:grid;gap:12px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:16px}.platform h3{margin:0;font-size:18px}.rel{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.rel:last-child{border:0}.bar{height:5px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}.bar i{display:block;height:100%;width:0;background:#f1efea;transition:width .2s}h2{margin:0 0 4px;font-size:26px}</style></head>
 <body><div class="w"><header class="top"><a class="logo" href="/">KINORA</a><button class="btn" id="out" hidden>Sign out</button></header><main id="m"></main></div>
 <script>
 const U='https://tmjrxyspvkiluwrpmsax.supabase.co',K='sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq';
@@ -30,24 +30,36 @@ async function start(){
  if(ok!==true){localStorage.removeItem(SK);T=null;return loginView('This account is not an admin, or the session ended.')}
  $('#out').hidden=false;$('#out').onclick=()=>{localStorage.removeItem(SK);T=null;loginView()};
  $('#m').innerHTML=`<form class="card" id="rf"><h2>New release</h2>
- <label>Platform<select id="pf"><option value="android">Android (.apk)</option><option value="windows">Windows (.exe / .msi / .zip)</option></select></label>
- <label>Version<input id="ver" placeholder="1.0.0" required></label>
- <label>App file<input id="file" type="file"></label>
- <label>or a link to the file (for big files, e.g. GitHub Releases)<input id="link" type="url" placeholder="https://"></label>
+ <label>Shared version<input id="ver" placeholder="0.3.123" required></label>
+ <div class="duo"><section class="platform"><h3>Android</h3>
+ <label>APK file<input id="file-and" type="file" accept=".apk,application/vnd.android.package-archive"></label>
+ <label>or APK link (for large files)<input id="link-and" type="url" placeholder="https://"></label></section>
+ <section class="platform"><h3>Windows</h3>
+ <label>Installer file<input id="file-win" type="file" accept=".exe,.msi,.zip,application/octet-stream"></label>
+ <label>or installer link (for large files)<input id="link-win" type="url" placeholder="https://"></label></section></div>
  <label>What's new<textarea id="cl" rows="5" placeholder="One change per line"></textarea></label>
  <label>Screenshots (optional)<input id="ph" type="file" accept="image/*" multiple></label>
  <div class="bar" id="bar" hidden><i></i></div><button class="btn p" id="go">Publish</button></form>
  <form class="card" id="af"><h2>Announcement</h2><p class="mu sm">Shown at the top of the downloads page. Leave empty to hide.</p><textarea id="an" rows="2"></textarea><button class="btn">Save</button></form>
  <form class="card" id="pw"><h2>Password</h2><p class="mu sm">Change the password for signing in here.</p><input id="np" type="password" minlength="6" placeholder="New password" autocomplete="new-password"><button class="btn">Change password</button></form>
  <div class="card"><h2>Releases</h2><div id="ls"></div></div>`;
- $('#rf').onsubmit=async e=>{e.preventDefault();const pl=$('#pf').value,v=$('#ver').value.trim(),f=$('#file').files[0],link=$('#link').value.trim();
-  if(!f&&!link)return msg('Choose the app file or paste a link.');
-  $('#go').disabled=true;$('#bar').hidden=false;
-  try{let url=link,size=null;if(f){size=+(f.size/1048576).toFixed(1);url=await up(`${pl}/${v}/${slug(f.name)}`,f,p=>$('#bar i').style.width=Math.round(p*100)+'%')}
-   const photos=[];let i=0;for(const im of $('#ph').files)photos.push(await up(`shots/${pl}-${v}-${i++}-${slug(im.name)}`,im));
-   const r=await api('releases',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({platform:pl,version:v,file_url:url,size_mb:size,changelog:$('#cl').value.trim(),photos})});
-   if(!r.ok)throw new Error(await r.text());msg('Published. It is live on the downloads page.');$('#rf').reset();list()}
-  catch(x){msg('Failed: '+x.message)}$('#go').disabled=false;$('#bar').hidden=true};
+ $('#rf').onsubmit=async e=>{e.preventDefault();const v=$('#ver').value.trim(),changelog=$('#cl').value.trim();
+  const assets=[{platform:'android',file:$('#file-and').files[0],link:$('#link-and').value.trim()},{platform:'windows',file:$('#file-win').files[0],link:$('#link-win').value.trim()}];
+  if(!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(v))return msg('Enter a version such as 0.3.123.');
+  for(const a of assets){if(!a.file&&!a.link)return msg('Choose a file or paste a link for both Android and Windows.');if(a.link&&!/^https?:\/\//i.test(a.link))return msg('App links must start with http:// or https://.');if(a.file&&a.platform==='android'&&!/\.apk$/i.test(a.file.name))return msg('Android upload must be an .apk file.');if(a.file&&a.platform==='windows'&&!/\.(exe|msi|zip)$/i.test(a.file.name))return msg('Windows upload must be an .exe, .msi, or .zip file.')}
+  const uploadFiles=assets.filter(a=>a.file),total=uploadFiles.reduce((n,a)=>n+a.file.size,0),loaded=uploadFiles.map(()=>0);
+  $('#go').disabled=true;$('#bar').hidden=!total;$('#bar i').style.width='0%';
+  try{
+   const urls=await Promise.all(assets.map(async a=>{
+    if(!a.file)return{url:a.link,size:null};
+    const i=uploadFiles.indexOf(a),size=+(a.file.size/1048576).toFixed(1),url=await up(`${a.platform}/${v}/${slug(a.file.name)}`,a.file,p=>{loaded[i]=p*a.file.size;$('#bar i').style.width=Math.round(loaded.reduce((n,x)=>n+x,0)/total*100)+'%'});
+    return{url,size};
+   }));
+   const photos=[];let i=0;for(const im of $('#ph').files)photos.push(await up(`shots/${v}-${i++}-${slug(im.name)}`,im));
+   const rows=assets.map((a,i)=>({platform:a.platform,version:v,file_url:urls[i].url,size_mb:urls[i].size,changelog,photos}));
+   const r=await api('releases',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(rows)});
+   if(!r.ok)throw new Error(await r.text());msg('Both app releases were published as version '+v+'.');$('#rf').reset();list()
+  }catch(x){msg('Failed: '+x.message)}$('#go').disabled=false;$('#bar').hidden=true};
  $('#af').onsubmit=async e=>{e.preventDefault();const r=await api('site',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'announcement',value:$('#an').value.trim()})});msg(r.ok?'Announcement saved.':'Could not save it.')};
  $('#pw').onsubmit=async e=>{e.preventDefault();const r=await fetch(U+'/auth/v1/user',{method:'PUT',headers:{apikey:K,Authorization:'Bearer '+T,'Content-Type':'application/json'},body:JSON.stringify({password:$('#np').value})});msg(r.ok?'Password changed.':'Could not change it (use at least 6 characters).');if(r.ok)$('#np').value=''};
  api('site?select=value&key=eq.announcement').then(r=>r.json()).then(j=>{if(j[0])$('#an').value=j[0].value||''});
@@ -55,10 +67,12 @@ async function start(){
 }
 async function list(){
  const R=await api('releases?select=*&order=created_at.desc').then(r=>r.json()).catch(()=>[]);
- $('#ls').innerHTML=Array.isArray(R)&&R.length?R.map(r=>`<div class="rel"><div><b>${h(r.platform)} ${h(r.version)}</b><div class="mu sm">${new Date(r.created_at).toLocaleString()}${r.size_mb?' · '+h(r.size_mb)+' MB':''}</div></div><div class="row"><button class="btn" data-e="${r.id}">Edit notes</button><button class="btn" data-d="${r.id}">Delete</button></div></div>`).join(''):'<p class="mu sm">No releases yet.</p>';
+ const G=groupReleases(R);
+ $('#ls').innerHTML=G.length?G.map(g=>{const p=['android','windows'].filter(k=>g.platforms[k]).map(k=>k==='android'?'Android':'Windows').join(' · ');return`<div class="rel"><div><b>${h(g.version)}</b><div class="mu sm">${p} · ${new Date(g.created_at).toLocaleString()}</div></div><div class="row"><button class="btn" data-e="${h(g.version)}">Edit notes</button><button class="btn" data-d="${h(g.version)}">Delete both</button></div></div>`}).join(''):'<p class="mu sm">No releases yet.</p>';
  $('#ls').onclick=async e=>{const d=e.target.dataset.d,ed=e.target.dataset.e;
-  if(d&&confirm('Delete this release?')){await api('releases?id=eq.'+d,{method:'DELETE'});list()}
-  if(ed){const r=R.find(x=>x.id===ed),t=prompt('Changelog',r.changelog||'');if(t!==null){await api('releases?id=eq.'+ed,{method:'PATCH',body:JSON.stringify({changelog:t})});list()}}};
+  if(d&&confirm('Delete both platform entries for version '+d+'?')){await api('releases?version=eq.'+encodeURIComponent(d),{method:'DELETE'});list()}
+  if(ed){const g=G.find(x=>x.version===ed),t=prompt('Shared changelog for '+ed,g&&g.changelog||'');if(t!==null){const r=await api('releases?version=eq.'+encodeURIComponent(ed),{method:'PATCH',body:JSON.stringify({changelog:t})});if(!r.ok)msg('Could not update the shared changelog.');list()}}};
 }
+function groupReleases(R){const M=new Map();for(const r of Array.isArray(R)?R:[]){const v=String(r.version||'');let g=M.get(v);if(!g){g={version:v,created_at:r.created_at,changelog:r.changelog||'',photos:r.photos||[],platforms:{}};M.set(v,g)}if(!g.platforms[r.platform])g.platforms[r.platform]=r;if(!g.changelog&&r.changelog)g.changelog=r.changelog;if(!g.photos.length&&r.photos&&r.photos.length)g.photos=r.photos}return[...M.values()].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))}
 start();
 </script></body></html>

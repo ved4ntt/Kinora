@@ -37,11 +37,28 @@ const get=p=>fetch(U+'/rest/v1/'+p,{headers:{apikey:K}}).then(r=>r.json()).then(
  const [R,S]=await Promise.all([get('releases?select=*&order=created_at.desc'),get('site?select=*&key=eq.announcement')]);
  if(S[0]&&S[0].value)document.getElementById('ann').innerHTML=`<div class="msg ann">${h(S[0].value)}</div>`;
  const N={android:'Android',windows:'Windows'},mine=/android/i.test(navigator.userAgent)?'android':'windows',order=[mine,mine==='android'?'windows':'android'];
+ const groups=groupReleases(R),paired=groups.find(g=>g.platforms.android&&g.platforms.windows),latestBy={android:R.find(x=>x.platform==='android'),windows:R.find(x=>x.platform==='windows')};
+ const downloads=paired?paired.platforms:latestBy;
  document.getElementById('dl').innerHTML=order.map(p=>{
-  const r=R.find(x=>x.platform===p);
-  return`<div class="card pf"><div><b>${N[p]}</b>${p===mine?' <small class="mu">· for your device</small>':''}</div><div class="mu sm">${r?'Version '+h(r.version)+(r.size_mb?' · '+h(r.size_mb)+' MB':'')+' · '+new Date(r.created_at).toLocaleDateString():'Not released yet'}</div><div class="row"><a class="btn p${r?'':' off'}" ${r?`href="${h(r.file_url)}" download`:''}>${r?'Download for '+N[p]:'Coming soon'}</a></div></div>`}).join('');
- const ph=R.flatMap(r=>r.photos||[]).slice(0,8);
+  const r=downloads[p],url=safeDownload(r&&r.file_url);
+  return`<div class="card pf"><div><b>${N[p]}</b>${p===mine?' <small class="mu">· for your device</small>':''}</div><div class="mu sm">${url?'Version '+h(r.version)+(r.size_mb?' · '+h(r.size_mb)+' MB':'')+' · '+new Date(r.created_at).toLocaleDateString():'Not released yet'}</div><div class="row"><a class="btn p${url?'':' off'}" ${url?'href="'+h(url)+'" download':''}>${url?'Download for '+N[p]:'Coming soon'}</a></div></div>`}).join('');
+ const ph=[...new Set(groups.flatMap(g=>g.photos))].slice(0,8);
  if(ph.length)document.getElementById('sh').innerHTML='<h2>Screenshots</h2><div class="shots">'+ph.map(u=>`<img loading="lazy" src="${h(u)}" alt="">`).join('')+'</div>';
- document.getElementById('cl').innerHTML=R.length?R.slice(0,15).map(r=>`<div class="card"><b>${N[r.platform]} ${h(r.version)}</b> <span class="mu sm">· ${new Date(r.created_at).toLocaleDateString()}</span>${r.changelog?`<pre>${h(r.changelog)}</pre>`:''}</div>`).join(''):'<p class="mu">Nothing here yet.</p>';
+ document.getElementById('cl').innerHTML=groups.length?groups.slice(0,15).map(g=>{
+  const platforms=['android','windows'].filter(p=>g.platforms[p]);
+  const buttons=platforms.map(p=>{const url=safeDownload(g.platforms[p].file_url);return url?`<a class="btn" href="${h(url)}" download>Download ${N[p]}</a>`:''}).filter(Boolean).join('');
+  return`<div class="card"><b>Kinora ${h(g.version)}</b> <span class="mu sm">· ${platforms.map(p=>N[p]).join(' · ')} · ${new Date(g.created_at).toLocaleDateString()}</span>${g.changelog?`<pre>${h(g.changelog)}</pre>`:''}${buttons?`<div class="row">${buttons}</div>`:''}</div>`
+ }).join(''):'<p class="mu">Nothing here yet.</p>';
 })();
+function groupReleases(rows){
+ const map=new Map();
+ for(const r of rows){const version=String(r.version||'');let g=map.get(version);if(!g){g={version,created_at:r.created_at,changelog:'',photos:[],platforms:{}};map.set(version,g)}
+  if(!g.platforms[r.platform])g.platforms[r.platform]=r;
+  if(!g.changelog&&r.changelog)g.changelog=r.changelog;
+  if(new Date(r.created_at)>new Date(g.created_at))g.created_at=r.created_at;
+  for(const photo of r.photos||[])if(!g.photos.includes(photo))g.photos.push(photo);
+ }
+ return[...map.values()].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+}
+function safeDownload(value){try{const u=new URL(String(value));return u.protocol==='https:'||u.protocol==='http:'?u.href:''}catch{return''}}
 </script></body></html>

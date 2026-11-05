@@ -12,6 +12,7 @@ const D=document,Q=(s,r=D)=>r.querySelector(s),QA=(s,r=D)=>[...r.querySelectorAl
 const say=m=>{try{toast(m)}catch{}};
 const WIN=/Electron/.test(navigator.userAgent);
 const ANDROID=!!((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||window.KinoraNative);
+const APP_PLAYER=WIN||ANDROID;
 const withT=(p,ms)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),ms))]);
 const qlab=q=>q>=2160?'4K':q?q+'p':'Auto';
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return''}};
@@ -70,8 +71,9 @@ const rank=(p,sel,pref,bad)=>{
  const lm=sel.lang?(p.langs.includes(sel.lang)?0:p.langs.length?1:.5):0;
  const qd=sel.q?Math.abs(qIdx(p.q)-qIdx(sel.q))+(p.q>sel.q?.3:0):0;
  const ps=pref&&window.KSrc?-window.KSrc.score(p.raw,pref):0;
- const hd=((CFG().hdr===true)===!!(p.hdr||p.dv))?0:1,hv=(!HEVC_OK&&p.hevc&&!nativeOK())?1:0,pr=provRank(p),bd=bad&&bad.has(p.key)?1:0;
- return sel.pf?[bd,ps,pr,lm,qd,hd,hv,webScore(p),p.q?0:1]:[bd,ps,lm,qd,hd,hv,pr,webScore(p),p.q?0:1];
+ const hd=((CFG().hdr===true)===!!(p.hdr||p.dv))?0:1,hv=(!HEVC_OK&&p.hevc)?1:0,pr=provRank(p),bd=bad&&bad.has(p.key)?1:0;
+ // App clients let learned startup speed outrank provider preference; web keeps provider-first ordering.
+ return sel.pf?(APP_PLAYER?[bd,hv,ps,lm,qd,hd,webScore(p),pr,p.q?0:1]:[bd,hv,ps,pr,lm,qd,hd,webScore(p),p.q?0:1]):[bd,ps,lm,qd,hd,hv,pr,webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
@@ -146,7 +148,7 @@ E.play=function(s,ctx,t0){
  const arm=ms=>{clearTimeout(wd);wd=setTimeout(()=>{if(my===seq&&!started)fail('This source took too long to start.')},Math.max(3500,Math.min(ms,deadline-Date.now())))};
  /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
  const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
- arm(s._srv?50000:alts>0?Math.max(7000,Math.min(11000,(window.KSpeed?KSpeed.limit(s):30000)*.3)):40000);
+ arm(s._srv?50000:alts>0?(APP_PLAYER?Math.max(4500,Math.min(6000,(window.KSpeed?KSpeed.limit(s):30000)*.2)):Math.max(7000,Math.min(11000,(window.KSpeed?KSpeed.limit(s):30000)*.3))):40000);
 
  /* play() can be refused by the browser: fall back to muted playback, then to a tap */
  let tried=false;
@@ -382,13 +384,15 @@ V.watch=async function(type,id,vid){
   const kp=LS.get('kpick',{}),pls=playable(),langs=langList(pls).map(x=>x.n);
   const lang=kp.lang&&langs.includes(kp.lang)?kp.lang:((CFG().prefLangs||[]).find(l=>langs.includes(l))||'');
   let pool0=lang?pls.filter(x=>x.langs.includes(lang)||!x.langs.length):pls;
-  const mp=pool0.filter(x=>x.prov===MAIN);if(mp.length)pool0=mp;
   /* do not start on a codec this device cannot play when another choice exists */
-  const okc=x=>HEVC_OK||nativeOK()||!x.hevc;
-  const pool=pool0.filter(okc).length?pool0.filter(okc):pool0;
+  const okc=x=>HEVC_OK||!x.hevc;
+  const mp=pool0.filter(x=>x.prov===MAIN),preferred=mp.length?mp:pool0;
+  const safe=preferred.filter(okc),safeAny=APP_PLAYER?pool0.filter(okc):safe;
+  const pool=safe.length?safe:safeAny.length?safeAny:preferred;
   const have=[...new Set(pool.map(x=>x.q).filter(Boolean))].sort((a,b)=>b-a);
   let q=kp.q&&have.includes(kp.q)?kp.q:0;
-  if(!q){const pq=CFG().quality,cap=!pq||pq==='best'?(LS.get('maxq',2160)||2160):+pq;q=have.find(x=>x<=cap)||have[have.length-1]||0}
+  // Keep automatic app playback at 1080p for faster starts; users can still choose 4K explicitly.
+  if(!q){const pq=CFG().quality,maxq=LS.get('maxq',2160)||2160,cap=!pq||pq==='best'?(APP_PLAYER?Math.min(1080,maxq):maxq):+pq;q=have.find(x=>x<=cap)||have[have.length-1]||0}
   return{lang,q};
  };
 
@@ -528,7 +532,7 @@ V.watch=async function(type,id,vid){
   const pls=playable();
   if(!pls.length){if(E0.finished)showFail(E0.S.length?'These sources only offer torrents, which cannot be played here.':'No source returned a stream for this title.');return}
   if(pls.some(x=>x.prov===MAIN)||E0.finished)start();
-  else if(!graceT)graceT=setTimeout(()=>{if(live()&&!started)start()},1800);
+  else if(!graceT)graceT=setTimeout(()=>{if(live()&&!started)start()},APP_PLAYER?250:1800);
  }
  KPlay.fail=(why,t,s,kind)=>{
   if(!live()||!cur||(s&&s._kk&&s._kk!==cur.key))return;

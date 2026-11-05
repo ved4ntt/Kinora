@@ -60,22 +60,6 @@ function startServer({ www, tmp, port = 38787 }) {
   app.get('/cfg', auth, (req, res) => { if (req.query.hevc !== undefined) caps.hevc = req.query.hevc === '1'; res.json(caps); });
 
   /* ---------- fast proxy: asks the host for several pieces at once and hands them over in order ---------- */
-  async function rangeMeta(u, headers) {
-    const key = u + '|' + JSON.stringify(headers);
-    const c = metaCache.get(key);
-    if (c && Date.now() - c.t < 600000) return c;
-    const m = { size: 0, type: '', ranges: false, t: Date.now() };
-    try {
-      const r = await fetch(u, { headers: { ...headers, Range: 'bytes=0-0' }, redirect: 'follow' });
-      const total = /\/(\d+)$/.exec(r.headers.get('content-range') || '');
-      m.type = r.headers.get('content-type') || '';
-      if (r.status === 206 && total) { m.size = +total[1]; m.ranges = true; }
-      try { await r.body.cancel(); } catch {}
-    } catch {}
-    metaCache.set(key, m);
-    return m;
-  }
-
   async function pump(u, headers, start, end, res, signal, begin) {
     const PAR = 4, CH = 4 * 1024 * 1024, FIRST = 384 * 1024;
     const q = [];
@@ -104,9 +88,17 @@ function startServer({ www, tmp, port = 38787 }) {
   }
 
   async function passThrough(req, res, u, headers, ac) {
+    const cacheKey = u + '|' + JSON.stringify(headers);
     if (req.headers.range) headers.Range = req.headers.range;
     try {
       const r = await fetch(u, { headers, redirect: 'follow', signal: ac.signal });
+      const rangeTotal = /\/(\d+)$/.exec(r.headers.get('content-range') || '');
+      const contentLength = +(r.headers.get('content-length') || 0);
+      if (r.status === 206 && rangeTotal) {
+        metaCache.set(cacheKey, { size: +rangeTotal[1], type: r.headers.get('content-type') || '', ranges: true, t: Date.now() });
+      } else if (r.status === 200 && !req.headers.range && contentLength > 0 && /\bbytes\b/i.test(r.headers.get('accept-ranges') || '')) {
+        metaCache.set(cacheKey, { size: contentLength, type: r.headers.get('content-type') || '', ranges: true, t: Date.now() });
+      }
       res.status(r.status);
       for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges']) { const v = r.headers.get(k); if (v) res.set(k, v); }
       if (!res.get('accept-ranges')) res.set('Accept-Ranges', 'bytes');
@@ -139,18 +131,18 @@ function startServer({ www, tmp, port = 38787 }) {
         if (!ac.signal.aborted) ac.abort();
       } catch {}
     });
-    // Big files: ask the host for several pieces at once (many hosts slow down each single connection, this is much faster and seeking is quick).
-    // If the host does not like that, the plain pass-through below takes over.
+    // Once a stream has started, use parallel ranges for known large files and seeks.
     const rg = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
-    try {
-      const m = await rangeMeta(u, headers);
-      if (m.ranges && m.size > 8 * 1024 * 1024 && !ac.signal.aborted) {
-        let start = 0, end = m.size - 1;
-        if (rg) {
-          if (rg[1] !== '') { start = +rg[1]; if (rg[2] !== '') end = Math.min(+rg[2], m.size - 1); }
-          else if (rg[2] !== '') start = Math.max(0, m.size - +rg[2]);
-        }
-        if (start > end || start >= m.size) return res.status(416).set('Content-Range', 'bytes */' + m.size).end();
+    const m = metaCache.get(u + '|' + JSON.stringify(headers));
+    if (m && Date.now() - m.t < 600000 && m.ranges && m.size > 8 * 1024 * 1024 && !ac.signal.aborted) {
+      let start = 0, end = m.size - 1;
+      if (rg) {
+        if (rg[1] !== '') { start = +rg[1]; if (rg[2] !== '') end = Math.min(+rg[2], m.size - 1); }
+        else if (rg[2] !== '') start = Math.max(0, m.size - +rg[2]);
+      }
+      if (rg && (start > end || start >= m.size)) return res.status(416).set('Content-Range', 'bytes */' + m.size).end();
+      // Keep the first bytes on the direct path so playback never waits for parallel chunk assembly.
+      if (start > 0) {
         let began = false;
         try {
           await pump(u, headers, start, end, res, ac.signal, () => {
@@ -163,7 +155,7 @@ function startServer({ www, tmp, port = 38787 }) {
           if (began || ac.signal.aborted) { try { res.destroy(); } catch {} return; }
         }
       }
-    } catch {}
+    }
     // Direct robust streaming pass-through for reliable seeking and CDN compatibility
     return passThrough(req, res, u, headers, ac);
   });
