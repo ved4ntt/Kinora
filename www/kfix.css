@@ -1,52 +1,15 @@
-/* Kinora fixes: desktop dock, glowing player, window buttons, dropdowns, Explore, downloads */
+/* Kinora fixes: window buttons, watch party layering, dropdowns, Explore, downloads.
+   (The dock is in kdock.css and the player is in kplay.css.) */
 
-/* ---------- desktop dock: one pill at the top. Phones keep their bottom dock ---------- */
-#kdk{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:42;display:flex;align-items:center;gap:2px;padding:5px;border-radius:99px;background:rgba(16,18,22,.8);-webkit-backdrop-filter:blur(24px) saturate(150%);backdrop-filter:blur(24px) saturate(150%);border:1px solid rgba(255,255,255,.07);box-shadow:0 12px 40px rgba(0,0,0,.45);-webkit-app-region:no-drag;transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .3s}
-#kdk a,#kdk button{position:relative;display:flex;align-items:center;gap:9px;height:42px;padding:0 18px;border:0;border-radius:99px;background:none;color:#98a1ac;font:600 15px Manrope,system-ui,sans-serif;white-space:nowrap;text-decoration:none;cursor:pointer;transition:color .25s,background .3s}
-#kdk a:hover,#kdk button:hover{color:#fff}
-#kdk a.on{color:#fff;background:rgba(36,72,124,.5)}
-#kdk svg{width:21px;height:21px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#kdk .kav{width:30px;height:30px;margin:0 -2px;border-radius:50%;overflow:hidden;display:block}
-#kdk .kav svg{width:100%;height:100%;stroke:none}
-#kdk.hide{transform:translate(-50%,-160%);pointer-events:none}
-#kdk #kdl-b{margin-left:4px;background:rgba(255,255,255,.08);color:#e9ecf0}
-@media(max-width:1060px){#kdk span{display:none}#kdk a,#kdk button{padding:0 14px}}
-@media(max-width:760px),(pointer:coarse){html:not(.win) #kdk{display:none}}
-@media(min-width:761px) and (pointer:fine){#kd,.kd-m{display:none!important}}
-html.win #kd,html.win .kd-m{display:none!important}
-html.win #kdk{top:10px}
-
-/* ---------- Windows window buttons: small, quiet, never over the player ---------- */
+/* ---------- Windows window buttons: small, quiet (hidden by kplay.css while a video plays) ---------- */
 html.win #wc{top:8px;right:10px;gap:2px;padding:0;background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-radius:0;opacity:.75;transition:opacity .25s}
 html.win #wc:hover{opacity:1}
 html.win #wc button{width:38px;height:30px;padding:0;border:0;border-radius:9px;background:none;color:#d6dae0;display:grid;place-items:center;transition:background .2s,color .2s}
 html.win #wc button svg{width:15px;height:15px}
 html.win #wc button:hover{background:rgba(255,255,255,.12);color:#fff}
 html.win #wc button:last-child:hover{background:#e5484d;color:#fff}
-body:has(#pl.kp:not(.act)) #wc{opacity:0;pointer-events:none}
 
-/* ---------- the player: floating glass island with a glowing seek bar ---------- */
-#pl.kp #ctl{left:clamp(12px,3vw,44px)!important;right:clamp(12px,3vw,44px)!important;bottom:calc(16px + env(safe-area-inset-bottom))!important;top:auto!important;display:block!important;width:auto!important;padding:14px 20px 8px!important;border-radius:26px!important;background:rgba(14,16,22,.52)!important;border:1px solid rgba(255,255,255,.09)!important;-webkit-backdrop-filter:blur(28px) saturate(170%)!important;backdrop-filter:blur(28px) saturate(170%)!important;box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06)!important}
-#pl.kp #ctl>*{flex:none}
-#pl.kp .kr{display:flex!important;flex-direction:row!important;align-items:center;justify-content:space-between;width:100%;margin-top:4px}
-#pl.kp #sk{display:flex!important;width:100%!important;flex:none!important;height:22px;margin:0 0 2px}
-#pl.kp #sk::before{height:4px;background:rgba(255,255,255,.16)}
-#pl.kp #sk:hover::before{height:6px}
-#pl.kp #sk #bf{height:4px;margin-top:-2px;background:rgba(255,255,255,.26)!important}
-#pl.kp #sk #pg{height:4px;margin-top:-2px;background:linear-gradient(90deg,#9fc2ff,#fff 85%)!important;box-shadow:0 0 10px 1px rgba(168,201,255,.75),0 0 26px 5px rgba(140,180,255,.35)!important}
-#pl.kp #sk:hover #bf,#pl.kp #sk:hover #pg{height:6px;margin-top:-3px}
-#pl.kp #sk #pg::after{right:-7px;width:14px;height:14px;margin-top:-7px;background:#fff;box-shadow:0 0 12px 3px rgba(168,201,255,.9);transform:scale(.0)}
-#pl.kp #sk:hover #pg::after,#pl.kp #sk:active #pg::after{transform:scale(1)}
-#pl.kp .cb,#pl.kp #krb{flex:none;width:40px;height:40px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:none;color:#fff;cursor:pointer;box-shadow:none}
-#pl.kp .cb:hover,#pl.kp #krb:hover{background:rgba(255,255,255,.14)}
-#pl.kp .cb svg,#pl.kp #krb svg{width:22px;height:22px}
-#pl.kp #top{padding-top:calc(14px + env(safe-area-inset-top))}
-#pl.kp #top .rb,#pl.kp #kpb{width:42px;height:42px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(18,20,26,.55)!important;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff}
-#pl.kp #kpb{position:relative;flex:none}
-#pl.kp #top b{text-align:center;font-size:15px;letter-spacing:.01em}
-@media(max-width:820px),(pointer:coarse){#pl.kp #ctl{left:10px!important;right:10px!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;padding:10px 14px 6px!important;border-radius:22px!important}}
-
-/* ---------- watch party: it now stays visible in full screen, tidier panel ---------- */
+/* ---------- watch party: it stays visible in full screen, tidier panel ---------- */
 #kp{z-index:2147483000}
 #krp,.kfl,#kch,.kchip,#kn,#kj{z-index:2147482990}
 #kp .kmg p{font-size:14.5px}
@@ -56,7 +19,7 @@ body:has(#pl.kp:not(.act)) #wc{opacity:0;pointer-events:none}
 /* ---------- add-on switches ---------- */
 .k6o.koff>span,.k6o.koff>img{opacity:.45}
 
-/* ---------- custom dropdowns ---------- */
+/* ---------- custom dropdowns (instead of the default ones) ---------- */
 .kdsel{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:120px;max-width:100%;height:42px;padding:0 14px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(255,255,255,.07);color:inherit;font:600 14px Manrope,system-ui,sans-serif;cursor:pointer;transition:background .2s,border-color .2s}
 .kdsel:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22)}
 .kdsel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

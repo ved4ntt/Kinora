@@ -43,6 +43,18 @@ jobs:
               open(p, 'w', encoding='utf-8').write(s)
           print('kinora deep link:', 'android:scheme="kinora"' in open(p, encoding='utf-8').read())
           PY
+      # More memory for 4K files, and hardware acceleration for the page
+      - run: |
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          if 'android:largeHeap' not in s:
+              s = s.replace('<application', '<application android:largeHeap="true"', 1)
+          if 'android:hardwareAccelerated' not in s:
+              s = s.replace('<application', '<application android:hardwareAccelerated="true"', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          print('largeHeap:', 'android:largeHeap' in s)
+          PY
       # Draw the icon and splash images, turn them into Android resources, then add the animated splash + themed icon
       - run: npm i --no-save sharp && node scripts/make-brand.mjs
       - run: npx capacitor-assets generate --android

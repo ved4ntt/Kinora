@@ -1,38 +1,47 @@
 /* Kinora fixes and extras:
-   - installs the built-in sources (HdHub as the main one, CNCVerse as a fallback) and lets you switch any add-on off
-   - desktop dock (top, one pill) with Anime, plus a Download button on the website
-   - Explore page with Anime, custom dropdowns instead of the default ones
-   Phones keep their own bottom dock. */
+   - built-in sources: CNCVerse (it carries 4KHDHub, tried first), HdHub and PenguPlay. They are installed instantly (the last answer of each is remembered)
+     and refreshed in the background, so opening the app never waits for them.
+   - lets you switch any add-on off
+   - Explore page (phones), custom dropdowns instead of the default ones, the Download popup on the website
+   The dock is in kdock.js, the player is in kplay.js. */
 (()=>{
 const D=document,Q=(s,r=D)=>r.querySelector(s),QA=(s,r=D)=>[...r.querySelectorAll(s)];
 const AND=!!((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||window.KinoraNative);
 const WINAPP=!!window.kinoraWin,APP=AND||WINAPP;
 const REPO='ved4ntt/Kinora';
-const HDHUB='https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyIsImNhdGFsb2dzIjoiZmVhdHVyZWQscG9wdWxhciJ9/manifest.json';
 const CNC='https://cncverse.dpdns.org/u/p_w0jrtfw7ec3d/manifest.json';
-const STUB=(id,name)=>({id,version:'1.0.0',name,description:name+' streams',resources:['stream'],types:['movie','series'],idPrefixes:['tt','tmdb:']});
+const HDHUB='https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyIsImNhdGFsb2dzIjoiZmVhdHVyZWQscG9wdWxhciJ9/manifest.json';
+const PENGU='https://pengu.uk/%7B%22auth_token%22%3A%226n1cvjm-3s2k6ZUZw2xbdmX6WP_7QnmOQ8KJSuFbic8%22%7D/manifest.json';
+const SRC=[[CNC,'cncverse','CNCVerse'],[HDHUB,'hdhub','HdHub'],[PENGU,'pengu','PenguPlay']];
+const STUB=(id,name)=>({id,version:'1.0.0',name,description:name+' streams',resources:['stream','subtitles'],types:['movie','series'],idPrefixes:['tt','tmdb:']});
 const withT=(p,ms)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),ms))]);
 
 /* ================= built-in sources ================= */
-async function ensure(url,stub){
+function ensure(url,id,name){
  let a=addons.find(x=>x.url===url);
- if(!a){a={url,manifest:stub,core:1,kin:1};addons.push(a)}
+ if(!a){a={url,manifest:LS.get('kman:'+url,null)||STUB(id,name),core:1,kin:1};addons.push(a)}
  a.core=1;a.kin=1;
- try{const m=await withT(getJSON(url),3500);if(m&&m.name)a.manifest=m}catch{}
  return a;
 }
-async function installSources(){
+function refresh(a){
+ withT(getJSON(a.url),12000).then(m=>{
+  if(m&&m.name&&m.resources){a.manifest=m;try{LS.set('kman:'+a.url,m)}catch{}LS.set('addons',addons)}
+ }).catch(()=>{});
+}
+function installSources(){
  try{
-  const [hd,cn]=await Promise.all([ensure(HDHUB,STUB('hdhub','HdHub')),ensure(CNC,STUB('cncverse','CNCVerse'))]);
-  /* HdHub first, CNCVerse right after it as the fallback, before every other source */
-  addons=addons.filter(a=>a!==hd&&a!==cn);
-  addons.splice(Math.max(0,addons.findIndex(a=>a.manifest&&(a.manifest.resources||[]).some(r=>(r.name||r)==='stream'))),0,hd,cn);
-  /* the old PenguPlay source is switched off once; you can switch it back on in Settings > Add-ons */
-  if(!LS.get('khd2',0)){addons.forEach(a=>{if(/pengu\.uk/i.test(a.url||''))a.off=true});LS.set('khd2',1)}
+  const mine=SRC.map(([u,i,n])=>ensure(u,i,n));
+  /* all three are used. They are switched on once (you can still switch any of them off in Settings > Add-ons). */
+  if(!LS.get('khd3',0)){mine.forEach(a=>{a.off=false});LS.set('khd3',1)}
+  addons=addons.filter(a=>!mine.includes(a));
+  /* CNCVerse (4KHDHub) first, then HdHub, then PenguPlay, in front of every other source */
+  const at=addons.findIndex(a=>(a.manifest&&(a.manifest.resources||[]).some(r=>(r.name||r)==='stream')));
+  addons.splice(at<0?addons.length:at,0,...mine);
   LS.set('addons',addons);
+  setTimeout(()=>mine.forEach(refresh),1500);
  }catch{}
 }
-{const b0=window.boot;window.boot=async()=>{await installSources();return b0()}}
+{const b0=window.boot;window.boot=async()=>{installSources();return b0()}}
 
 /* ================= switch add-ons on and off ================= */
 if(window.K6&&K6.PAGES&&K6.PAGES.addons){
@@ -89,26 +98,8 @@ function enhance(){
 }
 let rq=0;new MutationObserver(()=>{cancelAnimationFrame(rq);rq=requestAnimationFrame(enhance)}).observe(D.body,{childList:true,subtree:true});
 
-/* ================= desktop dock ================= */
-const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',movie:TI.movie,tv:TI.tv,anime:TI.anime,live:TI.live,search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',lib:'<path d="M4 8h16l-1.5 11a2 2 0 0 1-2 1.7H7.5a2 2 0 0 1-2-1.7z"/><path d="M6 8l1.2-3.5h9.6L18 8"/><path d="M9.5 13h5"/>',down:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>'};
-const ITEMS=[['','home','Home'],['discover/movie','movie','Movies'],['discover/series','tv','Series'],['discover/anime','anime','Anime'],['live','live','Live TV'],['search','search','Search'],['library','lib','Library'],['settings','av','Settings']];
-const dk=D.createElement('nav');dk.id='kdk';dk.setAttribute('aria-label','Main');
-function drawDock(){
- const av=()=>{try{return avatarSvg(+LS.get('av',0))}catch{return''}};
- dk.innerHTML=ITEMS.map(([r,i,t])=>'<a href="#/'+r+'" data-r="'+r+'" aria-label="'+t+'">'+(i==='av'?'<em class="kav">'+av()+'</em>':'<svg viewBox="0 0 24 24">'+IC[i]+'</svg>')+'<span>'+t+'</span></a>').join('')+(APP?'':'<button type="button" id="kdl-b" aria-label="Download the apps"><svg viewBox="0 0 24 24">'+IC.down+'</svg><span>Get the app</span></button>');
- mark();
-}
-function mark(){
- const p=location.hash.replace(/^#\/?/,'').split('/'),a=p[0]||'',b=p[1]||'';
- const cur=a===''?'':a==='discover'||a==='title'?(b==='movie'?'discover/movie':b==='series'?'discover/series':b==='anime'?'discover/anime':null):a==='live'||a==='tv'?'live':a==='search'||a==='explore'?'search':a==='library'?'library':/settings|profile|profiles|account/.test(a)?'settings':null;
- QA('a',dk).forEach(x=>x.classList.toggle('on',cur!==null&&x.dataset.r===cur));
- dk.classList.toggle('hide',a==='watch');
-}
-D.body.append(dk);drawDock();
-addEventListener('hashchange',mark);
-setInterval(()=>{const k=dk.querySelector('.kav');if(k){const s=(()=>{try{return avatarSvg(+LS.get('av',0))}catch{return''}})();if(k.innerHTML!==s)k.innerHTML=s}},2500);
-
 /* ================= Download the apps (website only), straight from GitHub ================= */
+const DLI='<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>';
 let REL=null;
 async function releases(){
  if(REL)return REL;
@@ -122,14 +113,14 @@ async function releases(){
   return REL=out;
  }catch{return REL={}}
 }
-function dlPop(anchor){
+function dlPop(){
  const old=Q('#kdl');if(old){old.remove();return}
  const p=D.createElement('div');p.id='kdl';
  p.innerHTML='<h3>Get Kinora</h3><p class="kdn">Finding the latest version\u2026</p>';
  D.body.append(p);
  releases().then(R=>{
   if(!Q('#kdl'))return;
-  const row=(k,t,sub,svg)=>R[k]?'<a class="kdr" href="'+R[k].url+'" rel="noopener"><i><svg viewBox="0 0 24 24">'+svg+'</svg></i><span><b>'+t+'</b><small>Version '+h(R[k].v)+' \u00b7 '+R[k].mb+' MB \u00b7 '+sub+'</small></span><em><svg viewBox="0 0 24 24">'+IC.down+'</svg></em></a>':'<div class="kdr off"><i><svg viewBox="0 0 24 24">'+svg+'</svg></i><span><b>'+t+'</b><small>Not published yet</small></span></div>';
+  const row=(k,t,sub,svg)=>R[k]?'<a class="kdr" href="'+R[k].url+'" rel="noopener"><i><svg viewBox="0 0 24 24">'+svg+'</svg></i><span><b>'+t+'</b><small>Version '+h(R[k].v)+' \u00b7 '+R[k].mb+' MB \u00b7 '+sub+'</small></span><em><svg viewBox="0 0 24 24">'+DLI+'</svg></em></a>':'<div class="kdr off"><i><svg viewBox="0 0 24 24">'+svg+'</svg></i><span><b>'+t+'</b><small>Not published yet</small></span></div>';
   p.innerHTML='<h3>Get Kinora</h3>'+row('win','Windows','Installer (.exe)','<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>')+row('and','Android','APK','<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/>')+'<p class="kdn">Downloaded from the Kinora releases on GitHub. The apps update themselves.</p>';
  });
  setTimeout(()=>addEventListener('pointerdown',function f(e){if(!p.contains(e.target)&&!e.target.closest('[data-kdl]')){p.remove();removeEventListener('pointerdown',f,true)}else if(!p.isConnected)removeEventListener('pointerdown',f,true)},true),0);
@@ -138,16 +129,6 @@ D.addEventListener('click',e=>{if(e.target.closest('#kdl-b,[data-kdl]')){e.preve
 if(!APP)releases();
 if(!APP&&window.K6&&K6.PAGES&&K6.PAGES.hub){
  const hub=K6.PAGES.hub;
- K6.PAGES.hub=()=>{hub();const g=QA('.k6c'),l=g[g.length-1];if(l)l.insertAdjacentHTML('afterbegin','<button class="k6r" data-kdl><i><svg viewBox="0 0 24 24">'+IC.down+'</svg></i><span><b>Download the apps</b><small>Windows and Android, latest version</small></span></button>')};
-}
-
-/* ================= play settings: HDR default, source report already in kplay.js ================= */
-if(window.K6&&K6.PAGES&&K6.PAGES.play){
- const pp=K6.PAGES.play;
- K6.PAGES.play=()=>{
-  pp();const p=Q('.k6');if(!p)return;
-  const on=CFG().hdr===true;
-  p.insertAdjacentHTML('beforeend','<h4 class="k6h">Picture</h4><div class="k6c"><div class="k6o"><span><b>HDR</b><small>On prefers HDR and Dolby Vision files. Off prefers normal files, which look right on screens without HDR.</small></span><button class="k6t'+(on?' on':'')+'" data-tg="hdr" role="switch" aria-checked="'+on+'" aria-label="HDR"></button></div></div>');
- };
+ K6.PAGES.hub=()=>{hub();const g=QA('.k6c'),l=g[g.length-1];if(l)l.insertAdjacentHTML('afterbegin','<button class="k6r" data-kdl><i><svg viewBox="0 0 24 24">'+DLI+'</svg></i><span><b>Download the apps</b><small>Windows and Android, latest version</small></span></button>')};
 }
 })();

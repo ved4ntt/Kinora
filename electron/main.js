@@ -88,6 +88,9 @@ ipcMain.on('win', (_e, a) => {
   if (a === 'min') win.minimize();
   else if (a === 'max') win.isMaximized() ? win.unmaximize() : win.maximize();
   else if (a === 'full') win.setFullScreen(!win.isFullScreen());
+  // the player asks for full screen by itself while a video plays, and gives it back when you leave the player
+  else if (a === 'fs-on') { if (!win.isFullScreen()) win.setFullScreen(true); }
+  else if (a === 'fs-off') { if (win.isFullScreen()) win.setFullScreen(false); }
   else if (a === 'quit') app.quit();
   else if (a === 'back') nav('back');
   else if (a === 'forward') nav('forward');

@@ -10,7 +10,8 @@ const cfg=()=>{try{return CFG()}catch{return{}}};
 let cur=null,tmr=0;
 
 /* ================= Android: ExoPlayer behind the page ================= */
-const on=()=>!!(AND&&KP()&&cfg().native!==false);
+/* the native player is always on in the Android app (there is no switch for it any more) */
+const on=()=>!!(AND&&KP());
 const can=s=>on()&&s&&/^https?:/i.test(s.url||'')&&!s._srv;
 function fire(v,n){try{v.dispatchEvent(new Event(n))}catch{}}
 function detach(){
@@ -22,7 +23,7 @@ function attach(v,s,t0,ctx){
  detach();
  const st=cur={s:1,pw:false,p:0,d:0,b:0,e:'',rate:1,vol:1,muted:false,a:[],t:[],meta:false,can:false,play:false,ended:false,err:false};
  const def=(k,g,set)=>{try{Object.defineProperty(v,k,{configurable:true,get:g,set})}catch{}};
- def('currentTime',()=>st.p/1000,x=>{st.p=x*1000;try{KP().seek(Math.max(0,Math.round(x*1000)))}catch{}fire(v,'seeking');setTimeout(()=>fire(v,'seeked'),250)});
+ def('currentTime',()=>st.p/1000,x=>{st.p=x*1000;v._seekHold=Date.now()+1500;try{KP().seek(Math.max(0,Math.round(x*1000)))}catch{}fire(v,'seeking');setTimeout(()=>fire(v,'seeked'),350)});
  def('duration',()=>st.d>0?st.d/1000:NaN);
  def('paused',()=>!st.pw);
  def('ended',()=>st.s===4);
@@ -88,8 +89,8 @@ function handle(s,ctx,t0,fail){
 }
 window.KExt={handle,stop(){},info:()=>info};
 
-/* ================= settings (apps only) ================= */
-if(window.K6&&K6.PAGES&&K6.PAGES.play&&(AND||W)){
+/* settings rows for the player were removed: the apps choose what is best on their own */
+if(false&&window.K6&&K6.PAGES&&K6.PAGES.play&&(AND||W)){
  const pp=K6.PAGES.play;
  K6.PAGES.play=()=>{
   pp();const p=Q('.k6');if(!p)return;

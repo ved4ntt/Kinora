@@ -76,8 +76,8 @@ function startServer({ www, tmp, port = 38787 }) {
     return m;
   }
 
-  async function pump(u, headers, start, end, res, signal) {
-    const PAR = 5, CH = 3 * 1024 * 1024, FIRST = 512 * 1024;
+  async function pump(u, headers, start, end, res, signal, begin) {
+    const PAR = 4, CH = 4 * 1024 * 1024, FIRST = 384 * 1024;
     const q = [];
     let next = start;
     const grab = (a, len) => {
@@ -86,14 +86,17 @@ function startServer({ www, tmp, port = 38787 }) {
         if (r.status !== 206 && !(r.status === 200 && a === 0 && b === end)) throw new Error('status ' + r.status);
         return Buffer.from(await r.arrayBuffer());
       });
-      const p = once().catch(() => once());
+      const p = once().catch(() => (signal && signal.aborted ? Promise.reject(new Error('aborted')) : once()));
       p.catch(() => {});
       return p;
     };
     const fill = () => { while (q.length < PAR && next <= end) { const len = next === start ? FIRST : CH; q.push(grab(next, len)); next += len; } };
     fill();
+    let first = true;
     while (q.length) {
       const buf = await q.shift();
+      // the headers are only sent once the host has really answered, so a host that refuses this way can still fall back to a plain pass-through
+      if (first) { first = false; begin(); }
       fill();
       if (!res.write(buf)) await new Promise((r) => res.once('drain', r));
     }
@@ -136,6 +139,31 @@ function startServer({ www, tmp, port = 38787 }) {
         if (!ac.signal.aborted) ac.abort();
       } catch {}
     });
+    // Big files: ask the host for several pieces at once (many hosts slow down each single connection, this is much faster and seeking is quick).
+    // If the host does not like that, the plain pass-through below takes over.
+    const rg = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    try {
+      const m = await rangeMeta(u, headers);
+      if (m.ranges && m.size > 8 * 1024 * 1024 && !ac.signal.aborted) {
+        let start = 0, end = m.size - 1;
+        if (rg) {
+          if (rg[1] !== '') { start = +rg[1]; if (rg[2] !== '') end = Math.min(+rg[2], m.size - 1); }
+          else if (rg[2] !== '') start = Math.max(0, m.size - +rg[2]);
+        }
+        if (start > end || start >= m.size) return res.status(416).set('Content-Range', 'bytes */' + m.size).end();
+        let began = false;
+        try {
+          await pump(u, headers, start, end, res, ac.signal, () => {
+            began = true;
+            if (rg) { res.status(206); res.set('Content-Range', `bytes ${start}-${end}/${m.size}`); } else res.status(200);
+            res.set({ 'Content-Type': m.type || 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1) });
+          });
+          return;
+        } catch {
+          if (began || ac.signal.aborted) { try { res.destroy(); } catch {} return; }
+        }
+      }
+    } catch {}
     // Direct robust streaming pass-through for reliable seeking and CDN compatibility
     return passThrough(req, res, u, headers, ac);
   });
