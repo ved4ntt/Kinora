@@ -37,15 +37,16 @@ D.addEventListener('click',e=>{
 });
 
 /* iOS-style emoji everywhere (Apple artwork), falling back to the plain character */
-const RE=/\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}\uFE0F?|[\u{1F3FB}-\u{1F3FF}])*/gu,CDN='https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
+const RE=/\u2605|(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F)(?:\uFE0F|\u200D\p{Extended_Pictographic}\uFE0F?|[\u{1F3FB}-\u{1F3FF}])*/gu,CDN='https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
 const code=s=>[...s].map(c=>c.codePointAt(0).toString(16)).join('-');
 function emo(root){
- const w=D.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:t=>/SCRIPT|STYLE|TEXTAREA|INPUT/.test(t.parentNode.nodeName)||(t.parentNode.dataset&&t.parentNode.dataset.k13)||!/\p{Extended_Pictographic}/u.test(t.nodeValue)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}),L=[];
+ const w=D.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:t=>/SCRIPT|STYLE|TEXTAREA|INPUT/.test(t.parentNode.nodeName)||(t.parentNode.dataset&&t.parentNode.dataset.k13)||!/\u2605|\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/u.test(t.nodeValue)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}),L=[];
  while(w.nextNode())L.push(w.currentNode);
  L.forEach(t=>{
   const f=D.createDocumentFragment();let i=0,s=t.nodeValue,m;RE.lastIndex=0;
   while((m=RE.exec(s))){
    if(m.index>i)f.append(s.slice(i,m.index));
+   if(m[0]==='\u2605'){const k=D.createElement('i');k.className='kstar';k.setAttribute('role','img');k.setAttribute('aria-label','rating');f.append(k);i=m.index+1;continue}
    const im=D.createElement('img');im.className='k13e';im.alt=m[0];im.draggable=false;im.src=CDN+code(m[0])+'.png';
    im.onerror=()=>{const a=code(m[0].replace(/\uFE0F/g,''));if(im.src.endsWith('/'+a+'.png')){const sp=D.createElement('span');sp.dataset.k13=1;sp.textContent=m[0];im.replaceWith(sp)}else im.src=CDN+a+'.png'};
    f.append(im);i=m.index+m[0].length;

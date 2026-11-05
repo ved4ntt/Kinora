@@ -7,6 +7,13 @@ Each release on GitHub shows the section for its version. Add a new `## [version
 Kinora is a beta, so version numbers now start with 0. Every push builds a new version (0.3 and the number of commits), and every build is published as its own release with a Windows installer and an Android APK.
 
 ### New
+- Player rebuilt: the long glass bar is gone, the seek bar sits above the buttons with a softer glow and always shows the full length, one jump per drag (no more frozen picture after seeking), and a spinner until the new picture is really on screen. No fullscreen, minimise or close buttons over the video (the Windows app goes full screen by itself while a video plays). Back is top left, and the top right has one normal popup for Language, Quality and Subtitles, with subtitle size, colour, background, edge, font, position and timing.
+- 4KHDHub (inside CNCVerse) is always tried first. HdHub and PenguPlay are the fallbacks. Sources install instantly and refresh in the background, and the player opens before the title details arrive, so videos start much faster.
+- Android: the native player is always on (the switch is gone), with a bounded buffer, quick seeking to the nearest key frame and one quiet retry when a decoder fails.
+- Windows: big files are fetched in several pieces at once, which is much faster on hosts that slow down a single connection.
+- New dock: two small pills, search opens in place when you click the icon, Compact and Expanded modes, and separate Profile and Settings popups (Watch together is in the Profile popup).
+- The app opens on a full-screen "Who's watching?" instead of Edit profile, rating stars show again, and the Watch together panel is a small card until a party starts.
+- Settings only lists what matters: the native player, main source, buffer, HDR, torrent, embed and other switches are removed.
 - New player: a floating glass control island with a glowing seek bar, fewer buttons, and a small popup instead of a wide bar on phones. Subtitles, subtitle size, HDR and speed live in one small menu.
 - Audio and quality bar: when a video starts, a bar lists every audio language and every quality found (4K down to 360p). Tap one and the stream switches at the same moment. A language that only exists at another quality shows that quality next to its name.
 - Play now opens the player straight away. The Sources button is gone from the details page (your add-ons are still in Settings > Add-ons) and the list, watch later and watched buttons are icons.

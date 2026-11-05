@@ -22,7 +22,7 @@ html.win #kp{top:44px}
 #kvc{display:flex;flex-direction:column;padding-bottom:14px}
 #kvc[hidden],#kvp[hidden]{display:none}
 .khint{margin:12px 2px 0;font-size:13px;line-height:1.45;color:var(--mu)}
-.kh h3{font:600 26px "Barlow Condensed",sans-serif;margin:4px 0 6px}.kh p{color:#cfd2d8;font-size:14px;line-height:1.5;margin-bottom:18px}
+.kpi h3{font:600 26px "Barlow Condensed",sans-serif;margin:4px 0 6px}.kpi p{color:#cfd2d8;font-size:14px;line-height:1.5;margin-bottom:18px}
 .kbig{width:100%;justify-content:center;height:52px}
 .kbig[disabled]{opacity:.4;pointer-events:none}
 .kbig2{width:100%;margin-top:14px;padding:13px}

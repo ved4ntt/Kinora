@@ -351,9 +351,10 @@ V.watch=async function(type,id,vid){
   const krr=Q('.krr');
   if(krr&&nx&&!Q('#nx')){krr.insertAdjacentHTML('afterbegin','<button class="kb" id="nx" aria-label="Next episode" title="Next episode">'+ic('next')+'</button>');Q('#nx').onclick=()=>{location.hash=watchUrl(type,id,nx.id)}}
   if(krr&&!nx){const b=Q('#nx');if(b)b.remove()}
-  tick();
+  try{tick()}catch{}
  };
- applyMeta(meta);
+ /* run once everything below is defined (the seek bar and its helpers are created further down) */
+ queueMicrotask(()=>applyMeta(meta));
  metaP.then(applyMeta);
 
  /* ---------- streams ---------- */

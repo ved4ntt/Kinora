@@ -595,7 +595,7 @@ function paint(){
 }
 function viewIdle(){
  const c=curMedia();
- return`<div class="kh"><h3>Watch together</h3><p>Invite your friends. Everyone plays from their own sources and stays in sync.</p></div>
+ return`<div class="kpi"><h3>Watch together</h3><p>Invite your friends. Everyone plays from their own sources and stays in sync.</p></div>
  <button class="pill kbig" data-a="start" ${c?'':'disabled'}>${ic('people')}Start watch party</button>
  ${c?'':'<p class="khint">To host, open a title and press play, then start the party from the player.</p>'}
  <div class="kor"><span>or join with a code</span></div>${codeField()}

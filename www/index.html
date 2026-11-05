@@ -1360,7 +1360,7 @@ function sbInit(){
   if(SB&&SB._u===c.url+c.key)return SB;
   SB=supabase.createClient(c.url,c.key,{auth:{flowType:'pkce',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   SB._u=c.url+c.key;
-  SB.auth.onAuthStateChange((ev,s)=>{USER=s&&s.user||null;renderPm();if(location.hash.startsWith('#/profile'))V.profile();if(USER&&(ev==='SIGNED_IN'||ev==='INITIAL_SESSION'))pull()});
+  SB.auth.onAuthStateChange((ev,s)=>{USER=s&&s.user||null;renderPm();if(/^#\/profile($|[?\/])/.test(location.hash))V.profile();if(USER&&(ev==='SIGNED_IN'||ev==='INITIAL_SESSION'))pull()});
   return SB;
 }
 function pushSoon(){if(!SB||!USER)return;clearTimeout(pushT);pushT=setTimeout(push,2500)}
@@ -1391,7 +1391,7 @@ async function pull(){
 const signIn=async(e,p)=>{const {error}=await SB.auth.signInWithPassword({email:e,password:p});if(error)throw error};
 const signUp=async(e,p)=>{const {data,error}=await SB.auth.signUp({email:e,password:p});if(error)throw error;if(!data.session)toast('Check your email to confirm your account, then sign in')};
 const googleIn=()=>SB.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
-async function signOut(){if(SB)await SB.auth.signOut();USER=null;renderPm();if(location.hash.startsWith('#/profile'))V.profile();toast('Signed out')}
+async function signOut(){if(SB)await SB.auth.signOut();USER=null;renderPm();if(/^#\/profile($|[?\/])/.test(location.hash))V.profile();toast('Signed out')}
 
 /* ----- profile popup and avatars in the dock ----- */
 function refreshAv(){['#pb','#pbL'].forEach(s=>{const e=$(s);if(e)e.innerHTML=`<span class="av">${avatarSvg(LS.get('av',0))}</span>`})}
@@ -1566,11 +1566,14 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="embed.js"></script>
 <link rel="stylesheet" href="kplay.css">
 <link rel="stylesheet" href="kfix.css">
+<link rel="stylesheet" href="kdock.css">
 <script src="ktmdb.js"></script>
 <script src="kanime.js"></script>
 <script src="kplay.js"></script>
 <script src="knative.js"></script>
 <script src="kfix.js"></script>
+<script src="ksettings.js"></script>
+<script src="kdock.js"></script>
 <script>boot()</script>
 </body>
 </html>

@@ -1,0 +1,90 @@
+/* Kinora dock, popups, full-screen profile chooser, watch-together panel and rating stars */
+
+/* ---------- desktop dock: two small floating pills. Phones keep their own bottom dock ---------- */
+#kdn{position:fixed;top:12px;left:0;right:0;z-index:42;display:flex;justify-content:space-between;align-items:flex-start;padding:0 max(16px,2vw);pointer-events:none;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s}
+html.win #kdn{top:10px;padding-right:138px}
+#kdn.hide{transform:translateY(-140%);opacity:0}
+#kdn .kdp{pointer-events:auto;display:flex;align-items:center;gap:2px;height:52px;box-sizing:border-box;padding:4px;border-radius:99px;background:rgba(15,17,22,.86);-webkit-backdrop-filter:blur(16px) saturate(140%);backdrop-filter:blur(16px) saturate(140%);border:1px solid rgba(255,255,255,.07);box-shadow:0 8px 28px rgba(0,0,0,.4);-webkit-app-region:no-drag}
+#kdn.hide .kdp{pointer-events:none}
+.kdi{position:relative;flex:none;display:flex;align-items:center;justify-content:center;height:44px;min-width:44px;box-sizing:border-box;padding:0 12px;border:0;border-radius:99px;background:none;color:#98a1ac;font:600 14.5px Manrope,system-ui,sans-serif;text-decoration:none;white-space:nowrap;cursor:pointer;transition:color .2s,background .25s}
+.kdi svg{width:21px;height:21px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.kdi span{max-width:0;opacity:0;margin-left:0;overflow:hidden;transition:max-width .35s cubic-bezier(.2,.8,.2,1),opacity .25s,margin .35s}
+.kdi:hover{color:#fff}
+.kdi:focus-visible{outline:2px solid #f1efea;outline-offset:-2px}
+#kdl2 .kdi.on{background:#f1efea;color:#0a0b0e}
+/* compact: only the open tab shows its name. expanded: every tab does */
+#kdl2 .kdi.on span,#kdn.exp #kdl2 .kdi span{max-width:90px;opacity:1;margin-left:9px}
+#kdn.exp #kdl2 .kdi{padding:0 15px}
+#kdn.exp #kdl2 .kdi:not(.on):hover{background:rgba(255,255,255,.07)}
+@media(max-width:1180px){#kdn.exp #kdl2 .kdi:not(.on) span{max-width:0;opacity:0;margin-left:0}#kdn.exp #kdl2 .kdi{padding:0 12px}}
+#kdr2 .kdi.on{background:rgba(255,255,255,.16);color:#fff}
+/* search opens in place */
+.kds{display:flex;align-items:center;height:44px;width:44px;overflow:hidden;border-radius:99px;transition:width .4s cubic-bezier(.2,.8,.2,1),background .25s}
+.kds.open{width:min(300px,26vw);background:rgba(255,255,255,.09)}
+.kds .kdi{flex:none;width:44px;padding:0}
+.kds.open .kdi{color:#fff}
+.kds input{flex:1;min-width:0;height:100%;padding:0 4px 0 0;border:0;outline:0;background:none;color:#fff;font:500 14px Manrope,system-ui,sans-serif;opacity:0;pointer-events:none;transition:opacity .2s}
+.kds input::placeholder{color:#7f8793}
+.kds.open input{opacity:1;pointer-events:auto}
+.kds-x{flex:none;width:28px;height:28px;margin-right:8px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}
+.kds-x[hidden]{display:none}
+.kds-x svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.kdi.kav{padding:0;width:44px}
+.kdi.kav em{width:34px;height:34px;border-radius:50%;overflow:hidden;display:block;box-shadow:0 0 0 2px rgba(255,255,255,.08)}
+.kdi.kav.on em{box-shadow:0 0 0 2px #fff}
+.kdi.kav em svg{width:100%;height:100%;stroke:none}
+@media(max-width:760px),(pointer:coarse){html:not(.win) #kdn{display:none}}
+@media(min-width:761px) and (pointer:fine){#kd,.kd-m{display:none!important}}
+html.win #kd,html.win .kd-m{display:none!important}
+
+/* ---------- the profile and settings popups ---------- */
+.kpop2{position:fixed;z-index:80;box-sizing:border-box;width:300px;max-height:min(72vh,540px);overflow:auto;padding:8px;border-radius:18px;background:#16191f;border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 50px rgba(0,0,0,.6);color:#f1efea;font-family:Manrope,system-ui,sans-serif;opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;transition:opacity .15s,transform .2s;scrollbar-width:none}
+.kpop2::-webkit-scrollbar{display:none}
+.kpop2.on{opacity:1;transform:none}
+.kpop2 h4{margin:6px 10px 8px;font:700 11px Manrope,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8e95a1}
+.kph{display:flex;align-items:center;gap:12px;padding:10px 10px 12px}
+.kpa{flex:none;width:46px;height:46px;border-radius:50%;overflow:hidden}
+.kpa svg{width:100%;height:100%;display:block}
+.kph b{display:block;font-size:15px}
+.kph small{display:block;margin-top:2px;color:#98a1ac;font-size:12px}
+.kpl{display:grid;gap:2px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07)}
+.kpr2{display:flex;align-items:center;gap:12px;width:100%;height:42px;box-sizing:border-box;padding:0 10px;border:0;border-radius:11px;background:none;color:#e6e8ec;font:600 14px Manrope,sans-serif;text-decoration:none;text-align:left;cursor:pointer;transition:background .15s}
+.kpr2:hover{background:rgba(255,255,255,.07)}
+.kpr2 svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:#aab0bb}
+.kst{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border-radius:11px}
+.kst b{display:block;font-size:14px}
+.kst small{display:block;margin-top:1px;color:#8e95a1;font-size:12px;line-height:1.35}
+.kst:has(.kseg){flex-direction:column;align-items:stretch;gap:8px}
+.kseg{display:flex;gap:2px;padding:3px;border-radius:99px;background:rgba(255,255,255,.07)}
+.kseg button{flex:1;height:30px;padding:0 12px;border:0;border-radius:99px;background:none;color:#aab0bb;font:600 12.5px Manrope,sans-serif;cursor:pointer;transition:background .15s,color .15s}
+.kseg button.on{background:#f1efea;color:#0a0b0e}
+.kall{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding:12px 12px;border-radius:12px;background:rgba(255,255,255,.07);color:#f1efea;text-decoration:none;font:600 14px Manrope,sans-serif;transition:background .15s}
+.kall:hover{background:rgba(255,255,255,.12)}
+.kall svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- "Who's watching?" fills the whole screen (no dock, no page behind it) ---------- */
+body:has(.page.kpp) #kdn,body:has(.page.kpp) #kd,body:has(.page.kpp) .kd-m,body:has(.page.kpp) #dock,body:has(.page.kpp) #ft{display:none!important}
+.page.kpp{position:fixed;inset:0;z-index:70;box-sizing:border-box;width:auto;max-width:none;min-height:0;margin:0;padding:48px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(26px,5vh,48px);overflow:auto;text-align:center;background:radial-gradient(70% 60% at 50% 32%,#161a22,#07080b 72%)}
+.page.kpp h1{margin:0;font:700 clamp(28px,4vw,46px) Manrope,system-ui,sans-serif;letter-spacing:-.02em}
+.page.kpp .kpg{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(18px,3.2vw,42px);max-width:1040px}
+.page.kpp .kpt{display:grid;justify-items:center;gap:12px;width:clamp(96px,12vw,140px);padding:0;border:0;background:none;color:#98a1ac;font:600 15px Manrope,sans-serif;cursor:pointer;transition:transform .25s,color .2s}
+.page.kpp .kpt .avb{width:clamp(88px,11vw,128px);height:clamp(88px,11vw,128px);border-radius:50%;overflow:hidden;border:3px solid transparent;transition:border-color .2s,transform .25s}
+.page.kpp .kpt .avb svg{width:100%;height:100%}
+.page.kpp .kpt:hover,.page.kpp .kpt:focus-visible{color:#fff;transform:translateY(-3px)}
+.page.kpp .kpt:hover .avb,.page.kpp .kpt:focus-visible .avb{border-color:#f1efea}
+.page.kpp .kpt.on b{color:#fff}
+.page.kpp .klink{padding:10px 22px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:none;color:#cfd3da;font:600 14px Manrope,sans-serif;cursor:pointer;transition:background .2s,color .2s}
+.page.kpp .klink:hover{background:rgba(255,255,255,.1);color:#fff}
+html.win .page.kpp{padding-top:56px}
+
+/* ---------- watch together panel ---------- */
+#kp .kpi{padding:2px 2px 4px}
+/* with no party running the panel is a small card, not a tall empty column */
+body:not(.kparty) #kp{bottom:auto;max-height:calc(100vh - 24px)}
+body:not(.kparty) #kp .kv{flex:none}
+@media(min-width:761px) and (pointer:fine){#kp{top:76px}body:has(#pl) #kp{top:12px}}
+html.win #kp{top:76px}
+html.win body:has(#pl) #kp{top:12px}
+
+/* ---------- rating stars (a gold star drawn by the page, so it always shows) ---------- */
+.kstar{display:inline-block;width:.95em;height:.95em;margin-right:.2em;vertical-align:-.1em;background:#f5c518;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6l-5.9 3.2 1.2-6.6-4.9-4.6 6.7-.9z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.6l2.9 6.1 6.7.9-4.9 4.6 1.2 6.6L12 17.6l-5.9 3.2 1.2-6.6-4.9-4.6 6.7-.9z'/%3E%3C/svg%3E") center/contain no-repeat}
