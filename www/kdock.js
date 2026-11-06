@@ -40,9 +40,14 @@ root.innerHTML='<nav class="kdp" id="kdl2" aria-label="Main">'+NAV.map(([r,i,t])
  '</div>';
 D.body.append(root);
 
-/* ---------- compact or expanded ---------- */
-const apply=()=>root.classList.toggle('exp',CFG().dockMode==='exp');
-apply();
+/* ---------- idle = compact, mouse over = expanded (no setting for it any more) ---------- */
+let hoverT=0;
+const apply=()=>{};
+{
+ const on=()=>{clearTimeout(hoverT);root.classList.add('exp')},off=()=>{clearTimeout(hoverT);hoverT=setTimeout(()=>{if(!pop&&!root.matches(':hover')&&!box.classList.contains('open'))root.classList.remove('exp')},260)};
+ root.addEventListener('pointerenter',on);root.addEventListener('pointerleave',off);
+ root.addEventListener('focusin',on);root.addEventListener('focusout',off);
+}
 {const d0=window.KDockMode;window.KDockMode=function(){try{d0&&d0.apply(this,arguments)}catch{}apply()}}
 
 /* ---------- which tab is open ---------- */
@@ -131,7 +136,6 @@ const tg=(k,t,s,on)=>'<div class="kst"><span><b>'+t+'</b><small>'+s+'</small></s
 function setHtml(){
  const c=CFG(),x=c.dockMode==='exp';
  return '<h4>Quick settings</h4>'+
-  '<div class="kst"><span><b>Dock style</b><small>Compact shows a name on the open tab only</small></span><div class="kseg"><button type="button" data-dm="cmp" class="'+(x?'':'on')+'">Compact</button><button type="button" data-dm="exp" class="'+(x?'on':'')+'">Expanded</button></div></div>'+
   tg('glassOn','Glass effect','Frosted panels. Off gives solid ones',c.glassOn!==false)+
   tg('autonext','Next episode','Start the next episode by itself',!!c.autonext)+
   tg('autosub','Subtitles','Switch subtitles on when your language is found',!!c.autosub)+

@@ -4,7 +4,7 @@
 const D=document,A=()=>D.getElementById('app');
 const mins=s=>{const m=Math.max(1,Math.round(s/60));return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m'};
 const yr=m=>String(m.releaseInfo||m.year||'');
-const STAR='<svg class="kst" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>';
+const STAR='<svg class="ks-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.75 5.78 6.35.82-4.67 4.36 1.2 6.3L12 16.78 6.37 19.86l1.2-6.3L2.9 9.2l6.35-.82z"/></svg>';
 window.KSTAR=STAR;
 
 const tile=m=>{
@@ -49,10 +49,11 @@ window.KTile=tile;
 V.home=async function(){
  const app=A();
  if(!addons.length)return app.innerHTML='<div class="msg">Could not load the default catalog. Check your connection and reload.</div>';
- const cs=cats().filter(x=>/^(movie|series)$/.test(x.c.type)).slice(0,40);
+ const gr=x=>(x.c.extra||[]).some(e=>e.name==='genre'&&e.isRequired);
+ const cs=cats().filter(x=>/^(movie|series)$/.test(x.c.type)&&x.c.showInHome!==false&&!gr(x)&&!(window.KSvcOf&&KSvcOf(x))).slice(0,40);
  const P=cs.map(({a,c})=>call(a,'catalog',c.type,c.id).then(r=>r.metas||[]).catch(()=>[]));
- app.innerHTML='<div class="kh"><section class="kh-hero" id="kh-hero"><div class="kh-sk"></div></section>'+cont()+
-  cs.map((x,i)=>'<section class="kh-row" id="khr'+i+'"><h2>'+h((x.c.name||x.c.id)+' '+typeLabel(x.c.type).toLowerCase())+'<a class="kh-all" href="#/discover/'+x.c.type+'/'+Math.max(0,cats().filter(y=>y.c.type===x.c.type).findIndex(y=>y.c===x.c))+'">See all</a></h2><div class="kh-sc">'+'<i class="kh-ph"></i>'.repeat(9)+'</div></section>').join('')+'</div>';
+ app.innerHTML='<div class="kh"><section class="kh-hero" id="kh-hero"><div class="kh-sk"></div></section>'+(window.KSvcRow?KSvcRow():'')+cont()+
+  cs.map((x,i)=>'<section class="kh-row" id="khr'+i+'"><h2>'+h((x.c.name||x.c.id)+' '+typeLabel(x.c.type).toLowerCase())+'<a class="kh-all" href="#/discover/'+x.c.type+'/'+Math.max(0,cats().filter(y=>y.c.type===x.c.type).findIndex(y=>y.c.id===x.c.id&&y.a===x.a))+'">See all</a></h2><div class="kh-sc">'+'<i class="kh-ph"></i>'.repeat(9)+'</div></section>').join('')+'</div>';
  P.forEach((p,i)=>p.then(m=>{const s=Q1('#khr'+i+' .kh-sc');if(!s)return;const t=m.slice(0,30).map(tile).join('');t?s.innerHTML=t:s.parentNode.remove()}));
  const [a=[],b=[]]=await Promise.all([P[0],P[1]]);
  const pool=[],A1=a.filter(m=>m.background).slice(0,24),B1=b.filter(m=>m.background).slice(0,24);

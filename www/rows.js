@@ -51,7 +51,7 @@ if(matchMedia('(hover:none)').matches){
 if(matchMedia('(hover:hover) and (min-width:761px)').matches){
  let pop=null,cur=null,t1=0,t2=0;
  const kill=()=>{clearTimeout(t1);clearTimeout(t2);cur=null;if(pop){const p=pop;pop=null;p.classList.remove('on');setTimeout(()=>p.remove(),260)}};
- const body=(m,big)=>'<div class="khp-i" style="background-image:url(\''+h(m.background||m.poster||'')+'\')"></div><div class="khp-b"><h3>'+h(m.name)+'</h3><div class="khp-m">'+(m.imdbRating?'<span>\u2605 '+h(m.imdbRating)+'</span>':'')+(m.releaseInfo||m.year?'<span>'+h(String(m.releaseInfo||m.year))+'</span>':'')+(m.genres||[]).slice(0,big?4:2).map(g=>'<span>'+h(g)+'</span>').join('')+'</div>'+(big&&m.description?'<p class="khp-d">'+h(m.description)+'</p>':'')+'<div class="khp-a"><button data-a="go">Play</button><button data-a="lib">'+(inLib(m)?'In my list':'My list')+'</button></div></div>';
+ const body=(m,big)=>'<div class="khp-i" style="background-image:url(\''+h(m.background||m.poster||'')+'\')"></div><div class="khp-b"><h3>'+h(m.name)+'</h3><div class="khp-m">'+(m.imdbRating?'<span class="khp-rt">'+(window.KSTAR||'\u2605 ')+h(m.imdbRating)+'</span>':'')+(m.releaseInfo||m.year?'<span>'+h(String(m.releaseInfo||m.year))+'</span>':'')+(m.genres||[]).slice(0,big?4:2).map(g=>'<span>'+h(g)+'</span>').join('')+'</div>'+(big&&m.description?'<p class="khp-d">'+h(m.description)+'</p>':'')+'<div class="khp-a"><button data-a="go">Play</button><button data-a="lib">'+(inLib(m)?'In my list':'My list')+'</button></div></div>';
  const open=c=>{
   const m=M[c.dataset.k];if(!m||!c.isConnected)return;
   const r=c.querySelector('.kh-i').getBoundingClientRect(),w=Math.max(260,r.width*1.45);

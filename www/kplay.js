@@ -145,10 +145,19 @@ E.play=function(s,ctx,t0){
  v.defaultPlaybackRate=v.playbackRate=CFG().speed||1;
  box.append(v);vel=v;
  const deadline=Date.now()+120000,tStart=performance.now();
- const arm=ms=>{clearTimeout(wd);wd=setTimeout(()=>{if(my===seq&&!started)fail('This source took too long to start.')},Math.max(3500,Math.min(ms,deadline-Date.now())))};
+ const arm=(ms,grace)=>{clearTimeout(wd);
+ const alt=(()=>{try{return(KPlay.alts?KPlay.alts():0)>0||!!(window.KEngineMore&&KEngineMore())}catch{return false}})();
+ /* with another source to try: 5 s to show a picture, one short extra moment while data is flowing, and never more than 9 s in total */
+ if(alt&&!s._srv)ms=Math.min(ms,Math.max(1500,9000-(performance.now()-tStart)));
+ wd=setTimeout(()=>{
+  if(my!==seq||started)return;
+  const x=vel,flow=x&&((x.buffered&&x.buffered.length&&x.buffered.end(0)>.4)||x.readyState>=3);
+  if(alt&&flow&&!grace&&performance.now()-tStart<8000){arm(2500,1);return}
+  fail('This source took too long to start.');
+ },Math.max(1500,Math.min(ms,deadline-Date.now())))};
  /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
  const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
- arm(s._srv?50000:alts>0?(APP_PLAYER?Math.max(4500,Math.min(6000,(window.KSpeed?KSpeed.limit(s):30000)*.2)):Math.max(7000,Math.min(11000,(window.KSpeed?KSpeed.limit(s):30000)*.3))):40000);
+ arm(s._srv?50000:alts>0?5000:(window.KEngineMore&&KEngineMore()?9000:40000));
 
  /* play() can be refused by the browser: fall back to muted playback, then to a tap */
  let tried=false;
@@ -379,6 +388,9 @@ V.watch=async function(type,id,vid){
  };
  const okS=x=>!bad.has(x.key)&&!(window.KSpeed&&KSpeed.dead(x.raw));
  const order=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:true},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
+ /* when a source fails: another source with the SAME language and quality comes first, the provider only breaks ties */
+ const orderSame=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:false},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
+ window.KEngineMore=()=>!E0.finished;
  KPlay.alts=()=>order({lang:st.lang,q:st.q}).filter(x=>x!==cur).length;
  const defSel=()=>{
   const kp=LS.get('kpick',{}),pls=playable(),langs=langList(pls).map(x=>x.n);
@@ -524,7 +536,7 @@ V.watch=async function(type,id,vid){
   if(!live())return E0.subs.delete(onBatch);
   if(popOpen())renderPop();
   if(waiting){
-   const n=order({lang:st.lang,q:st.q})[0];
+   const n=orderSame({lang:st.lang,q:st.q})[0];
    if(n){waiting=false;use(n,curTime())}else if(E0.finished){waiting=false;showFail('No other source could play this title.')}
    return;
   }
@@ -539,7 +551,7 @@ V.watch=async function(type,id,vid){
   bad.add(cur.key);
   let n=null;
   if(kind==='slow'&&st.q){n=order({lang:st.lang,q:st.q}).find(x=>x.q&&x.q<st.q);if(n)say('Slow connection: switching to '+qlab(n.q))}
-  if(!n){n=order({lang:st.lang,q:st.q})[0];if(n)say('That source did not work. Trying another\u2026')}
+  if(!n){n=orderSame({lang:st.lang,q:st.q})[0];if(n)say('That source did not work. Trying another\u2026')}
   if(n){use(n,t);return}
   if(!E0.finished){waiting=true;const l=Q('#ld');if(l)l.classList.add('on');const e=Q('#lt');if(e)e.textContent='Looking for another source\u2026';return}
   showFail(why);

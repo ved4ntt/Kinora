@@ -13,6 +13,15 @@ const CNC='https://cncverse.dpdns.org/u/p_w0jrtfw7ec3d/manifest.json';
 const HDHUB='https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyIsImNhdGFsb2dzIjoiZmVhdHVyZWQscG9wdWxhciJ9/manifest.json';
 const PENGU='https://pengu.uk/%7B%22auth_token%22%3A%226n1cvjm-3s2k6ZUZw2xbdmX6WP_7QnmOQ8KJSuFbic8%22%7D/manifest.json';
 const SRC=[[CNC,'cncverse','CNCVerse'],[HDHUB,'hdhub','HdHub'],[PENGU,'pengu','PenguPlay']];
+/* the recommended add-ons are built in too (catalogs, collections, subtitles and the streaming-service catalogs) */
+const REC=[
+ ['https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json','tmdb-addon','The Movie Database'],
+ ['https://61ab9c85a149-tmdb-collections.baby-beamup.club/manifest.json','tmdb-collections','TMDB Collections'],
+ ['https://opensubtitles-v3.strem.io/manifest.json','opensubtitles','OpenSubtitles'],
+ ['https://cyberflix.elfhosted.com/manifest.json','cyberflix','Cyberflix Catalog'],
+ ['https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json','streaming-catalogs','Streaming Catalogs'],
+ ['https://aiometadata.elfhosted.com/stremio/356a4dcd-1e43-405a-ab71-82ec70cab948/manifest.json','aio-metadata','AIOMetadata']
+];
 const STUB=(id,name)=>({id,version:'1.0.0',name,description:name+' streams',resources:['stream','subtitles'],types:['movie','series'],idPrefixes:['tt','tmdb:']});
 const withT=(p,ms)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),ms))]);
 
@@ -37,6 +46,16 @@ function installSources(){
   /* CNCVerse (4KHDHub) first, then HdHub, then PenguPlay, in front of every other source */
   const at=addons.findIndex(a=>(a.manifest&&(a.manifest.resources||[]).some(r=>(r.name||r)==='stream')));
   addons.splice(at<0?addons.length:at,0,...mine);
+  /* built-in recommended add-ons go after the stream sources; the first time, their catalogs are fetched in the background and Home refreshes by itself */
+  const rec=REC.map(([u,i,n])=>{const ex=addons.find(x=>x.url===u),a=ex||{url:u,manifest:LS.get('kman:'+u,null)||{id:i,version:'1.0.0',name:n,description:n,resources:[],types:[],catalogs:[]}};a.core=1;a.kin=1;if(!ex)addons.push(a);return a});
+  rec.forEach(a=>{
+   if((a.manifest.catalogs||[]).length||(a.manifest.resources||[]).length)return;
+   withT(getJSON(a.url),9000).then(m=>{
+    if(m&&m.name&&m.resources){a.manifest=m;try{LS.set('kman:'+a.url,m)}catch{}LS.set('addons',addons);try{cache.clear()}catch{}
+     if(/^#?\/?$/.test(location.hash)&&!Q('#pl'))try{route()}catch{}}
+   }).catch(()=>{});
+  });
+  setTimeout(()=>rec.forEach(refresh),4000);
   LS.set('addons',addons);
   setTimeout(()=>mine.forEach(refresh),1500);
  }catch{}

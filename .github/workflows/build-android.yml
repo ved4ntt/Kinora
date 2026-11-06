@@ -77,6 +77,8 @@ jobs:
       - run: npx cap sync android
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/app/kinora/player/MainActivity.java
       # Sign with the fixed Kinora key (same signature on every build, so updates install over old versions)
+      # Print the version the APK will carry (must equal the release number)
+      - run: node -p "'APK version ' + require('./package.json').version"
       - run: base64 -d android-overrides/kinora.jks.b64 > android/app/kinora.jks
       - run: cp android-overrides/signing.gradle android/app/signing.gradle
       - run: |
@@ -111,7 +113,9 @@ jobs:
           tag_name: v${{ steps.ver.outputs.v }}
           name: Kinora ${{ steps.ver.outputs.v }}
           body_path: RELEASE_NOTES.md
-          prerelease: true
+          # A normal (not pre-release) release, so https://github.com/ved4ntt/Kinora/releases/latest/download/Kinora.apk always points at the newest build
+          prerelease: false
+          make_latest: true
           files: Kinora.apk
       - uses: actions/upload-artifact@v7
         with:

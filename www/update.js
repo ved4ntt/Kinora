@@ -13,7 +13,14 @@ const CV='<svg class="cv" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
 const opt=(t,s,c)=>'<div class="k6o"><span><b>'+t+'</b><small>'+s+'</small></span>'+c+'</div>';
 const tg=(k,on)=>'<button class="k6t'+(on?' on':'')+'" data-tg="'+k+'" role="switch" aria-checked="'+on+'" aria-label="toggle"></button>';
 
-(async()=>{try{S.cur=W?await W.version():AND?(CAP&&CAP.Plugins&&CAP.Plugins.App?(await CAP.Plugins.App.getInfo()).version:''):''}catch{}render()})();
+(async()=>{try{
+ S.cur=W?await W.version():AND?await (async()=>{
+  /* the installed version comes straight from the Android package (the same number as the GitHub release), the Capacitor plugin is only a fallback */
+  try{const v=window.KinoraNative&&KinoraNative.version&&KinoraNative.version();if(v)return String(v)}catch{}
+  try{if(CAP&&CAP.Plugins&&CAP.Plugins.App)return(await CAP.Plugins.App.getInfo()).version||''}catch{}
+  return'';
+ })():'';
+}catch{}render()})();
 
 /* ---- checking, downloading, installing ---- */
 async function check(){
@@ -24,7 +31,7 @@ async function check(){
   const r=await fetch('https://api.github.com/repos/'+REPO+'/releases?per_page=8');
   if(!r.ok)throw 0;
   const L=await r.json(),j=(Array.isArray(L)?L:[]).find(x=>!x.draft&&(x.assets||[]).some(y=>/\.apk$/i.test(y.name)))||{},a=(j.assets||[]).find(x=>/\.apk$/i.test(x.name));
-  if(a&&newer(j.tag_name,S.cur)){
+  if(a&&S.cur&&newer(j.tag_name,S.cur)){
    Object.assign(S,{s:'available',v:String(j.tag_name).replace(/^v/,''),notes:j.body||'',url:a.browser_download_url});
    if(cfg().updAuto===true)act();
   }else S.s='uptodate';

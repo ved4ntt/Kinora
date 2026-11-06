@@ -19,6 +19,9 @@ jobs:
       # Every push gets its own version (0.3.<number of commits>), so every build is a new release
       - run: node scripts/stamp-version.js
       - run: npx electron-builder --win --x64 --publish never
+      # A copy with a fixed name, so https://github.com/ved4ntt/Kinora/releases/latest/download/Kinora-Setup.exe always works
+      - shell: bash
+        run: cp dist/Kinora-Setup-*.exe dist/Kinora-Setup.exe
       # Release notes come from CHANGELOG.md (the section for the version in package.json)
       - run: node scripts/release-notes.js
       # Publish a GitHub Release so installed copies can find the update (needs a new version in package.json)
@@ -30,7 +33,8 @@ jobs:
           tag_name: v${{ steps.ver.outputs.v }}
           name: Kinora ${{ steps.ver.outputs.v }}
           body_path: RELEASE_NOTES.md
-          prerelease: true
+          prerelease: false
+          make_latest: true
           # The .yml and .blockmap files are the update manifest the Windows app reads to update itself
           files: |
             dist/*.exe

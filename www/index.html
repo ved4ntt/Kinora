@@ -7,7 +7,7 @@
 (function(){try{
  var a=localStorage.getItem('kprof');if(!a||a==='main')return;
  var L=JSON.parse(localStorage.getItem('kprofs')||'[]');if(!L.some(function(p){return p.id===a})){localStorage.setItem('kprof','main');return}
- var NS={lib:1,st:1,ew:1,prog:1,cfg:1,me:1,av:1,recent:1},P=Storage.prototype,g=P.getItem,s=P.setItem,r=P.removeItem;
+ var NS={lib:1,st:1,ew:1,prog:1,cfg:1,me:1,av:1,un:1,recent:1},P=Storage.prototype,g=P.getItem,s=P.setItem,r=P.removeItem;
  window.__kRaw={get:function(k){return g.call(localStorage,k)}};window.__kProf=a;
  var m=function(k){return NS[k]?'kp:'+a+':'+k:k};
  P.getItem=function(k){return g.call(this,this===localStorage?m(k):k)};
@@ -581,7 +581,9 @@ const has=(a,res,type,id)=>!a.off&&(a.manifest.resources||[]).some(r=>{
   const t=r.types||a.manifest.types||[],p=r.idPrefixes||a.manifest.idPrefixes;
   return(!t.length||t.includes(type))&&(!p||!id||p.some(x=>id.startsWith(x)));
 });
-const cats=()=>addons.filter(a=>!a.off&&!(a.fb&&addons.some(x=>x.tmdb&&!x.off))).flatMap(a=>(a.manifest.catalogs||[]).map(c=>{const x=(c.extra||[]).map(e=>typeof e==='string'?{name:e}:e),req=new Set(c.extraRequired||[]);(c.extraSupported||[]).forEach(n=>{if(!x.some(e=>e.name===n))x.push({name:n,isRequired:req.has(n)})});return{a,c:Object.assign({},c,{extra:x,name:c.name||c.id,type:c.type==='tv'?'series':c.type})}}).filter(({c})=>!c.extra.some(e=>e.isRequired&&e.name!=='genre')&&c.id&&c.type));
+/* one catalog per title: the same name from two add-ons (for example Popular, or Netflix) is shown once */
+const catKey=c=>c.type+'|'+String(c.name||c.id).toLowerCase().replace(/\b(movies?|series|shows?|tv|catalogs?)\b/g,'').replace(/[^a-z0-9]+/g,'');
+const cats=()=>{const seen=new Set(),seenId=new Set();return addons.filter(a=>!a.off&&!(a.fb&&addons.some(x=>x.tmdb&&!x.off))).flatMap(a=>(a.manifest.catalogs||[]).map(c=>{const x=(c.extra||[]).map(e=>typeof e==='string'?{name:e}:e),req=new Set(c.extraRequired||[]);(c.extraSupported||[]).forEach(n=>{if(!x.some(e=>e.name===n))x.push({name:n,isRequired:req.has(n)})});return{a,c:Object.assign({},c,{extra:x,name:c.name||c.id,type:c.type==='tv'?'series':c.type})}}).filter(({c})=>!c.extra.some(e=>e.isRequired&&e.name!=='genre')&&c.id&&c.type)).filter(({a,c})=>{const k=catKey(c),k2=c.type+'|'+c.id+'|'+a.url;if(seen.has(k)||seenId.has(k2))return false;seen.add(k);seenId.add(k2);return true})};
 async function addAddon(raw){
   let u=raw.trim().replace(/^stremio:\/\//,'https://');
   if(!/^https?:\/\//.test(u))throw Error('Enter a full link that starts with https://');

@@ -11,7 +11,12 @@ let cur=null,tmr=0;
 
 /* ================= Android: ExoPlayer behind the page ================= */
 /* the native player is always on in the Android app (there is no switch for it any more) */
-const on=()=>!!(AND&&KP());
+const on=()=>{
+ if(!(AND&&KP()))return false;
+ /* after repeated crashes the app switches the native player off by itself and the web player takes over */
+ try{if(window.KinoraNative&&KinoraNative.nativeOff&&KinoraNative.nativeOff())return false}catch{}
+ return true;
+};
 const can=s=>on()&&s&&/^https?:/i.test(s.url||'')&&!s._srv;
 function fire(v,n){try{v.dispatchEvent(new Event(n))}catch{}}
 function detach(){
@@ -56,7 +61,7 @@ function attach(v,s,t0,ctx){
   if(!st.meta&&st.d>0){st.meta=true;fire(v,'loadedmetadata');fire(v,'loadeddata')}
   if(st.s===3&&!st.can){st.can=true;fire(v,'canplay')}
   const playingNow=st.s===3&&st.pw;
-  if(playingNow&&!st.play){st.play=true;fire(v,'play');fire(v,'playing')}
+  if(playingNow&&!st.play){st.play=true;fire(v,'play');fire(v,'playing');try{if(!st.ok&&window.KinoraNative&&KinoraNative.played){st.ok=1;KinoraNative.played()}}catch{}}
   else if(!playingNow&&st.play){st.play=false;if(st.s===2)fire(v,'waiting');else fire(v,'pause')}
   else if(st.s===2&&was.s!==2&&st.meta)fire(v,'waiting');
   fire(v,'timeupdate');fire(v,'progress');
