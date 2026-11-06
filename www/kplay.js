@@ -158,6 +158,14 @@ E.play=function(s,ctx,t0){
  /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
  const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
  arm(s._srv?50000:alts>0?5000:(window.KEngineMore&&KEngineMore()?9000:40000));
+ /* the native check tells within a second whether this source answers at all; fast answers get a tight limit, slow ones a little more room */
+ try{if(window.KProbe&&KProbe.on()&&!s._srv&&/^https?:/i.test(s.url||'')){
+  KProbe.test(s).then(r=>{
+   if(my!==seq||started||dead)return;
+   if(!r.ok){if(alts>0||(window.KEngineMore&&KEngineMore()))fail('This source did not answer.');return}
+   if(r.ms&&alts>0){const lim=r.ms<700?4500:Math.min(9000,r.ms*2+3500);arm(Math.max(1500,lim-(performance.now()-tStart)))}
+  }).catch(()=>{});
+ }}catch{}
 
  /* play() can be refused by the browser: fall back to muted playback, then to a tap */
  let tried=false;
@@ -528,9 +536,17 @@ V.watch=async function(type,id,vid){
   play({...p.raw,_q:p.q,_kk:p.key},ctx,t0||0);
  }
  function start(){
-  if(started)return;
-  const sel=defSel(),n=order(sel)[0];if(!n)return;
-  st={lang:sel.lang,q:sel.q};use(n);
+  if(started||start.busy)return;
+  const sel=defSel(),list=order(sel);if(!list.length)return;
+  st={lang:sel.lang,q:sel.q};
+  if(!(window.KProbe&&KProbe.on())||list.length<2)return use(list[0]);
+  /* ask the best three sources for their first bytes at the same time: dead links are skipped, the best live answer plays. Never more than 1.4 s of waiting. */
+  start.busy=1;
+  const top=list.slice(0,3),r=[];let fin=0;
+  const go=p=>{if(fin)return;fin=1;start.busy=0;if(live()&&!started)use(p)};
+  const look=()=>{for(let i=0;i<top.length;i++){if(!r[i])return;if(r[i].ok)return go(top[i])}go(order({lang:st.lang,q:st.q})[0]||top[0])};
+  top.forEach((p,i)=>KProbe.test(p.raw).then(x=>{r[i]=x;if(!x.ok)bad.add(p.key);look()}).catch(()=>{r[i]={ok:true};look()}));
+  setTimeout(()=>{if(fin)return;const i=r.findIndex(x=>x&&x.ok),j=top.findIndex((p,k)=>!r[k]);go(i>=0?top[i]:j>=0?top[j]:(order({lang:st.lang,q:st.q})[0]||top[0]))},1400);
  }
  function onBatch(){
   if(!live())return E0.subs.delete(onBatch);

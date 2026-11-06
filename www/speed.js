@@ -41,13 +41,23 @@ async function runtimeOf(ctx){
  return RT[k];
 }
 function fixDur(v,ctx){
- // Do not override native duration on HTMLMediaElement as it breaks HLS buffer algorithms and seeking
+ /* Some hosts report a length that only covers what is buffered so far (the seek bar then grows slowly). The real running time comes from the title's details,
+    so the bar shows the whole film from the first second. Only used while the player's own length is missing or clearly partial; never for HLS. */
+ if(!ctx)return;
+ runtimeOf(ctx).then(rt=>{
+  if(!rt||!v.isConnected)return;
+  const g=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,'duration');if(!g||!g.get)return;
+  try{Object.defineProperty(v,'duration',{configurable:true,get(){const d=g.get.call(v);return(!isFinite(d)||d<rt*.5)?rt:d}})}catch{}
+  try{v.dispatchEvent(new Event('durationchange'))}catch{}
+ }).catch(()=>{});
 }
+window.KRuntimeOf=runtimeOf;
 
 /* ================= measure every real playback attempt ================= */
 {const p0=play;play=function(s,ctx){
  const r=p0.apply(this,arguments);
  const v=Q('#vw video');if(!v||!s||!s.url)return r;
+ if(!/\.m3u8/i.test(s.url)&&!v.kAudio)fixDur(v,ctx);
  const t=performance.now();let fin=false,to=0;
  const done=good=>{if(fin)return;fin=true;clearTimeout(to);if(!v.isConnected||!navigator.onLine)return;good?ok(s,performance.now()-t):bad(s)};
  to=setTimeout(()=>done(false),limit(s)+8000);

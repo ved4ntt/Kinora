@@ -28,8 +28,17 @@ function attach(v,s,t0,ctx){
  detach();
  const st=cur={s:1,pw:false,p:0,d:0,b:0,e:'',rate:1,vol:1,muted:false,a:[],t:[],meta:false,can:false,play:false,ended:false,err:false};
  const def=(k,g,set)=>{try{Object.defineProperty(v,k,{configurable:true,get:g,set})}catch{}};
- def('currentTime',()=>st.p/1000,x=>{st.p=x*1000;v._seekHold=Date.now()+1500;try{KP().seek(Math.max(0,Math.round(x*1000)))}catch{}fire(v,'seeking');setTimeout(()=>fire(v,'seeked'),350)});
- def('duration',()=>st.d>0?st.d/1000:NaN);
+ def('currentTime',()=>st.p/1000,x=>{
+  st.p=x*1000;v._seekHold=Date.now()+1500;
+  /* this stream has no index and ExoPlayer cannot jump in it: hand it to VLC (same spot) and then seek */
+  let vlc=false;try{vlc=!!(st.ns&&!st.sw&&KP().canVlc&&KP().canVlc())}catch{}
+  if(vlc){st.sw=1;try{KP().switchEngine('vlc')}catch{}const ms=Math.max(0,Math.round(x*1000));setTimeout(()=>{try{KP().seek(ms)}catch{}},900)}
+  else{try{KP().seek(Math.max(0,Math.round(x*1000)))}catch{}}
+  fire(v,'seeking');setTimeout(()=>fire(v,'seeked'),350)});
+ /* the whole length from the first second: the player's own length is used only when it is trustworthy */
+ const dur=()=>{const d=st.d/1000;if(st.rt&&(!(d>0)||d<st.rt*.5))return st.rt;return d>0?d:NaN};
+ def('duration',dur);
+ def('seekable',()=>{const d=dur()||0;return{length:d>0?1:0,start:()=>0,end:()=>d}});
  def('paused',()=>!st.pw);
  def('ended',()=>st.s===4);
  def('readyState',()=>st.s===3?4:st.s===2?2:1);
@@ -50,15 +59,16 @@ function attach(v,s,t0,ctx){
  const hd=(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request)||s.headers||{};
  try{KP().load(s.url,JSON.stringify(hd),start,cfg().speed||1)}catch(e){st.err=true;st.e=String(e);setTimeout(()=>fire(v,'error'),0);return}
  fire(v,'loadstart');
+ try{if(window.KRuntimeOf&&ctx)KRuntimeOf(ctx).then(r=>{if(r&&cur===st){st.rt=r;fire(v,'durationchange')}}).catch(()=>{})}catch{}
  tmr=setInterval(()=>{
   if(cur!==st)return;
   let j;try{j=JSON.parse(KP().state())}catch{return}
   const was={s:st.s,pw:st.pw,play:st.play};
-  st.s=j.s;st.d=j.d>0?j.d:0;st.b=j.b||0;st.a=j.a||st.a;st.t=(j.t||[]).map((x,i)=>({...x,on:!!x.on}));
+  st.s=j.s;st.d=j.d>0?j.d:0;st.b=j.b||0;st.ns=!!j.ns;st.a=j.a||st.a;st.t=(j.t||[]).map((x,i)=>({...x,on:!!x.on}));
   if(!st.pwLocal)st.pw=!!j.pw;
   if(j.p!=null&&!(v._seekHold>Date.now()))st.p=j.p;
   if(j.e&&!st.err){st.err=true;st.e=j.e;fire(v,'error');return}
-  if(!st.meta&&st.d>0){st.meta=true;fire(v,'loadedmetadata');fire(v,'loadeddata')}
+  if(!st.meta&&(st.d>0||st.rt)){st.meta=true;fire(v,'loadedmetadata');fire(v,'loadeddata')}
   if(st.s===3&&!st.can){st.can=true;fire(v,'canplay')}
   const playingNow=st.s===3&&st.pw;
   if(playingNow&&!st.play){st.play=true;fire(v,'play');fire(v,'playing');try{if(!st.ok&&window.KinoraNative&&KinoraNative.played){st.ok=1;KinoraNative.played()}}catch{}}
@@ -69,6 +79,29 @@ function attach(v,s,t0,ctx){
  },250);
 }
 window.KNative={on,can,attach,detach};
+
+/* ---- quick reachability check (Android): the first bytes of a stream, asked natively, so dead links are skipped before anything plays ---- */
+const PRC=new Map();let prN=0;
+window.KProbe={
+ on:()=>!!(AND&&KP()&&KP().probe&&KP().probeResult),
+ last:u=>{const e=PRC.get(u);return e&&Date.now()-e.t<90000?e.r:null},
+ test(s,ms){
+  const u=s&&s.url;if(!u)return Promise.resolve({ok:false});
+  const c=window.KProbe.last(u);if(c)return Promise.resolve(c);
+  ms=ms||3800;
+  return new Promise(res=>{
+   const id='p'+(++prN)+'_'+Date.now(),hd=(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request)||s.headers||{};
+   let to=0,iv=0;
+   const fin=r=>{clearInterval(iv);clearTimeout(to);
+    /* only clear failures count: no answer, 404/410, server errors, or a web page instead of a video. 401/403/405 may still play with the player's own headers. */
+    const hard=!r.ok&&(!r.code||r.code===404||r.code===410||r.code>=500||/html|json|text/.test(r.type||''));
+    const o={...r,ok:!hard};PRC.set(u,{t:Date.now(),r:o});res(o)};
+   try{KP().probe(id,u,JSON.stringify(hd))}catch{return res({ok:true,skip:1,ms:0})}
+   iv=setInterval(()=>{let r='';try{r=KP().probeResult(id)}catch{}if(r){try{fin(JSON.parse(r))}catch{fin({ok:true,ms:0})}}},60);
+   to=setTimeout(()=>fin({ok:false,code:0,ms,timeout:1}),ms);
+  });
+ }
+};
 
 /* ================= Windows: mpv or VLC ================= */
 const W=window.kinoraWin;
