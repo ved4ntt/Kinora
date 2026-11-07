@@ -14,7 +14,15 @@ process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
 });
 
-app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+// Hardware decoding: HEVC (H.265, 4K, HDR) and H.264 / VP9 / AV1 are decoded by the graphics card through D3D11 whenever it can,
+// so playback uses almost no CPU and 4K plays without re-encoding. The graphics-driver block list is ignored so older cards still get it.
+// One call only: Chromium keeps the last value given for a switch, so the feature list is set here and nowhere else.
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,D3D11VideoDecoder,MediaFoundationD3D11VideoCapture,CanvasOopRasterization');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
 // lets the player list and switch the audio tracks inside a file (dual audio, commentary)
 app.commandLine.appendSwitch('enable-blink-features', 'AudioVideoTracks');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -62,7 +70,7 @@ async function createWindow() {
     width: 1280, height: 800, minWidth: 480, minHeight: 600,
     frame: false, show: false, backgroundColor: '#07080b', title: 'Kinora',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
-    webPreferences: { contextIsolation: true, nodeIntegration: false, webSecurity: false, preload: path.join(__dirname, 'preload.js') },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, webSecurity: false, backgroundThrottling: false, preload: path.join(__dirname, 'preload.js') },
   });
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadURL(`http://127.0.0.1:${port}/index.html`);
@@ -137,8 +145,7 @@ ipcMain.handle('ext:play', (_e, o) => {
   try { const c = spawn(p.exe, args, { detached: true, stdio: 'ignore' }); c.on('error', () => {}); c.unref(); return { ok: true, player: p.kind }; } catch { return { ok: false }; }
 });
 
-// Let Chromium decode HEVC (H.265) with the graphics card, so 4K and HDR files play without re-encoding.
-app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+// (hardware video flags are set once, at the top of this file)
 
 // Updates: Windows reads GitHub Releases through electron-updater. The page decides when to check and download.
 const upd = (s) => { if (win && !win.isDestroyed()) win.webContents.send('upd:event', s); };

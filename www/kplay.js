@@ -132,9 +132,9 @@ E.play=function(s,ctx,t0){
  /* Windows app: hand hard files to mpv or VLC when it is installed */
  try{if(window.KExt&&KExt.handle&&KExt.handle(s,ctx,t0,why=>fail(why)))return}catch{}
  /* Windows app: plain files go through the built-in fast proxy (it also adds the headers the host wants) */
- if(WIN&&SRVOK()&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&!/\.m3u8(\?|$)/i.test(s.url)&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)){
+ if(WIN&&SRVOK()&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&(!/\.m3u8(\?|$)/i.test(s.url)||!!(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request))&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)){
   const c=srvCfg(),hd=s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request,bh={...(s.behaviorHints||{})};delete bh.proxyHeaders;
-  return E.play({...s,_o:s._o||s,_kp:1,behaviorHints:bh,url:c.url.replace(/\/$/,'')+'/proxy?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(s.url)+(hd?'&h='+encodeURIComponent(btoa(JSON.stringify(hd))):'')},ctx,t0);
+  return E.play({...s,_o:s._o||s,_kp:1,behaviorHints:bh,url:c.url.replace(/\/$/,'')+'/proxy?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(s.url)+(hd?'&h='+encodeURIComponent(btoa(JSON.stringify(hd))):'')+(/\.m3u8(\?|$)/i.test(s.url)?'&x=.m3u8':'')},ctx,t0);
  }
  if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders&&!(window.KNative&&KNative.can(s)))return play(srvStream(s),ctx,t0);
  if(SRVOK()&&!s._srv&&WIN&&/hevc|x265|h\.?265|dts|truehd|e-?ac-?3|\bac3\b/i.test((s.name||'')+' '+(s.title||s.description||'')+' '+s.url))return play(srvStream(s),ctx,t0);

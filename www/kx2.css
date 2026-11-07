@@ -1,0 +1,81 @@
+/* Kinora kx2: player bar, details page, settings on phones. Loaded after kx.css. */
+
+/* ---------- player: no dark bar behind the seek bar and buttons. Controls stay readable through soft shadows only. ---------- */
+#pl.kp #ctl{background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#pl.kp #ctl:before,#pl.kp #ctl:after{display:none!important}
+#pl.kp #ctl button,#pl.kp #ctl svg{filter:drop-shadow(0 1px 5px rgba(0,0,0,.65))}
+#pl.kp #ctl,#pl.kp #ctl span,#pl.kp #ctl time{text-shadow:0 1px 6px rgba(0,0,0,.7)}
+#pl.kp #sk::before{box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+#pl.kp #sk #stp{background:rgba(24,26,32,.72)!important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* ---------- details page: the picture melts into the page, no hard edge ---------- */
+.kt-hero{position:relative;isolation:isolate;background:#07080b}
+.kt-bg{position:absolute!important;inset:0;z-index:0;background-size:cover!important;background-position:center 22%!important;-webkit-mask-image:linear-gradient(to bottom,#000 0,#000 50%,rgba(0,0,0,.72) 70%,rgba(0,0,0,.28) 88%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0,#000 50%,rgba(0,0,0,.72) 70%,rgba(0,0,0,.28) 88%,transparent 100%)}
+.kt-hero:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(7,8,11,.8),rgba(7,8,11,.3) 52%,transparent 80%),linear-gradient(to top,#07080b 0,rgba(7,8,11,.92) 10%,rgba(7,8,11,.55) 30%,transparent 62%)}
+.kt-hero:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:120px;z-index:1;pointer-events:none;background:linear-gradient(to bottom,transparent,#07080b)}
+.kt-in{position:relative;z-index:2}
+
+/* ---------- details page: one even row ---------- */
+.kt-ac{display:flex!important;flex-wrap:wrap;align-items:center;gap:12px!important;margin-top:20px}
+.kt-ac>button:not(#kt-play):not(.kx-more),.kt-rx button,.kx-more,.kx-react{box-sizing:border-box;flex:none;width:52px!important;min-width:52px!important;height:52px!important;padding:0!important;margin:0!important;border-radius:50%!important;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:rgba(255,255,255,.09)!important;border:1px solid rgba(255,255,255,.16)!important;box-shadow:none!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);cursor:pointer;transition:background .2s,transform .2s,border-color .2s}
+.kt-ac>button:not(#kt-play):hover,.kt-rx button:hover,.kx-more:hover,.kx-react:hover{background:rgba(255,255,255,.18)!important;transform:translateY(-2px)}
+.kt-ac>button.on,.kt-rx button.on{background:#f1efea!important;color:#0a0b0e!important;border-color:#f1efea!important}
+.kt-rx button.on.love{background:#ff4d79!important;color:#fff!important;border-color:#ff4d79!important}
+.kt-ac svg,.kt-rx svg,.kx-more svg,.kx-react svg{width:22px!important;height:22px!important;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.kt-ac>#kt-play{flex:none;height:52px!important;min-width:0;padding:0 28px!important;margin:0!important;border-radius:99px!important;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#f1efea!important;color:#0a0b0e!important;border:0!important;box-shadow:none!important;outline:0;font:700 16px/1 Manrope,system-ui,sans-serif;transition:width .4s cubic-bezier(.2,.8,.2,1),padding .4s cubic-bezier(.2,.8,.2,1)}
+.kt-ac>#kt-play svg{stroke:none;fill:currentColor}
+.kt-rx{display:inline-flex!important;align-items:center;gap:0!important;height:52px;padding:0!important;border-radius:99px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.09);overflow:hidden}
+.kt-rx button{width:50px!important;min-width:50px!important;height:50px!important;border:0!important;border-radius:0!important;background:none!important;backdrop-filter:none}
+.kt-rx button:hover{transform:none}
+
+/* phone: Play + a small ⋯. Tapping it opens the options sideways and Play shrinks to its icon */
+.kx-opts{display:flex;align-items:center;gap:10px;max-width:0;opacity:0;overflow:hidden;white-space:nowrap;transition:max-width .5s cubic-bezier(.2,.8,.2,1),opacity .3s .05s}
+.kx-open .kx-opts{max-width:340px;opacity:1}
+.kx-ph{flex-wrap:nowrap!important}
+.kx-ph>#kt-wl,.kx-ph>.kt-rx{display:none!important}
+.kx-open>#kt-play{width:52px;padding:0!important;font-size:0!important;gap:0}
+.kx-open>#kt-play svg{width:22px;height:22px}
+.kx-more svg{transition:transform .4s cubic-bezier(.2,.8,.2,1)}
+.kx-open .kx-more svg{transform:rotate(90deg)}
+.kx-react{position:relative}
+.kx-react.on{background:#ff4d79!important;border-color:#ff4d79!important}
+.kx-rp{position:fixed;z-index:97;display:flex;gap:6px;padding:7px;border-radius:99px;background:rgba(24,26,32,.94);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 40px rgba(0,0,0,.55);opacity:0;transform:translateY(8px) scale(.94);transition:opacity .18s,transform .25s cubic-bezier(.2,.8,.2,1)}
+.kx-rp.on{opacity:1;transform:none}
+.kx-rp button{width:48px;height:48px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s,background .2s}
+.kx-rp button:hover{transform:translateY(-3px) scale(1.08)}
+.kx-rp button.on{background:#f1efea;color:#0a0b0e}
+.kx-rp button[data-r=love].on{background:#ff4d79;color:#fff}
+.kx-rp svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- settings on phones: smaller, tighter rows ---------- */
+@media(max-width:760px){
+ .page.k6{padding-left:16px!important;padding-right:16px!important}
+ .k6h{font-size:28px!important;line-height:1.1!important;margin:6px 0 12px!important}
+ .k6bk{height:38px!important;padding:0 14px!important;font-size:14px!important;margin-bottom:6px!important}
+ .k6s{font-size:11px!important;letter-spacing:.1em!important;margin:20px 4px 8px!important}
+ .k6c{border-radius:18px!important}
+ .k6r{min-height:0!important;padding:11px 14px!important;gap:12px!important;align-items:center!important}
+ .k6r>*:first-child:not(.k6in){flex:none;width:36px!important;height:36px!important;border-radius:11px!important}
+ .k6r>*:first-child:not(.k6in) svg{width:19px!important;height:19px!important}
+ .k6in>*:first-child{font-size:15px!important;line-height:1.25!important;font-weight:600!important}
+ .k6in>*+*{font-size:12.5px!important;line-height:1.35!important;margin-top:2px!important}
+ .k6r .btn,.k6c .btn{height:36px!important;padding:0 14px!important;font-size:13px!important}
+ .k6o{font-size:13px!important}
+ .k6r svg:last-child{width:16px!important;height:16px!important}
+}
+
+/* ---------- phone profile sheet ---------- */
+.kxsh{position:fixed;left:0;right:0;bottom:0;z-index:96;padding:10px 14px calc(16px + env(safe-area-inset-bottom,0px));border-radius:26px 26px 0 0;background:rgba(22,24,30,.95);-webkit-backdrop-filter:blur(26px) saturate(1.6);backdrop-filter:blur(26px) saturate(1.6);border:1px solid rgba(255,255,255,.1);border-bottom:0;box-shadow:0 -20px 60px rgba(0,0,0,.5);transform:translateY(100%);transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+.kxsh.on{transform:none}
+.kxsh-bd{position:fixed;inset:0;z-index:95;background:rgba(0,0,0,0);transition:background .3s}
+.kxsh-bd.on{background:rgba(0,0,0,.45)}
+.kxsh .g{display:block;width:40px;height:4px;border-radius:9px;background:rgba(255,255,255,.22);margin:2px auto 12px}
+.kxsh-u{display:flex;align-items:center;gap:14px;padding:4px 6px 14px}
+.kxsh-u .kxa{width:58px;height:58px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.14);flex:none}
+.kxsh-u .kxa svg{width:100%;height:100%}
+.kxsh-u b{display:block;font:700 17px Manrope,system-ui,sans-serif;color:#fff}
+.kxsh-u small{display:block;margin-top:2px;font:600 12.5px Manrope,system-ui,sans-serif;color:#8b93a0}
+.kxsh a,.kxsh button.it{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;height:50px;padding:0 12px;border:0;border-radius:14px;background:none;color:#e6e8ec;font:600 15px Manrope,system-ui,sans-serif;text-decoration:none;cursor:pointer;text-align:left}
+.kxsh a:active,.kxsh button.it:active{background:rgba(255,255,255,.08)}
+.kxsh a svg,.kxsh button.it svg{width:20px;height:20px;fill:none;stroke:#aab2bd;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.kxsh hr{border:0;border-top:1px solid rgba(255,255,255,.08);margin:6px 0}
