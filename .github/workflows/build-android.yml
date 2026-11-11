@@ -67,6 +67,9 @@ jobs:
               s = s.replace('<application', '<application android:largeHeap="true"', 1)
           if 'android:hardwareAccelerated' not in s:
               s = s.replace('<application', '<application android:hardwareAccelerated="true"', 1)
+          # lets the downloaded update open the Android installer (the phone asks once: Allow from this source)
+          if 'REQUEST_INSTALL_PACKAGES' not in s:
+              s = s.replace('<application', '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <application', 1)
           open(p, 'w', encoding='utf-8').write(s)
           print('largeHeap:', 'android:largeHeap' in s)
           PY

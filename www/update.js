@@ -23,11 +23,32 @@ const tg=(k,on)=>'<button class="k6t'+(on?' on':'')+'" data-tg="'+k+'" role="swi
 }catch{}render()})();
 
 /* ---- checking, downloading, installing ---- */
+function latestNative(){
+ return new Promise(res=>{
+  const N=window.KinoraNative;if(!(N&&N.latest&&N.result))return res(null);
+  const id='u'+Date.now();let n=0;
+  try{N.latest(id,REPO)}catch{return res(null)}
+  const iv=setInterval(()=>{let r='';try{r=N.result(id)}catch{}
+   if(r){clearInterval(iv);try{res(JSON.parse(r))}catch{res(null)}}else if(++n>110){clearInterval(iv);res(null)}},100);
+ });
+}
 async function check(){
  if(KIND==='web'||S.s==='checking'||S.s==='downloading')return;
  S.s='checking';S.m='';later=0;render();
  try{
   if(W){await W.check();S.at=Date.now();return} /* Windows answers through events */
+  /* Android first asks GitHub's own redirect (native, no API limit, no browser rules); the API is only the fallback */
+  if(AND){
+   const t=await latestNative();
+   if(t&&t.tag){
+    const tag=String(t.tag);
+    if(S.cur&&newer(tag,S.cur)){
+     Object.assign(S,{s:'available',v:tag.replace(/^v/,''),notes:'',url:'https://github.com/'+REPO+'/releases/download/'+tag+'/Kinora.apk'});
+     if(cfg().updAuto===true)act();
+    }else S.s='uptodate';
+    S.at=Date.now();render();return;
+   }
+  }
   const r=await fetch('https://api.github.com/repos/'+REPO+'/releases?per_page=8');
   if(!r.ok)throw 0;
   const L=await r.json(),j=(Array.isArray(L)?L:[]).find(x=>!x.draft&&(x.assets||[]).some(y=>/\.apk$/i.test(y.name)))||{},a=(j.assets||[]).find(x=>/\.apk$/i.test(x.name));
@@ -41,7 +62,12 @@ async function check(){
 function act(){
  if(S.s==='available'){
   if(W){S.s='downloading';S.p=0;render();W.download()}
-  else{try{if(CAP&&CAP.Plugins&&CAP.Plugins.Browser)CAP.Plugins.Browser.open({url:S.url});else window.open(S.url,'_blank')}catch{window.open(S.url,'_blank')}}
+  else{
+   /* Android: the file downloads in the background with a notification; when it is done the installer opens by itself */
+   let ok=false;try{ok=!!(window.KinoraNative&&KinoraNative.download&&KinoraNative.download(S.url,'Kinora-'+S.v+'.apk'))}catch{}
+   if(ok){S.s='bg';S.m='';render();try{toast('Downloading the update. The installer opens when it is done.')}catch{}}
+   else{try{if(CAP&&CAP.Plugins&&CAP.Plugins.Browser)CAP.Plugins.Browser.open({url:S.url});else window.open(S.url,'_blank')}catch{window.open(S.url,'_blank')}}
+  }
  }else if(S.s==='ready'&&W)W.install();
  else check();
 }
@@ -53,9 +79,9 @@ if(W)W.on(e=>{
 });
 
 /* ---- settings page ---- */
-const title=()=>({web:'You are on the newest version',idle:'Not checked yet',checking:'Checking for updates…',uptodate:'Kinora is up to date',available:'Version '+S.v+' is available',downloading:'Downloading version '+S.v+'… '+S.p+'%',ready:'Version '+S.v+' is ready to install',error:S.m||'Could not check for updates'})[S.s];
+const title=()=>({web:'You are on the newest version',idle:'Not checked yet',checking:'Checking for updates…',uptodate:'Kinora is up to date',available:'Version '+S.v+' is available',downloading:'Downloading version '+S.v+'… '+S.p+'%',ready:'Version '+S.v+' is ready to install',bg:'Downloading version '+S.v+' in the background',error:S.m||'Could not check for updates'})[S.s];
 function card(){
- const b=S.s==='available'?(W?'Download update':'Get update'):S.s==='ready'?'Restart to update':'Check for updates',dis=S.s==='checking'||S.s==='downloading';
+ const b=S.s==='available'?(W?'Download update':'Get update'):S.s==='ready'?'Restart to update':'Check for updates',dis=S.s==='checking'||S.s==='downloading'||S.s==='bg';
  return opt(h(title()),KIND==='web'?'Kinora on the web':'Kinora '+h(S.cur||'')+' · '+(S.at?'checked '+ago(S.at):'not checked yet'),KIND==='web'?'':'<button class="btn p" data-upd="act"'+(dis?' disabled':'')+'>'+b+'</button>')+
   (S.s==='downloading'?'<div style="height:4px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden;margin:6px 4px"><i style="display:block;height:100%;width:'+S.p+'%;background:#f1efea;transition:width .3s"></i></div>':'');
 }

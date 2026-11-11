@@ -1,6 +1,14 @@
 package app.kinora.player;
 
 import android.app.Activity;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
@@ -81,6 +89,7 @@ public class MainActivity extends BridgeActivity {
   private boolean retried = false;
   private final ConcurrentHashMap<String, String> probes = new ConcurrentHashMap<>();
   private final ExecutorService pool = Executors.newFixedThreadPool(4);
+  private volatile long updId = -1;
 
   // ---- crash guard ----
   private SharedPreferences kp;
@@ -161,6 +170,24 @@ public class MainActivity extends BridgeActivity {
       @JavascriptInterface public int crashes() { return crashes; }
       @JavascriptInterface public String lastCrash() { try { return kp.getString("last", ""); } catch (Throwable e) { return ""; } }
       @JavascriptInterface public void played() { try { crashes = 0; kp.edit().putInt("crashes", 0).apply(); } catch (Throwable ignored) {} }
+      /** Newest release tag, read from GitHub's own redirect (no API, so no rate limit and no browser CORS rules). Result is read with result(id). */
+      @JavascriptInterface public void latest(final String id, final String repo) { pool.execute(() -> probes.put(id, doLatest(repo))); }
+      @JavascriptInterface public String result(final String id) { String r = probes.get(id); return r == null ? "" : r; }
+      /** Downloads the APK in the background (notification with progress). When it finishes the installer opens by itself. */
+      @JavascriptInterface
+      public boolean download(final String url, final String name) {
+        try {
+          DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+          DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
+          r.setTitle("Kinora update");
+          r.setDescription(name);
+          r.setMimeType("application/vnd.android.package-archive");
+          r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+          r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+          updId = dm.enqueue(r);
+          return true;
+        } catch (Throwable e) { return false; }
+      }
     }, "KinoraNative");
 
     w.addJavascriptInterface(new Object() {
@@ -210,7 +237,50 @@ public class MainActivity extends BridgeActivity {
         });
       }
     });
+
+    try {
+      IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+      if (Build.VERSION.SDK_INT >= 33) registerReceiver(dlDone, f, Context.RECEIVER_EXPORTED); else registerReceiver(dlDone, f);
+    } catch (Throwable ignored) {}
   }
+
+  private String doLatest(String repo) {
+    try {
+      HttpURLConnection c = (HttpURLConnection) new URL("https://github.com/" + repo + "/releases/latest").openConnection();
+      c.setInstanceFollowRedirects(false);
+      c.setConnectTimeout(7000);
+      c.setReadTimeout(7000);
+      c.setRequestProperty("User-Agent", "KinoraApp");
+      int code = c.getResponseCode();
+      String loc = c.getHeaderField("Location");
+      c.disconnect();
+      if (loc != null) {
+        int i = loc.lastIndexOf("/tag/");
+        if (i >= 0) return new JSONObject().put("tag", java.net.URLDecoder.decode(loc.substring(i + 5), "UTF-8")).toString();
+      }
+      return new JSONObject().put("err", "no release found (" + code + ")").toString();
+    } catch (Throwable e) {
+      try { return new JSONObject().put("err", String.valueOf(e)).toString(); } catch (Throwable x) { return "{\"err\":\"x\"}"; }
+    }
+  }
+
+  // When the update finishes downloading, open the installer straight away.
+  private final BroadcastReceiver dlDone = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context ctx, Intent in) {
+      try {
+        long id = in.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+        if (id < 0 || id != updId) return;
+        DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        Uri u = dm.getUriForDownloadedFile(id);
+        if (u == null) return;
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(u, "application/vnd.android.package-archive");
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(i);
+      } catch (Throwable ignored) {}
+    }
+  };
 
   // ---------------------------------------------------------------- probe
   private String doProbe(String url, String headersJson) {
@@ -559,6 +629,7 @@ public class MainActivity extends BridgeActivity {
     handler.removeCallbacksAndMessages(null);
     mark(false);
     try { pool.shutdownNow(); } catch (Throwable ignored) {}
+    try { unregisterReceiver(dlDone); } catch (Throwable ignored) {}
     try { if (player != null) { player.release(); player = null; } } catch (Throwable ignored) {}
     try { if (vlc != null) { vlc.release(); vlc = null; } } catch (Throwable ignored) {}
     super.onDestroy();

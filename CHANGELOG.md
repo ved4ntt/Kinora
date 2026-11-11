@@ -2,6 +2,31 @@
 
 Each release on GitHub shows the section for its version. Add a new `## [version] - date` section at the top before you bump the version in `package.json`.
 
+## [0.3.x] - 2026-11-08
+
+### Video (all platforms)
+- Sources are checked before they play: the three best are asked for their first bytes at the same moment, dead links are skipped, and the best answer plays. A source that does not start is replaced by one with the same quality and language, after about 5 seconds at most (4.5 s when the source answered fast, up to 9 s when it is slow but alive).
+- The seek bar shows the whole film from the first second, even when the host only reports what is buffered so far.
+
+### Windows
+- The streaming proxy was rewritten. It learns once whether a host supports byte ranges and how big the file is, answers every range request with a correct 206 and Content-Range, emulates ranges for hosts that ignore them, resumes a broken connection from the exact byte, and sends HLS playlists that need special headers through the same proxy. Seeking works across the whole film whenever the file size is known.
+- Conversion fix: the stream-copy path never ran before (the codec probe read ffprobe's output in the wrong order), so every converted video was re-encoded. H.264 / HEVC are now copied as they are and only unsupported video is re-encoded, with the graphics card (NVENC, Quick Sync or AMF, each really tested) and at the original size.
+- Hardware video decoding is switched on explicitly (D3D11, HEVC), and the window no longer throttles playback in the background.
+- The black bar behind the seek bar is gone.
+
+### Android
+- Player crash fixed at the source: video is drawn on a TextureView (a SurfaceView behind a see-through WebView was the unstable part). If the app ever dies while playing, the next start switches off the FFmpeg decoder first, then VLC, and only as a last resort the native player.
+- Second engine: libVLC takes over by itself when ExoPlayer cannot decode a track (10-bit HEVC, DTS, TrueHD, odd MKV) or cannot seek a stream. The release is built again without VLC if it ever fails to compile, so a release is never lost.
+- Version: the app now shows the same number as the GitHub release (it said 1.0.x before). Update check no longer depends on the GitHub API limit, and the update downloads in the background with a notification, then opens the installer. Latest links that always work: `releases/latest/download/Kinora.apk` and `Kinora-Setup.exe`.
+
+### Look and feel
+- Streaming services (Netflix, Prime Video, Disney+, HBO Max, Hulu, Apple TV+, Paramount+ ...) are big banner buttons on Home; each opens that service's movies and series.
+- All recommended add-ons are built in, plus AIOMetadata. Duplicate catalog titles are shown once.
+- Explore: search field, pills (Movies, Series, Anime, Sports, Live TV), Popular / Trending / All and Genre pickers (our own, not the browser's), results below with endless scrolling. The phone dock has Home, Explore, Library and Profile; Profile opens a clean sheet.
+- Avatar designer with hair, face, eyes, mouth, accessories, outfits and backgrounds (over two billion combinations), usernames, and a new "Who's watching" screen.
+- Details page: soft fade instead of a hard edge, an even row of buttons; on phones Play plus a small button that opens the other options sideways, and one reaction button for love, like or dislike.
+- Dock: compact when idle, expands when the mouse is over it (the setting is gone). Rating stars are real stars everywhere. Settings rows are smaller on phones.
+
 ## [0.3.x] - 2026-11-04
 
 Kinora is a beta, so version numbers now start with 0. Every push builds a new version (0.3 and the number of commits), and every build is published as its own release with a Windows installer and an Android APK.
