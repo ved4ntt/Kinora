@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('kinoraWin', {
   // mpv / VLC for the smoothest playback when one is installed
   playerInfo: () => ipcRenderer.invoke('ext:info'),
   playExternal: (o) => ipcRenderer.invoke('ext:play', o),
+  // Playback lab: save the test log (.json + .txt) into Downloads\Kinora-Logs
+  saveLog: (o) => ipcRenderer.invoke('log:save', o),
   onAuth: (cb) => ipcRenderer.on('auth-url', (_e, u) => cb(u)),
   // App updates (electron-updater reads GitHub Releases; the page decides when to check, download and install).
   upd: {

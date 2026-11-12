@@ -2,6 +2,12 @@
 
 Each release on GitHub shows the section for its version. Add a new `## [version] - date` section at the top before you bump the version in `package.json`.
 
+## [0.3.x] - 2026-11-12
+
+### Playback lab (Windows and Android)
+- New switch in Settings > Playback > Playback lab (test mode, off by default). With it on, whatever title you play is tested source by source: 30 seconds each, then it switches by itself. It records startup time, every buffering stop, real picture size, codec, bitrate, file size (and a compression grade so over-squeezed 4K files are marked), dropped frames, jump speed and why a source failed.
+- Export writes a .json and a readable .txt into Downloads/Kinora-Logs (Android also opens the share sheet). Windows and Android keep separate logs.
+
 ## [0.3.x] - 2026-11-08
 
 ### Video (all platforms)

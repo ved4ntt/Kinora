@@ -40,6 +40,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.DecoderCounters;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.SeekParameters;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -90,6 +91,7 @@ public class MainActivity extends BridgeActivity {
   private final ConcurrentHashMap<String, String> probes = new ConcurrentHashMap<>();
   private final ExecutorService pool = Executors.newFixedThreadPool(4);
   private volatile long updId = -1;
+  private final java.util.ArrayList<Uri> logUris = new java.util.ArrayList<>();
 
   // ---- crash guard ----
   private SharedPreferences kp;
@@ -167,6 +169,42 @@ public class MainActivity extends BridgeActivity {
         } catch (Throwable e) { return ""; }
       }
       @JavascriptInterface public boolean nativeOff() { return nativeOff; }
+      /** Playback lab: saves the test log as .json + .txt in Downloads/Kinora-Logs. Returns {ok,dir}. */
+      @JavascriptInterface
+      public String saveLogs(final String base, final String json, final String txt) {
+        try {
+          logUris.clear();
+          Uri a = saveDownload(base + ".json", "application/json", json, "Kinora-Logs");
+          Uri b = saveDownload(base + ".txt", "text/plain", txt, "Kinora-Logs");
+          if (a != null) logUris.add(a);
+          if (b != null) logUris.add(b);
+          return new JSONObject().put("ok", !logUris.isEmpty()).put("dir", "Downloads/Kinora-Logs").toString();
+        } catch (Throwable e) {
+          return "{\"ok\":false}";
+        }
+      }
+      /** Opens the share sheet with the files saved by saveLogs (or the short text when they could not be saved). */
+      @JavascriptInterface
+      public boolean shareLogs(final String subject, final String fallbackText) {
+        runOnUiThread(() -> {
+          try {
+            Intent i;
+            if (!logUris.isEmpty()) {
+              i = new Intent(Intent.ACTION_SEND_MULTIPLE);
+              i.setType("*/*");
+              i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, new java.util.ArrayList<Uri>(logUris));
+              i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } else {
+              i = new Intent(Intent.ACTION_SEND);
+              i.setType("text/plain");
+              i.putExtra(Intent.EXTRA_TEXT, fallbackText);
+            }
+            i.putExtra(Intent.EXTRA_SUBJECT, subject);
+            startActivity(Intent.createChooser(i, "Send Kinora log"));
+          } catch (Throwable ignored) {}
+        });
+        return true;
+      }
       @JavascriptInterface public int crashes() { return crashes; }
       @JavascriptInterface public String lastCrash() { try { return kp.getString("last", ""); } catch (Throwable e) { return ""; } }
       @JavascriptInterface public void played() { try { crashes = 0; kp.edit().putInt("crashes", 0).apply(); } catch (Throwable ignored) {} }
@@ -242,6 +280,32 @@ public class MainActivity extends BridgeActivity {
       IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
       if (Build.VERSION.SDK_INT >= 33) registerReceiver(dlDone, f, Context.RECEIVER_EXPORTED); else registerReceiver(dlDone, f);
     } catch (Throwable ignored) {}
+  }
+
+  /** Saves a text file into Downloads/<dir> (no permission needed on Android 10+). Returns its content address, or null. */
+  private Uri saveDownload(String name, String mime, String text, String dir) {
+    try {
+      byte[] data = (text == null ? "" : text).getBytes("UTF-8");
+      if (Build.VERSION.SDK_INT >= 29) {
+        android.content.ContentValues cv = new android.content.ContentValues();
+        cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
+        cv.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime);
+        cv.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/" + dir);
+        Uri u = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+        if (u == null) return null;
+        java.io.OutputStream os = getContentResolver().openOutputStream(u);
+        try { os.write(data); } finally { os.close(); }
+        return u;
+      }
+      java.io.File d = new java.io.File(getExternalFilesDir(null), dir);
+      d.mkdirs();
+      java.io.File f = new java.io.File(d, name);
+      java.io.FileOutputStream os = new java.io.FileOutputStream(f);
+      try { os.write(data); } finally { os.close(); }
+      return Uri.fromFile(f);
+    } catch (Throwable e) {
+      return null;
+    }
   }
 
   private String doLatest(String repo) {
@@ -592,6 +656,27 @@ public class MainActivity extends BridgeActivity {
       }
       o.put("a", a);
       o.put("t", t);
+      // Playback lab: real video/audio format, decoder drops (read by the page, never shown)
+      try {
+        o.put("eng", "exo");
+        Format vf = player.getVideoFormat();
+        if (vf != null) {
+          JSONObject vj = new JSONObject();
+          vj.put("w", vf.width); vj.put("h", vf.height); vj.put("br", vf.bitrate); vj.put("fps", vf.frameRate);
+          vj.put("mime", vf.sampleMimeType == null ? "" : vf.sampleMimeType);
+          vj.put("codecs", vf.codecs == null ? "" : vf.codecs);
+          o.put("vf", vj);
+        }
+        Format af = player.getAudioFormat();
+        if (af != null) {
+          JSONObject aj = new JSONObject();
+          aj.put("br", af.bitrate); aj.put("ch", af.channelCount);
+          aj.put("mime", af.sampleMimeType == null ? "" : af.sampleMimeType);
+          o.put("af", aj);
+        }
+        DecoderCounters dc = player.getVideoDecoderCounters();
+        if (dc != null) { dc.ensureUpdated(); o.put("dr", dc.droppedBufferCount); o.put("rn", dc.renderedOutputBufferCount); }
+      } catch (Throwable ignored) {}
       stateJson = o.toString();
     } catch (Throwable ignored) {}
     handler.postDelayed(this::poll, 250);

@@ -51,6 +51,7 @@ function attach(v,s,t0,ctx){
  def('textTracks',()=>st.t.map((x,i)=>({label:x.n,get mode(){return x.on?'showing':'hidden'},set mode(m){if(m==='showing'){try{KP().selectText(i)}catch{}x.on=true}else if(x.on){try{KP().selectText(-1)}catch{}x.on=false}}})));
  v.kAudio=()=>st.a.map(x=>({n:x.n,on:x.on}));
  v.kAudioSet=i=>{try{KP().selectAudio(i)}catch{}st.a.forEach((x,k)=>x.on=k===i)};
+ v.kStat=()=>st.raw||null;
  v.play=()=>{try{KP().play()}catch{}st.pw=true;return Promise.resolve()};
  v.pause=()=>{try{KP().pause()}catch{}st.pw=false};
  v.load=()=>{};
@@ -63,7 +64,7 @@ function attach(v,s,t0,ctx){
  tmr=setInterval(()=>{
   if(cur!==st)return;
   let j;try{j=JSON.parse(KP().state())}catch{return}
-  const was={s:st.s,pw:st.pw,play:st.play};
+  const was={s:st.s,pw:st.pw,play:st.play};st.raw=j;
   st.s=j.s;st.d=j.d>0?j.d:0;st.b=j.b||0;st.ns=!!j.ns;st.a=j.a||st.a;st.t=(j.t||[]).map((x,i)=>({...x,on:!!x.on}));
   if(!st.pwLocal)st.pw=!!j.pw;
   if(j.p!=null&&!(v._seekHold>Date.now()))st.p=j.p;
