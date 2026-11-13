@@ -10,7 +10,5 @@ window.KINORA_CONFIG={
   deepLink:'kinora://auth',
   googleClientId:'286829733855-kv3sr70pfha0480rmm3kqb7ua2vgj6po.apps.googleusercontent.com',
   /* TMDB v3 key: Kinora reads titles, posters and details from TMDB first and uses Cinemeta only as a fallback. */
-  tmdbKey:'6754b50af9590cdbe9a1cbfbd8b62889',
-  /* MDBList key: ratings from IMDb, Rotten Tomatoes, Metacritic, Letterboxd and Trakt on the details page. Anyone who can open the app can read this key, so use a free one. */
-  mdblistKey:'hc16gm6n8981n2rvvlhms64mj'
+  tmdbKey:'6754b50af9590cdbe9a1cbfbd8b62889'
 };

@@ -26,6 +26,7 @@ const cont=()=>{
 };
 
 function hero(it){
+ const short=s=>{s=String(s||'').replace(/\s+/g,' ').trim();if(s.length<=115)return s;return s.slice(0,115).replace(/\s+\S*$/,'')+'\u2026'};
  const el=D.getElementById('kh-hero');if(!el)return;
  if(!it.length){el.remove();const k=Q1('.kh');if(k)k.classList.add('nohero');return}
  el.innerHTML='';
@@ -39,7 +40,9 @@ function hero(it){
   bgs.forEach((b,j)=>b.classList.toggle('on',j===i));dots.forEach((d,j)=>d.classList.toggle('on',j===i));
   inn.innerHTML=(m.logo?'<img class="kh-logo" src="'+h(m.logo)+'" alt="'+h(m.name)+'">':'<h1 class="kh-h">'+h(m.name)+'</h1>')+
    '<div class="kh-meta">'+(m.imdbRating?'<b>'+STAR+h(m.imdbRating)+'</b>':'')+'<span>'+h(typeLabel(m.type))+'</span>'+(yr(m)?'<span>'+h(yr(m))+'</span>':'')+(m.genres||[]).slice(0,3).map(g=>'<span>'+h(g)+'</span>').join('')+'</div>'+
-   '<p class="kh-d">'+h(m.description||'')+'</p><a class="kh-btn" href="'+dt(m)+'">'+ic('play')+'Play</a>';
+   '<p class="kh-d">'+h(short(m.description))+'</p><div class="kh-acts"><a class="kh-btn" href="'+dt(m)+'">'+ic('play')+'Play</a><a class="kh-btn kh-b2" href="'+dt(m)+'">More info</a><button type="button" class="kh-btn kh-b3" aria-label="My list"></button></div>';
+  const lb=inn.querySelector('.kh-b3');
+  if(lb){const sync=()=>{let on=false;try{on=!!inLib(m)}catch{}lb.classList.toggle('on',on);lb.innerHTML=on?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'};sync();lb.onclick=e=>{e.preventDefault();e.stopPropagation();try{toggleLib(m)}catch{}sync()}}
   inn.classList.remove('kh-fade');void inn.offsetWidth;inn.classList.add('kh-fade');
  }
  function start(){clearInterval(t);t=setInterval(()=>{if(!el.isConnected){clearInterval(t);return}show(i+1)},8000)}

@@ -1354,9 +1354,9 @@ function avatarSvg(i){
 /* ----- cloud (Supabase) ----- */
 const CL=()=>({url:'https://tmjrxyspvkiluwrpmsax.supabase.co',key:'sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq',...LS.get('cloud',{})});
 let SB=null,USER=null,pulling=false,pushT=0;
-const SYNCK=new Set(['addons','lib','st','ew','prog','cfg','sub','me','av']);
+const SYNCK=new Set(['addons','lib','st','ew','prog','dprog','cfg','sub','me','av']);
 {const s0=LS.set;LS.set=function(k,v){s0.call(LS,k,v);if(SYNCK.has(k)&&!pulling)pushSoon()}}
-const snapshot=()=>({addons:LS.get('addons',[]).filter(a=>!a.core).map(a=>a.url),lib:LS.get('lib',{}),st:LS.get('st',{}),ew:LS.get('ew',{}),prog:LS.get('prog',{}),sub:LS.get('sub',{})});
+const snapshot=()=>({addons:LS.get('addons',[]).filter(a=>!a.core).map(a=>a.url),lib:LS.get('lib',{}),st:LS.get('st',{}),ew:LS.get('ew',{}),prog:LS.get('prog',{}),dprog:LS.get('dprog',{}),sub:LS.get('sub',{})});
 function sbInit(){
   const c=CL();if(!(c.url&&c.key&&window.supabase))return null;
   if(SB&&SB._u===c.url+c.key)return SB;
@@ -1384,7 +1384,11 @@ async function pull(){
     LS.set('lib',{...(d.lib||{}),...LS.get('lib',{})});
     LS.set('st',{...(d.st||{}),...LS.get('st',{})});
     LS.set('ew',{...(d.ew||{}),...LS.get('ew',{})});
-    const pr=LS.get('prog',{});for(const k in d.prog||{})if(!pr[k]||(d.prog[k].at||0)>(pr[k].at||0))pr[k]=d.prog[k];LS.set('prog',pr);
+    /* removed entries carry a deletion time (dprog); a cloud copy older than that must not bring them back, on this device or any other */
+    const dp=LS.get('dprog',{});for(const k in d.dprog||{})dp[k]=Math.max(dp[k]||0,d.dprog[k]);LS.set('dprog',dp);
+    const pr=LS.get('prog',{});for(const k in d.prog||{})if((!pr[k]||(d.prog[k].at||0)>(pr[k].at||0))&&(d.prog[k].at||0)>(dp[k]||0))pr[k]=d.prog[k];
+    for(const k in pr)if((pr[k].at||0)<=(dp[k]||0))delete pr[k];
+    LS.set('prog',pr);
     if(d.sub)LS.set('sub',{...LS.get('sub',{}),...d.sub});
     for(const u of d.addons||[])if(!addons.some(a=>a.url===u))await addAddon(u).catch(()=>{});
   }else if(!LS.get('me','')){LS.set('me',meta.full_name||meta.name||(USER.email||'').split('@')[0])}

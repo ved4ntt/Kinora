@@ -39,7 +39,53 @@ body.kmn-open{overflow:hidden}
 @keyframes kmrin{to{opacity:1}}
 .kt-bg{-webkit-mask-image:linear-gradient(#000 58%,transparent);mask-image:linear-gradient(#000 58%,transparent)}
 @media (prefers-reduced-motion:reduce){#kskip,#kmn *{transition:none!important}}
-body.reduce #kskip,body.reduce #kmn *{transition:none!important}`;
+body.reduce #kskip,body.reduce #kmn *{transition:none!important}
+
+/* motion: pages slide up softly, home rows follow one after another */
+@keyframes kin{from{opacity:0;transform:translateY(18px) scale(.992)}to{opacity:1;transform:none}}
+.kin{animation:kin .5s ${ease} both}
+.kin .kh>*{animation:kin .62s ${ease} both}
+.kin .kh>*:nth-child(2){animation-delay:.06s}.kin .kh>*:nth-child(3){animation-delay:.12s}.kin .kh>*:nth-child(4){animation-delay:.18s}.kin .kh>*:nth-child(5){animation-delay:.24s}.kin .kh>*:nth-child(6){animation-delay:.3s}.kin .kh>*:nth-child(n+7){animation-delay:.36s}
+body.reduce .kin,body.reduce .kin .kh>*{animation:none}
+.kh-c{transition:transform .3s ${ease}}.kh-c:active{transform:scale(.965)}
+.kh-c .kh-i{transition:transform .38s ${ease},box-shadow .38s ease}
+@media(hover:hover){.kh-c:hover .kh-i{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.45)}}
+
+/* home banner: taller, shorter summary, three actions */
+html body .kh-hero{height:min(88vh,920px)!important;min-height:540px!important}
+@media(max-width:820px){html body .kh-hero{height:min(84svh,740px)!important;min-height:500px!important}}
+html body .kh-in{max-width:700px}
+html body .kh-d{font-size:13.5px!important;line-height:1.5!important;-webkit-line-clamp:2!important;opacity:.86;margin:0 0 16px!important}
+.kh-acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kh-btn.kh-b2{background:rgba(255,255,255,.16);color:#f4f2ee;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.kh-btn.kh-b3{width:46px;padding:0;justify-content:center;border:0;cursor:pointer;background:rgba(255,255,255,.16);color:#f4f2ee;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.kh-btn.kh-b3.on{background:#f4f2ee;color:#0a0b0e}
+.kh-btn.kh-b3 svg{width:20px;height:20px}
+.kh-btn:active{transform:scale(.96)}
+
+/* Explore: the two pickers share the row evenly; sheets can be dragged down */
+.kxe-pk{display:grid!important;grid-template-columns:1fr 1fr;gap:10px}
+.kxpk{width:100%!important;justify-content:space-between}
+.kxe-pills{-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}
+.kxp.sheet,.kxsh{will-change:transform}.kxp-g,.kxsh .g{cursor:grab;touch-action:none}
+
+/* search */
+.ks2{padding-top:clamp(70px,10vh,104px)!important}
+.ks2-bar{display:flex;align-items:center;gap:10px;margin:0 clamp(18px,4vw,56px) 6px;height:54px;padding:0 8px 0 16px;border-radius:16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);transition:border-color .25s,background .25s}
+.ks2-bar:focus-within{border-color:rgba(255,255,255,.34);background:rgba(255,255,255,.1)}
+.ks2-bar svg{width:20px;height:20px;flex:none;opacity:.7}
+.ks2-bar input{flex:1;min-width:0;background:none;border:0;outline:0;color:#f4f2ee;font:600 16px Manrope,system-ui,sans-serif}
+.ks2-bar input::placeholder{color:rgba(244,242,238,.45)}
+.ks2-bar button{width:38px;height:38px;border:0;border-radius:50%;background:rgba(255,255,255,.1);color:#f4f2ee;cursor:pointer;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s}
+.ks2-bar.has button{opacity:1;pointer-events:auto}
+.ks2 .kh-i img{opacity:0;transition:opacity .4s ease}.ks2 .kh-i img.in{opacity:1}
+.ks2-sk .kh-i{aspect-ratio:2/3;background:linear-gradient(110deg,#14161c 30%,#1e2129 50%,#14161c 70%);background-size:200% 100%;animation:ks2s 1.25s linear infinite}
+@keyframes ks2s{to{background-position:-200% 0}}
+.ks2-row{animation:kin .45s ${ease} both}
+.ks2-empty{margin:26px clamp(18px,4vw,56px);opacity:.65;font:500 15px Manrope,system-ui,sans-serif}
+.ks2-rec{display:flex;flex-wrap:wrap;gap:8px;margin:14px clamp(18px,4vw,56px)}
+.ks2-rec a{padding:9px 15px;border-radius:99px;background:rgba(255,255,255,.08);color:#f4f2ee;text-decoration:none;font:600 13.5px Manrope,system-ui,sans-serif;transition:background .2s,transform .2s}
+.ks2-rec a:hover{background:rgba(255,255,255,.16)}.ks2-rec a:active{transform:scale(.96)}`;
 D.head.append(css);
 
 /* ================= 1. card menu ================= */
@@ -91,7 +137,9 @@ function open(c){
   else if(a==='l'){try{toggleLib(m)}catch{}if(/library/.test(location.hash)){try{V.library()}catch{}}}
   else if(a==='d'){close();location.hash='#/title/'+m.type+'/'+encodeURIComponent(m.id);return}
   else if(a==='r'){
-   const p=LS.get('prog',{});Object.keys(p).forEach(k=>{if(p[k]&&p[k].id===m.id&&p[k].type===m.type)delete p[k]});LS.set('prog',p);
+   const p=LS.get('prog',{}),dp=LS.get('dprog',{}),now=Date.now();
+   Object.keys(p).forEach(k=>{if(p[k]&&p[k].id===m.id&&p[k].type===m.type){dp[k]=now;delete p[k]}});
+   LS.set('dprog',dp);LS.set('prog',p);
    c.classList.add('kmn-gone');
    setTimeout(()=>{const s=c.parentElement;c.remove();const row=s&&s.closest('section');if(row&&!Q('[data-cw]',row))row.remove()},280);
    say('Removed from Continue watching');
@@ -184,12 +232,14 @@ setTimeout(segRoute,1500);
 const MK='kmdb',MTTL=7*24*3600e3;
 const RT=[['imdb','IMDb','#f5c518',v=>v.toFixed(1)],['tomatoes','Critics','#fa320a',v=>Math.round(v)+'%'],['popcorn','Audience','#f6b01e',v=>Math.round(v)+'%'],['metacritic','Metacritic','#66cc33',v=>Math.round(v)],['letterboxd','Letterboxd','#00e054',v=>v.toFixed(1)],['trakt','Trakt','#ed1c24',v=>Math.round(v)+'%'],['tmdb','TMDB','#01b4e4',v=>Math.round(v)+'%']];
 async function ratings(type,id){
- const key=(window.KINORA_CONFIG||{}).mdblistKey;
- if(!key||!/^tt\d+$/.test(id))return null;
+ if(!/^tt\d+$/.test(id))return null;
+ let cl;try{cl=CL()}catch{return null}
+ if(!cl||!cl.url)return null;
  const ck=type+'|'+id,store=LS.get(MK,{}),c=store[ck];
  if(c&&Date.now()-c.t<MTTL)return c.d;
  try{
-  const r=await fetch('https://api.mdblist.com/imdb/'+(type==='movie'?'movie':'show')+'/'+id+'?apikey='+encodeURIComponent(key));
+  /* the MDBList key stays on the server: the app asks the "ratings" function, which also shares one cache between everyone */
+  const r=await fetch(cl.url+'/functions/v1/ratings?type='+(type==='movie'?'movie':'show')+'&id='+id,{headers:{apikey:cl.key}});
   if(!r.ok)return null;
   const j=await r.json(),d={};
   (j.ratings||[]).forEach(x=>{if(x&&x.source&&typeof x.value==='number'&&x.value>0)d[x.source]={v:x.value}});
@@ -231,6 +281,146 @@ if(P&&P.play){
    wire('kskipt','skipSeg',on=>on?'Skip buttons on':'Skip buttons off');
   }catch{}
   return r;
+ };
+}
+
+/* ================= 6. motion and scroll ================= */
+{
+ let animH='',lastNav=Date.now();
+ /* a new page slides up once; a refresh of the same page (a toggle, a filter) stays still */
+ new MutationObserver(()=>{
+  const el=app.firstElementChild;
+  if(!el||el.classList.contains('ldw')||el.classList.contains('kin')||animH===location.hash)return;
+  animH=location.hash;el.classList.add('kin');setTimeout(()=>el.classList.remove('kin'),900);
+ }).observe(app,{childList:true});
+ /* going to another page starts at the top; changing something on the page you are on must not throw you to the top */
+ addEventListener('hashchange',()=>{lastNav=Date.now()},true);
+ D.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-go],[data-back],[data-nav],a[href^="#"]'))lastNav=Date.now()},true);
+ const st=window.scrollTo.bind(window);
+ window.scrollTo=function(a,b){
+  if(a===0&&b===0&&scrollY>0&&Date.now()-lastNav>1600)return;
+  return st.apply(window,arguments);
+ };
+}
+
+/* ================= 7. bottom sheets (Explore pickers, profile) can be dragged down to close ================= */
+{
+ const wireSheet=(sh,bdSel)=>{
+  if(sh._kd)return;sh._kd=1;
+  let y0=0,dy=0,t0=0,on=false;
+  const zone=y=>y-sh.getBoundingClientRect().top<64;
+  sh.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||!zone(e.clientY))return;on=true;y0=e.clientY;dy=0;t0=Date.now();sh.style.transition='none';try{sh.setPointerCapture(e.pointerId)}catch{}});
+  sh.addEventListener('pointermove',e=>{if(!on)return;dy=Math.max(0,e.clientY-y0);sh.style.transform='translateY('+dy+'px)'});
+  const end=()=>{
+   if(!on)return;on=false;
+   const fast=dy/Math.max(1,Date.now()-t0)>.6;
+   sh.style.transition='transform .3s '+ease;
+   if(dy>90||fast){const bd=Q(bdSel);sh.style.transform='translateY(100%)';setTimeout(()=>{if(bd)bd.click()},120)}
+   else sh.style.transform='';
+   setTimeout(()=>{sh.style.transition=''},320);
+  };
+  sh.addEventListener('pointerup',end);sh.addEventListener('pointercancel',end);
+ };
+ const scan=()=>{QA('.kxp.sheet').forEach(s=>wireSheet(s,'.kxp-bd'));QA('.kxsh').forEach(s=>wireSheet(s,'.kxsh-bd'))};
+ new MutationObserver(scan).observe(D.body,{childList:true});
+}
+
+/* ================= 8. search: type and it searches, a Movies row then a Series row, titles first, artwork only when needed ================= */
+{
+ const REC='ksr',sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ const rec=()=>LS.get(REC,[]);
+ const addRec=q=>{if(!q||q.length<2)return;LS.set(REC,[q].concat(rec().filter(x=>x.toLowerCase()!==q.toLowerCase())).slice(0,8))};
+ const rel=(m,ql)=>{const n=(m.name||'').toLowerCase();return n===ql?0:n.startsWith(ql)?1:n.includes(ql)?2:3};
+ const rate=m=>parseFloat(m.imdbRating)||0;
+ const SK=Array.from({length:9},()=>'<div class="kh-c ks2-sk"><div class="kh-i"></div><span>&nbsp;</span></div>').join('');
+ const SEARCH_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+ let tok=0,io=null,idle=0;
+
+ /* artwork: a card gets its picture when it scrolls into view; the rest follow slowly, two at a time */
+ const show=img=>{const s=img.dataset.src;if(!s)return;delete img.dataset.src;img.onload=()=>img.classList.add('in');img.onerror=()=>img.classList.add('in');img.src=s};
+ const trickle=my=>{
+  clearTimeout(idle);
+  idle=setTimeout(()=>{
+   if(my!==tok)return;
+   const rest=QA('.ks2 img[data-src]').slice(0,2);
+   if(!rest.length)return;
+   rest.forEach(show);trickle(my);
+  },260);
+ };
+ const watchImgs=(root)=>{
+  if(!io)io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);show(e.target)}}),{rootMargin:'120px'});
+  QA('img[data-src]',root).forEach(i=>io.observe(i));
+ };
+
+ V.search=async function(q=''){
+  try{q=decodeURIComponent(q||'')}catch{}
+  q=q.trim();
+  const my=++tok;
+  app.innerHTML='<div class="page ks2"><div class="ks2-bar'+(q?' has':'')+'">'+SEARCH_SVG+'<input id="ks2i" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search movies, series and anime" value="'+h(q)+'"><button id="ks2x" type="button" aria-label="Clear">\u2715</button></div><div id="ks2b"></div></div>';
+  const inp=Q('#ks2i'),bar=Q('.ks2-bar'),box=Q('#ks2b');
+  let timer=0,comp=false;
+  const go=v=>{history.replaceState(null,'',v?'#/search/'+encodeURIComponent(v):'#/search');run(v)};
+  const sched=()=>{clearTimeout(timer);bar.classList.toggle('has',!!inp.value);timer=setTimeout(()=>go(inp.value.trim()),230)};
+  inp.addEventListener('compositionstart',()=>{comp=true});
+  inp.addEventListener('compositionend',()=>{comp=false;sched()});
+  inp.addEventListener('input',()=>{if(!comp)sched()});
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){clearTimeout(timer);const v=inp.value.trim();addRec(v);go(v);inp.blur()}});
+  Q('#ks2x').onclick=()=>{inp.value='';bar.classList.remove('has');inp.focus();clearTimeout(timer);go('')};
+  box.addEventListener('click',e=>{if(e.target.closest('a.kh-c'))addRec(inp.value.trim())});
+  if(!q||!(matchMedia('(pointer:coarse)').matches))setTimeout(()=>{if(my===tok)inp.focus()},60);
+  run(q);
+
+  function suggest(){
+   const r=rec();
+   box.innerHTML=r.length?'<div class="ks2-rec">'+r.map(x=>'<a href="#/search/'+encodeURIComponent(x)+'">'+h(x)+'</a>').join('')+'</div>':'<p class="ks2-empty">Start typing. Results appear as you type.</p>';
+  }
+  async function run(v){
+   const me=++tok;clearTimeout(idle);
+   if(v.length<2){suggest();return}
+   const ql=v.toLowerCase(),seen=new Set(),res={movie:[],series:[],other:[]},nodes=new Map();
+   const shell=(id,t)=>'<section class="kh-row ks2-row" id="ks2-'+id+'"><h2>'+t+'</h2><div class="kh-sc">'+SK+'</div></section>';
+   box.innerHTML=shell('movie','Movies')+shell('series','Series');
+   let dirty=false;
+   const draw=()=>{
+    if(dirty)return;dirty=true;
+    requestAnimationFrame(()=>{
+     dirty=false;if(me!==tok)return;
+     for(const t of ['movie','series','other']){
+      const list=res[t];if(!list.length)continue;
+      let row=Q('#ks2-'+t,box);
+      if(!row){box.insertAdjacentHTML('beforeend','<section class="kh-row ks2-row" id="ks2-'+t+'"><h2>Other</h2><div class="kh-sc"></div></section>');row=Q('#ks2-'+t,box)}
+      const sc=Q('.kh-sc',row),h2=Q('h2',row);h2.innerHTML=(t==='movie'?'Movies':t==='series'?'Series':'Other')+' <small style="opacity:.5;font-weight:600">'+list.length+'</small>';
+      const ord=list.slice().sort((a,b)=>rel(a,ql)-rel(b,ql)||rate(b)-rate(a));
+      const els=[];
+      for(const m of ord){
+       const k=m.type+'|'+m.id;let n=nodes.get(k);
+       if(!n){const t0=D.createElement('template');t0.innerHTML=(window.KTile?KTile(m):'').replace(' src="',' data-src="').trim();n=t0.content.firstElementChild;if(!n)continue;nodes.set(k,n)}
+       els.push(n);
+      }
+      sc.replaceChildren(...els);watchImgs(sc);
+     }
+     trickle(me);
+    });
+   };
+   const srcs=cats().filter(x=>(x.c.extra||[]).some(e=>e.name==='search'));
+   const fetchOne=async(a,c,extra)=>{
+    const r=await call(a,'catalog',c.type,c.id,'search='+encodeURIComponent(v)+extra).catch(()=>({}));
+    if(me!==tok)return;
+    let add=false;
+    for(const m of r.metas||[]){const k=m.type+m.id;if(seen.has(k))continue;seen.add(k);(res[m.type==='movie'||m.type==='series'?m.type:'other']).push(m);add=true}
+    if(add)draw();
+   };
+   const pool=async(jobs,n)=>{let i=0;await Promise.all(Array.from({length:n},async()=>{while(i<jobs.length&&me===tok){const j=jobs[i++];await j()}}))};
+   /* first page of every source, four at a time */
+   await pool(srcs.map(({a,c})=>()=>fetchOne(a,c,'')),4);
+   if(me!==tok)return;
+   if(!seen.size)box.innerHTML='<p class="ks2-empty">No results for \u201c'+h(v)+'\u201d. Try a different spelling.</p>';
+   else{QA('.ks2-sk',box).forEach(n=>n.remove());QA('.kh-row',box).forEach(r=>{if(!Q('.kh-c',r))r.remove()})}
+   /* more results (page 2) only once the screen is calm */
+   await sleep(600);
+   if(me!==tok||!seen.size)return;
+   await pool(srcs.map(({a,c})=>()=>fetchOne(a,c,'&skip=25')),2);
+  }
  };
 }
 })();

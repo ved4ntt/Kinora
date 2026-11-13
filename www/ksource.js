@@ -51,7 +51,7 @@ const mbps=()=>spd&&Date.now()-spd.t<6*3600e3?spd.mbps:0;
 /* what a stream may use: about half of the measured speed, so it starts fast and keeps going; 20 Mbps is assumed until a measurement exists */
 const budget=()=>{const m=mbps();return m?Math.max(1.5,m*.5):20};
 
-const KFit={rt:0,measure,mbps,budget,fast(){return this.budget()>=14},
+const KFit={rt:0,measure,mbps,budget,fast(){return this.budget()>=30},
  setRt(s){this.rt=+s||0},
  rtOf(p){return this.rt||(/^#\/watch\/series/.test(location.hash)?2700:6600)},
  /* Mbps the stream needs: from the "~2.9 Mbps" note in its text, else file size / running time */
@@ -89,13 +89,12 @@ const KFit={rt:0,measure,mbps,budget,fast(){return this.budget()>=14},
 window.KFit=KFit;
 
 /* measure when the app opens, when the network comes back and when the number has gone old */
-setTimeout(()=>measure(),2500);
-addEventListener('online',()=>measure());
-D.addEventListener('visibilitychange',()=>{if(D.visibilityState==='visible'&&!fresh())measure()});
+setTimeout(()=>{if(quiet())measure()},2500);
+addEventListener('online',()=>{if(quiet())measure()});
+D.addEventListener('visibilitychange',()=>{if(D.visibilityState==='visible'&&!fresh()&&quiet())measure()});
 addEventListener('hashchange',()=>{
  const m=/^#\/watch\/(movie|series)\/([^/?]+)(?:\/([^/?]+))?/.exec(location.hash);
  if(!m)return;
- if(!fresh())measure();
  KFit.rt=0;
  try{if(window.KRuntimeOf)Promise.resolve(KRuntimeOf({type:m[1],id:decodeURIComponent(m[2]),vid:m[3]?decodeURIComponent(m[3]):''})).then(s=>{if(s>0)KFit.rt=s}).catch(()=>{})}catch{}
 });
