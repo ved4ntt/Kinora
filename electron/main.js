@@ -147,24 +147,6 @@ ipcMain.handle('ext:play', (_e, o) => {
 
 // (hardware video flags are set once, at the top of this file)
 
-// Playback lab: the test log is saved as .json + .txt in Downloads\Kinora-Logs. When running from source (npm start) it is also copied into the project's logs folder.
-ipcMain.handle('log:save', (_e, o) => {
-  try {
-    const base = String((o && o.name) || 'kinora-lab').replace(/[^\w.-]+/g, '_').slice(0, 80);
-    const dirs = [path.join(app.getPath('downloads'), 'Kinora-Logs')];
-    if (!app.isPackaged) dirs.push(path.join(__dirname, '..', 'logs'));
-    let first = '';
-    for (const dir of dirs) {
-      fsx.mkdirSync(dir, { recursive: true });
-      const j = path.join(dir, base + '.json');
-      fsx.writeFileSync(j, String((o && o.json) || ''), 'utf8');
-      fsx.writeFileSync(path.join(dir, base + '.txt'), String((o && o.txt) || ''), 'utf8');
-      if (!first) first = j;
-    }
-    shell.showItemInFolder(first);
-    return { ok: true, dir: path.dirname(first) };
-  } catch (e) { return { ok: false, err: String(e) }; }
-});
 
 // Updates: Windows reads GitHub Releases through electron-updater. The page decides when to check and download.
 const upd = (s) => { if (win && !win.isDestroyed()) win.webContents.send('upd:event', s); };

@@ -381,7 +381,7 @@ function startServer({ www, tmp, port = 38787 }) {
       '-map', '0:v:0', '-map', '0:a:0?', '-sn',
       ...(copyVideo ? ['-c:v', 'copy', ...(hevcCopy ? ['-tag:v', 'hvc1'] : [])] : [...encArgs(hw), ...(soft ? ['-vf', "scale='min(1920,iw)':-2"] : [])]),
       ...(acodec === 'aac' ? ['-c:a', 'copy'] : ['-c:a', 'aac', '-ac', '2', '-b:a', '192k']),
-      '-f', 'hls', '-hls_time', '4', '-hls_list_size', '0', '-hls_playlist_type', 'event', '-hls_flags', 'independent_segments+temp_file',
+      '-f', 'hls', '-hls_time', '2', '-hls_list_size', '0', '-hls_playlist_type', 'event', '-hls_flags', 'independent_segments+temp_file',
       ...(hevcCopy ? ['-hls_segment_type', 'fmp4', '-hls_fmp4_init_filename', 'init.mp4', '-hls_segment_filename', path.join(dir, 'seg%05d.m4s')] : ['-hls_segment_filename', path.join(dir, 'seg%05d.ts')]),
       path.join(dir, 'index.m3u8')];
     const proc = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
@@ -399,7 +399,7 @@ function startServer({ www, tmp, port = 38787 }) {
     try {
       const job = await startJob(u, decodeHeaders(req.query.h));
       const playlist = path.join(job.dir, 'index.m3u8');
-      for (let i = 0; i < 160; i++) {
+      for (let i = 0; i < 270; i++) {
         if (fs.existsSync(playlist) && fs.readFileSync(playlist, 'utf8').includes('#EXTINF')) return res.redirect(302, `/hls/${job.id}/index.m3u8`);
         if (job.done) break;
         await sleep(150);

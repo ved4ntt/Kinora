@@ -14,11 +14,14 @@ const tile=m=>{
 };
 
 const cont=()=>{
- const l=Object.values(LS.get('prog',{})).filter(p=>p&&p.id&&p.name).sort((a,b)=>b.at-a.at).slice(0,14);
+ /* one card per title: the newest unfinished episode (a finished episode must not sit beside the next one) */
+ const ew=LS.get('ew',{}),seen=new Set();
+ const l=Object.values(LS.get('prog',{})).filter(p=>p&&p.id&&p.name&&(!p.d||(p.t>=20&&p.t/p.d<.92))&&!(p.vid&&ew[p.vid])).sort((a,b)=>b.at-a.at).filter(p=>{const k=p.type+'|'+p.id;if(seen.has(k))return false;seen.add(k);return true}).slice(0,14);
  if(!l.length)return'';
  return'<section class="kh-row"><h2>Continue watching</h2><div class="kh-sc">'+l.map(p=>{
   const f=p.d?Math.min(100,100*p.t/p.d):0;
-  return'<a class="kh-c" href="#/title/'+p.type+'/'+encodeURIComponent(p.id)+'"><div class="kh-i"><img loading="lazy" src="'+h(poster(p))+'" alt="">'+(p.d?'<em class="kh-r">'+mins(p.d-p.t)+' left</em>':'')+'<div class="kh-b"><i style="width:'+f+'%"></i></div></div><span>'+h(p.name)+'</span></a>';
+  try{const k=p.type+'|'+p.id;M[k]=M[k]||{type:p.type,id:p.id,name:p.name,poster:poster(p)}}catch{}
+  return'<a class="kh-c" data-cw="1" data-k="'+h(p.type+'|'+p.id)+'" href="#/title/'+p.type+'/'+encodeURIComponent(p.id)+'"><div class="kh-i"><img loading="lazy" src="'+h(poster(p))+'" alt="">'+(p.d?'<em class="kh-r">'+mins(p.d-p.t)+' left</em>':'')+'<div class="kh-b"><i style="width:'+f+'%"></i></div></div><span>'+h(p.name)+'</span></a>';
  }).join('')+'</div></section>';
 };
 

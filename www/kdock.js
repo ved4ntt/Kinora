@@ -44,9 +44,11 @@ D.body.append(root);
 let hoverT=0;
 const apply=()=>{};
 {
- const on=()=>{clearTimeout(hoverT);root.classList.add('exp')},off=()=>{clearTimeout(hoverT);hoverT=setTimeout(()=>{if(!pop&&!root.matches(':hover')&&!box.classList.contains('open'))root.classList.remove('exp')},260)};
- root.addEventListener('pointerenter',on);root.addEventListener('pointerleave',off);
- root.addEventListener('focusin',on);root.addEventListener('focusout',off);
+ /* only the Home / Series pill opens the names; the profile and settings pill never does */
+ const left=root.querySelector('#kdl2')||root;
+ const on=()=>{clearTimeout(hoverT);root.classList.add('exp')},off=()=>{clearTimeout(hoverT);hoverT=setTimeout(()=>{if(!left.matches(':hover')&&!left.contains(document.activeElement))root.classList.remove('exp')},220)};
+ left.addEventListener('pointerenter',on);left.addEventListener('pointerleave',off);
+ left.addEventListener('focusin',on);left.addEventListener('focusout',off);
 }
 {const d0=window.KDockMode;window.KDockMode=function(){try{d0&&d0.apply(this,arguments)}catch{}apply()}}
 

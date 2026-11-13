@@ -8,13 +8,14 @@ html.win #kdn{top:10px;padding-right:138px}
 #kdn.hide .kdp{pointer-events:none}
 .kdi{position:relative;flex:none;display:flex;align-items:center;justify-content:center;height:44px;min-width:44px;box-sizing:border-box;padding:0 12px;border:0;border-radius:99px;background:none;color:#98a1ac;font:600 14.5px Manrope,system-ui,sans-serif;text-decoration:none;white-space:nowrap;cursor:pointer;transition:color .2s,background .25s}
 .kdi svg{width:21px;height:21px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.kdi span{max-width:0;opacity:0;margin-left:0;overflow:hidden;transition:max-width .35s cubic-bezier(.2,.8,.2,1),opacity .25s,margin .35s}
+.kdi span{max-width:0;opacity:0;margin-left:0;overflow:hidden;transition:max-width .42s cubic-bezier(.22,1,.36,1),opacity .3s ease .04s,margin .42s cubic-bezier(.22,1,.36,1)}
 .kdi:hover{color:#fff}
 .kdi:focus-visible{outline:2px solid #f1efea;outline-offset:-2px}
 #kdl2 .kdi.on{background:#f1efea;color:#0a0b0e}
 /* compact: only the open tab shows its name. expanded: every tab does */
 #kdl2 .kdi.on span,#kdn.exp #kdl2 .kdi span{max-width:90px;opacity:1;margin-left:9px}
 #kdn.exp #kdl2 .kdi{padding:0 15px}
+#kdl2 .kdi{transition:padding .42s cubic-bezier(.22,1,.36,1),background .25s,color .2s}
 #kdn.exp #kdl2 .kdi:not(.on):hover{background:rgba(255,255,255,.07)}
 @media(max-width:1180px){#kdn.exp #kdl2 .kdi:not(.on) span{max-width:0;opacity:0;margin-left:0}#kdn.exp #kdl2 .kdi{padding:0 12px}}
 #kdr2 .kdi.on{background:rgba(255,255,255,.16);color:#fff}
