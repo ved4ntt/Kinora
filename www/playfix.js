@@ -17,7 +17,7 @@ if(WIN){
   return{...s,_kp:1,behaviorHints:bh,url:c.url.replace(/\/$/,'')+'/proxy?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(s.url)+(hd?'&h='+encodeURIComponent(btoa(JSON.stringify(hd))):'')};
  };
  {const p0=play;play=function(s,ctx,t0){
-  if(s&&s.url&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&!/\.m3u8(\?|$)/i.test(s.url)&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)&&(()=>{try{return SRVOK()}catch{return false}})()){
+  if(s&&s.url&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&(!/\.m3u8(\?|$)/i.test(s.url)||/\.webm(\?|$)/i.test(s.url)||!!(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request))&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)&&(()=>{try{return SRVOK()}catch{return false}})()){
    return p0.call(this,proxied(s),ctx,t0);
   }
   return p0.apply(this,arguments);

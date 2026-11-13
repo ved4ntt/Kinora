@@ -22,26 +22,34 @@ try{spd=JSON.parse(localStorage.getItem(K)||'null')}catch{}
 async function measure(){
  if(busy)return busy;
  busy=(async()=>{
+  /* small and short on purpose: 2 x 700 KB, at most 2.5 s, and never while a video is loading or playing */
   const t0=performance.now();let bytes=0;
-  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),6000);
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),2500);
   try{
-   await Promise.all([0,1,2].map(async()=>{
-    const r=await fetch('https://speed.cloudflare.com/__down?bytes=3000000&r='+Math.random(),{cache:'no-store',signal:ac.signal});
+   await Promise.all([0,1].map(async()=>{
+    const r=await fetch('https://speed.cloudflare.com/__down?bytes=700000&r='+Math.random(),{cache:'no-store',signal:ac.signal});
     const rd=r.body.getReader();
     for(;;){const x=await rd.read();if(x.done)break;bytes+=x.value.length}
    }));
   }catch{}
   clearTimeout(to);
   const s=(performance.now()-t0)/1000;
-  if(bytes>400e3&&s>.2){spd={mbps:Math.round(bytes*8/s/1e5)/10,t:Date.now()};try{localStorage.setItem(K,JSON.stringify(spd))}catch{}}
+  if(bytes>200e3&&s>.1){
+   const m=Math.round(bytes*8/s/1e5)/10;
+   /* a short test under-reads fast lines a little, so it is only allowed to move the number up when it is clearly higher */
+   spd={mbps:spd&&Date.now()-spd.t<6*3600e3?Math.max(m,spd.mbps*.7):m,t:Date.now()};
+   try{localStorage.setItem(K,JSON.stringify(spd))}catch{}
+  }
   busy=null;return spd;
  })();
  return busy;
 }
+const watching=()=>/^#\/watch\//.test(location.hash);
+const quiet=()=>{try{if(navigator.connection&&navigator.connection.saveData)return false}catch{}return!watching()};
 const fresh=()=>spd&&Date.now()-spd.t<TTL;
-const mbps=()=>spd&&Date.now()-spd.t<60*60e3?spd.mbps:0;
-/* what a stream may use: about 70% of the measured speed; 30 Mbps is assumed until a measurement exists */
-const budget=()=>{const m=mbps();return m?Math.max(1.5,m*.7):30};
+const mbps=()=>spd&&Date.now()-spd.t<6*3600e3?spd.mbps:0;
+/* what a stream may use: about half of the measured speed, so it starts fast and keeps going; 20 Mbps is assumed until a measurement exists */
+const budget=()=>{const m=mbps();return m?Math.max(1.5,m*.5):20};
 
 const KFit={rt:0,measure,mbps,budget,fast(){return this.budget()>=14},
  setRt(s){this.rt=+s||0},

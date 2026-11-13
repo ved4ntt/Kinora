@@ -43,10 +43,11 @@ function parse(raw,an){
  p.playable=(p.kind==='hls'||p.kind==='file')&&/^https?:/i.test(url);
  p.q=resOf(txt);
  p.langs=LANGS.filter(x=>x[1].test(txt)).map(x=>x[0]);
- p.hevc=/hevc|x265|h\.?265/i.test(txt);
+ p.hevc=/hevc|x265|h\.?265|hev1|hvc1/i.test(txt);
+ p.av1=/\bav1\b|\bav01\b/i.test(txt);
  p.dv=/dolby.?vision|\bdovi\b|\bdv\b/i.test(txt);
  p.hdr=/hdr10\+?|\bhdr\b/i.test(txt);
- p.exotic=/dts|truehd|e-?ac-?3|\bdd\+|\bac-?3\b/i.test(txt);
+ p.exotic=/dts|truehd|e-?ac-?3|\bdd\+|\bac-?3\b|\bopus\b/i.test(txt);
  const nt=(txt+' '+host(url)+' '+an).toLowerCase().replace(/[^a-z0-9]/g,'');
  const pn=(an+' '+host(url)).toLowerCase().replace(/[^a-z0-9]/g,'');
  p.prov=(PROV.find(x=>x[1].test(pn))||PROV.find(x=>x[1].test(nt))||[an||'Source'])[0];
@@ -58,10 +59,12 @@ function parse(raw,an){
 const main=()=>MAIN;
 const provRank=p=>p.prov===MAIN?0:1+(ORDER.indexOf(p.prov)<0?40:ORDER.indexOf(p.prov));
 const nativeOK=()=>!!(window.KNative&&KNative.on&&KNative.on());
+const AV1_OK=(()=>{try{return MediaSource.isTypeSupported('video/mp4; codecs="av01.0.08M.08"')}catch{return false}})();
 const webScore=p=>{
  let s=0;const ext=(p.url.split('?')[0].match(/\.([a-z0-9]{2,4})$/i)||[])[1]||'';
  if(p.kind==='hls')s-=1;else if(/^(mp4|m4v|webm)$/i.test(ext))s+=0;else if(/^mkv$/i.test(ext))s+=nativeOK()?0:1.5;else s+=1;
  if(p.exotic&&!nativeOK()&&!(WIN&&SRVOK()))s+=2;
+ if(p.av1&&!AV1_OK&&!nativeOK())s+=1.5;
  if(window.KSpeed){try{s+=Math.min(3,KSpeed.pen(p.raw)/3)}catch{}}
  return s;
 };
@@ -214,9 +217,9 @@ E.play=function(s,ctx,t0){
    }
    if(d.details==='bufferStalledError'){
     hl._st=(hl._st||0)+1;
-    clearTimeout(E._sr);E._sr=setTimeout(()=>{try{if(vel&&!vel.paused&&vel.readyState<3){hl.startLoad();vel.currentTime+=0.1}}catch{}},1500);
+    clearTimeout(E._sr);E._sr=setTimeout(()=>{try{if(vel&&!vel.paused&&vel.readyState<3){if(hl._st<5){hl.startLoad();vel.currentTime+=0.1}else{try{hl.startLoad(-1)}catch{}}}}catch{}},1500);
     if(hl._st>=3&&hl.currentLevel>0&&hl.autoLevelEnabled){hl.nextLoadLevel=hl.currentLevel-1;hl._st=0}
-   }else if(d.details==='bufferNudgeOnStall'){try{if(vel&&vel.readyState<3)vel.currentTime+=0.1}catch{}}
+   }else if(d.details==='bufferNudgeOnStall'){try{if(vel&&vel.readyState<3&&(hl._st||0)<5)vel.currentTime+=0.1;else if(hl)try{hl.startLoad(-1)}catch{}}catch{}}
   });
   hl.loadSource(s.url);hl.attachMedia(v);
  }else v.src=s.url;
@@ -230,7 +233,7 @@ E.play=function(s,ctx,t0){
   if(HL){try{HL.startLoad()}catch{}}
   try{v.currentTime+=0.05}catch{}
   clearTimeout(stallT);
-  stallT=setTimeout(()=>{if(my===seq&&!v.paused&&v.readyState<3&&CFG().autoSwitch!==false)fail('This source keeps stalling.','slow')},20000);
+  stallT=setTimeout(()=>{if(my===seq&&!v.paused&&v.readyState<3&&CFG().autoSwitch!==false)fail('This source keeps stalling.','slow')},30000);
  };
 
  /* after a jump the spinner stays until a new picture is really on screen (audio alone is not "playing") */
@@ -353,7 +356,8 @@ V.watch=async function(type,id,vid){
  const pl=Q('#pl'),VID=()=>Q('#vw video');
  try{window.kinoraWin&&kinoraWin.act&&kinoraWin.act('fs-on')}catch{}
  let it;
- pl.wake=()=>{pl.classList.add('act');pl.classList.remove('rest');clearTimeout(it);it=setTimeout(()=>{if(Q('#kpop.on')||pl.classList.contains('scrub'))return pl.wake();pl.classList.remove('act');const v=VID();if(v&&v.paused&&!pl.classList.contains('buf')&&!Q('#ld.on'))pl.classList.add('rest')},3200)};
+ const hideDelay=matchMedia('(pointer:coarse)').matches?5000:3200;
+ pl.wake=()=>{pl.classList.add('act');pl.classList.remove('rest');clearTimeout(it);it=setTimeout(()=>{if(Q('#kpop.on')||pl.classList.contains('scrub'))return pl.wake();pl.classList.remove('act');const v=VID();if(v&&v.paused&&!pl.classList.contains('buf')&&!Q('#ld.on'))pl.classList.add('rest')},hideDelay)};
  pl.onmousemove=pl.wake;pl.wake();
 
  /* ---------- meta-dependent bits ---------- */

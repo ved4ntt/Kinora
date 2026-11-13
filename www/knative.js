@@ -32,8 +32,14 @@ function attach(v,s,t0,ctx){
   st.p=x*1000;v._seekHold=Date.now()+1500;
   /* this stream has no index and ExoPlayer cannot jump in it: hand it to VLC (same spot) and then seek */
   let vlc=false;try{vlc=!!(st.ns&&!st.sw&&KP().canVlc&&KP().canVlc())}catch{}
-  if(vlc){st.sw=1;try{KP().switchEngine('vlc')}catch{}const ms=Math.max(0,Math.round(x*1000));setTimeout(()=>{try{KP().seek(ms)}catch{}},900)}
-  else{try{KP().seek(Math.max(0,Math.round(x*1000)))}catch{}}
+  if(vlc){
+   st.sw=1;try{KP().switchEngine('vlc')}catch{}
+   const ms=Math.max(0,Math.round(x*1000));
+   let sought=false,tm=0;
+   const doSeek=()=>{if(sought)return;sought=true;clearInterval(chk);clearTimeout(tm);try{KP().seek(ms)}catch{}};
+   const chk=setInterval(()=>{if(st.s>=3||st.can)doSeek()},100);
+   tm=setTimeout(doSeek,2000);
+  }else{try{KP().seek(Math.max(0,Math.round(x*1000)))}catch{}}
   fire(v,'seeking');setTimeout(()=>fire(v,'seeked'),350)});
  /* the whole length from the first second: the player's own length is used only when it is trustworthy */
  const dur=()=>{const d=st.d/1000;if(st.rt&&(!(d>0)||d<st.rt*.5))return st.rt;return d>0?d:NaN};
