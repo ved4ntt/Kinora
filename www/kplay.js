@@ -22,6 +22,8 @@ const MAIN='4KHDHub';
 try{
  if(CFG().autoPlay===false)setCfg({autoPlay:true});
  if(!LS.get('kmig1',0)){setCfg({sMin:0,sMax:0});LS.set('kmig1',1)}
+ /* sources that were wrongly marked bad by the old 5 s limit get a fresh start once */
+ if(!LS.get('kmig2',0)){try{window.KSpeed&&KSpeed.reset()}catch{}LS.set('kmig2',1)}
  if(!LS.get('kmig3',0)){setCfg({langOnly:false,qOnly:false,p2p:false,autoSwitch:true});LS.set('kmig3',1)}
 }catch{}
 
@@ -153,23 +155,24 @@ E.play=function(s,ctx,t0){
  const deadline=Date.now()+120000,tStart=performance.now();
  const arm=(ms,grace)=>{clearTimeout(wd);
  const alt=(()=>{try{return(KPlay.alts?KPlay.alts():0)>0||!!(window.KEngineMore&&KEngineMore())}catch{return false}})();
- /* with another source to try: 5 s to show a picture, one short extra moment while data is flowing, and never more than 9 s in total */
- if(alt&&!s._srv)ms=Math.min(ms,Math.max(1500,9000-(performance.now()-tStart)));
+ /* measured on real devices: a working source needs 5 to 14 s for its first picture, so the limit is 16 s, and it is extended while data keeps arriving (up to 36 s) */
+ if(alt&&!s._srv)ms=Math.min(ms,Math.max(2500,16000-(performance.now()-tStart)));
  wd=setTimeout(()=>{
   if(my!==seq||started)return;
-  const x=vel,flow=x&&((x.buffered&&x.buffered.length&&x.buffered.end(0)>.4)||x.readyState>=3);
-  if(alt&&flow&&!grace&&performance.now()-tStart<8000){arm(2500,1);return}
+  const x=vel,be=x&&x.buffered&&x.buffered.length?x.buffered.end(0):0,flow=x&&(be>.4||x.readyState>=3);
+  const grew=be>(arm._be||0)+.05;arm._be=be;
+  if(alt&&flow&&grew&&performance.now()-tStart<36000){arm(6000,1);return}
   fail('This source took too long to start.');
- },Math.max(1500,Math.min(ms,deadline-Date.now())))};
+ },Math.max(2500,Math.min(ms,deadline-Date.now())))};
  /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
  const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
- arm(s._srv?50000:alts>0?5000:(window.KEngineMore&&KEngineMore()?9000:40000));
+ arm(s._srv?50000:alts>0?16000:(window.KEngineMore&&KEngineMore()?20000:40000));
  /* the native check tells within a second whether this source answers at all; fast answers get a tight limit, slow ones a little more room */
  try{if(window.KProbe&&KProbe.on()&&!s._srv&&/^https?:/i.test(s.url||'')){
   KProbe.test(s).then(r=>{
    if(my!==seq||started||dead)return;
    if(!r.ok){if(alts>0||(window.KEngineMore&&KEngineMore()))fail('This source did not answer.');return}
-   if(r.ms&&alts>0){const lim=r.ms<700?4500:Math.min(9000,r.ms*2+3500);arm(Math.max(1500,lim-(performance.now()-tStart)))}
+   if(r.ms&&alts>0){const lim=r.ms<700?14000:Math.min(24000,r.ms*3+10000);arm(Math.max(2500,lim-(performance.now()-tStart)))}
   }).catch(()=>{});
  }}catch{}
 
@@ -451,14 +454,13 @@ V.watch=async function(type,id,vid){
   const pls=playable(),keep=(Q('.kpb',el)||{}).scrollTop||0;
   let body='';
   if(popTab==='lang'){
-   const L=langList(pls);
-   body=L.length?'<h5>Audio language</h5>'+L.map(({n})=>{
-    const on=n===st.lang;let note='';
-    if(!on&&st.q){const b=best(n,st.q);if(b&&b.q&&b.q!==st.q)note=(b.q>st.q?'\u2191':'\u2193')+qlab(b.q)}
+   const L=langList(pls),A=audioList();
+   body=A.length>1?'<h5>In this video (switches instantly)</h5>'+A.map((a,i)=>row('data-a="'+i+'"',h(a.n),'',a.on)).join(''):'';
+   body+=L.length?'<h5>'+(A.length>1?'Other sources':'Audio language')+'</h5>'+L.map(({n,c})=>{
+    const on=n===st.lang;let note=c+(c===1?' source':' sources');
+    if(!on&&st.q){const b=best(n,st.q);if(b&&b.q&&b.q!==st.q)note+=' \u00b7 '+(b.q>st.q?'\u2191':'\u2193')+qlab(b.q)}
     return row('data-l="'+h(n)+'"',h(n),note,on);
    }).join(''):'<p class="kn">Looking for audio languages\u2026</p>';
-   const A=audioList();
-   if(A.length>1)body+='<h5>Audio tracks in this file</h5>'+A.map((a,i)=>row('data-a="'+i+'"',h(a.n),'',a.on)).join('');
   }else if(popTab==='qual'){
    const qs=[...new Set(pls.filter(x=>!st.lang||x.langs.includes(st.lang)||!x.langs.length).map(x=>x.q).filter(Boolean))].sort((a,b)=>b-a);
    body=qs.length?'<h5>Quality</h5>'+qs.map(q=>{
@@ -593,9 +595,11 @@ V.watch=async function(type,id,vid){
  }
  const choose=(lang,q)=>{
   const p=best(lang!=null?lang:st.lang,q!=null?q:st.q);
-  if(!p||p===cur)return;
+  if(!p){try{toast('No '+(lang||'matching')+' source found')}catch{}return}
+  if(p===cur){try{toast('Already playing in '+(lang||qlab(st.q)))}catch{}return}
   const kp=LS.get('kpick',{});if(lang!=null)kp.lang=lang;if(q!=null)kp.q=q;LS.set('kpick',kp);
   if(lang!=null)st.lang=lang;
+  try{toast('Switching to '+(lang||qlab(q))+'\u2026')}catch{}
   use(p,curTime());
  };
 

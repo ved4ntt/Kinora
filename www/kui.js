@@ -85,7 +85,17 @@ html body .kh-d{font-size:13.5px!important;line-height:1.5!important;-webkit-lin
 .ks2-empty{margin:26px clamp(18px,4vw,56px);opacity:.65;font:500 15px Manrope,system-ui,sans-serif}
 .ks2-rec{display:flex;flex-wrap:wrap;gap:8px;margin:14px clamp(18px,4vw,56px)}
 .ks2-rec a{padding:9px 15px;border-radius:99px;background:rgba(255,255,255,.08);color:#f4f2ee;text-decoration:none;font:600 13.5px Manrope,system-ui,sans-serif;transition:background .2s,transform .2s}
-.ks2-rec a:hover{background:rgba(255,255,255,.16)}.ks2-rec a:active{transform:scale(.96)}`;
+.ks2-rec a:hover{background:rgba(255,255,255,.16)}.ks2-rec a:active{transform:scale(.96)}
+
+/* player gestures */
+.kgst{position:absolute;top:0;bottom:0;width:34%;display:flex;align-items:center;justify-content:center;font:700 17px Manrope,system-ui,sans-serif;color:#fff;pointer-events:none;z-index:35;background:radial-gradient(circle at center,rgba(255,255,255,.2),transparent 70%);animation:kgs .6s ease-out both}
+.kgst.l{left:0}.kgst.r{right:0}
+.kgst.hold{animation:kgh .2s ease-out both;top:auto;bottom:auto;height:56px;width:auto;padding:0 20px;left:50%;right:auto;transform:translateX(-50%);margin-top:84px;border-radius:99px;background:rgba(10,11,14,.72)}
+@keyframes kgs{0%{opacity:0;transform:scale(.82)}22%{opacity:1}100%{opacity:0;transform:scale(1.08)}}
+@keyframes kgh{from{opacity:0}to{opacity:1}}
+#kst{position:fixed;z-index:60;transform:translateX(-50%);padding:5px 9px;border-radius:8px;background:rgba(10,11,14,.88);color:#fff;font:700 12px Manrope,system-ui,sans-serif;pointer-events:none;opacity:0;transition:opacity .15s}
+#sk{touch-action:none}
+@media(pointer:coarse){#ctl .kb{min-width:46px;min-height:46px}}`;
 D.head.append(css);
 
 /* ================= 1. card menu ================= */
@@ -422,5 +432,45 @@ if(P&&P.play){
    await pool(srcs.map(({a,c})=>()=>fetchOne(a,c,'&skip=25')),2);
   }
  };
+}
+
+/* ================= 9. player: double-tap to jump 10 s, hold the right side for 2x, time under the cursor on the bar ================= */
+{
+ const vid=()=>Q('#vw video');
+ const mk=(txt,cls,keep)=>{const pl=Q('#pl');if(!pl)return null;const b=D.createElement('div');b.className='kgst '+cls;b.textContent=txt;pl.append(b);if(!keep)setTimeout(()=>b.remove(),650);return b};
+ const side=x=>{const r=x/innerWidth;return r<.36?'l':r>.64?'r':'c'};
+ let lastT=0,lastSide='',holdT=0,held=false,prevRate=1,downX=0,badge=null;
+ const inVw=e=>e.target&&e.target.closest&&e.target.closest('#vw');
+ D.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='touch'||!inVw(e))return;
+  downX=e.clientX;clearTimeout(holdT);
+  if(side(e.clientX)==='r')holdT=setTimeout(()=>{const v=vid();if(!v||v.paused)return;held=true;prevRate=v.playbackRate||1;try{v.playbackRate=2}catch{}badge=mk('2\u00d7 speed','r hold',true)},480);
+ },true);
+ D.addEventListener('pointerup',e=>{
+  clearTimeout(holdT);
+  const was=held;
+  if(held){held=false;const v=vid();if(v)try{v.playbackRate=prevRate}catch{}if(badge){badge.remove();badge=null}}
+  if(was||e.pointerType!=='touch'||!inVw(e))return;
+  if(Math.abs(e.clientX-downX)>20)return;
+  const s=side(e.clientX),now=Date.now();
+  if(s!=='c'&&s===lastSide&&now-lastT<300){
+   const v=vid();
+   if(v){const d=s==='l'?-10:10;try{v.currentTime=Math.max(0,Math.min(v.duration||1e9,v.currentTime+d))}catch{}mk((d>0?'+':'\u2212')+'10 s',s)}
+   lastT=0;lastSide='';return;
+  }
+  lastT=now;lastSide=s;
+ },true);
+ D.addEventListener('pointercancel',()=>{clearTimeout(holdT);if(held){held=false;const v=vid();if(v)try{v.playbackRate=prevRate}catch{}if(badge){badge.remove();badge=null}}},true);
+ /* hovering the progress bar shows the time under the cursor */
+ let tip=null;
+ D.addEventListener('pointermove',e=>{
+  const sk=e.target.closest&&e.target.closest('#sk');
+  if(!sk||e.pointerType==='touch'){if(tip)tip.style.opacity=0;return}
+  const v=vid(),d=v&&v.duration;if(!d||!isFinite(d))return;
+  const r=sk.getBoundingClientRect(),p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  if(!tip||!tip.isConnected){const pl=Q('#pl');if(!pl)return;tip=D.createElement('div');tip.id='kst';pl.append(tip)}
+  const t=Math.floor(p*d),f=n=>String(n).padStart(2,'0'),H=Math.floor(t/3600),M=Math.floor(t%3600/60),S=t%60;
+  tip.textContent=(H?H+':'+f(M):M)+':'+f(S);tip.style.left=e.clientX+'px';tip.style.top=(r.top-34)+'px';tip.style.opacity=1;
+ },true);
 }
 })();
