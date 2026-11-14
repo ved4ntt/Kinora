@@ -2,11 +2,26 @@
 
 Each release on GitHub shows the section for its version. Add a new `## [version] - date` section at the top before you bump the version in `package.json`.
 
-## [0.3.x] - 2026-11-12
+## [0.3.x] - 2026-11-15
 
-### Playback lab (Windows and Android)
-- New switch in Settings > Playback > Playback lab (test mode, off by default). With it on, whatever title you play is tested source by source: 30 seconds each, then it switches by itself. It records startup time, every buffering stop, real picture size, codec, bitrate, file size (and a compression grade so over-squeezed 4K files are marked), dropped frames, jump speed and why a source failed.
-- Export writes a .json and a readable .txt into Downloads/Kinora-Logs (Android also opens the share sheet). Windows and Android keep separate logs.
+### Playback
+- Sources now get 16 seconds (up to 36 while data keeps arriving) to show a picture instead of 5. Sources wrongly marked bad by the old limit get a fresh start.
+- Cam recordings (HDTC, TS, CAM), sample files and known-dead hosts are hidden. Clean copies rank first, then the best quality that keeps up with your measured speed. A quality you pick is always honoured.
+- Windows: MKV with DD+/DDP/AC3 audio now goes through the built-in converter too.
+- Language picker lists the audio tracks inside the video first and says what it switches to. Quality picker no longer plays a different quality than the one you chose.
+- Player: double-tap left/right to jump 10 s, hold the right side for 2x, time preview on the progress bar, bigger touch targets.
+- Skip intro / recap / credits button with a filling outline (IntroDB).
+
+### Look and feel
+- New Settings layout (sidebar on Windows, grouped list on Android), no haptic switch, no repeated options. The gear opens Settings directly.
+- Home banner is taller with a shorter summary and Play, More info and My list buttons.
+- New search: search as you type, a Movies row and a Series row, pictures load only for what is on screen.
+- Hold a poster for an animated menu (watched, library, details; remove on Continue watching). Removing from Continue watching or the library now stays removed on every device.
+- Ratings from IMDb, Rotten Tomatoes, Metacritic and Letterboxd on the details page (through your own backend, the key is not in the app).
+- Pages slide in, pictures fade in, pop-ups and sheets animate, bottom sheets can be dragged down. The Windows dock only opens when you hover the Home / Series pill.
+
+### Privacy
+- Anonymous playback diagnostics (which source host worked or failed, start time, buffering). On by default, switch off in Settings > Playback > Privacy. No account, title or IP is sent.
 
 ## [0.3.x] - 2026-11-08
 

@@ -13,6 +13,14 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.graphics.Color;
+import android.media.AudioDeviceInfo;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
+import android.provider.Settings;
+import android.view.Display;
+import android.view.WindowManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -91,7 +99,12 @@ public class MainActivity extends BridgeActivity {
   private final ConcurrentHashMap<String, String> probes = new ConcurrentHashMap<>();
   private final ExecutorService pool = Executors.newFixedThreadPool(4);
   private volatile long updId = -1;
-  private final java.util.ArrayList<Uri> logUris = new java.util.ArrayList<>();
+
+  // ---- device volume / brightness: the player's controls drive the real phone settings and give them back when it closes ----
+  private AudioManager am;
+  private boolean devActive = false;
+  private int origVol = -1;
+  private float origBr = -1f;
 
   // ---- crash guard ----
   private SharedPreferences kp;
@@ -131,6 +144,7 @@ public class MainActivity extends BridgeActivity {
     } catch (Throwable ignored) {}
 
     super.onCreate(savedInstanceState);
+    try { setVolumeControlStream(AudioManager.STREAM_MUSIC); } catch (Throwable ignored) {}
     final WebView w = getBridge().getWebView();
     web = w;
     WebSettings s = w.getSettings();
@@ -169,42 +183,6 @@ public class MainActivity extends BridgeActivity {
         } catch (Throwable e) { return ""; }
       }
       @JavascriptInterface public boolean nativeOff() { return nativeOff; }
-      /** Playback lab: saves the test log as .json + .txt in Downloads/Kinora-Logs. Returns {ok,dir}. */
-      @JavascriptInterface
-      public String saveLogs(final String base, final String json, final String txt) {
-        try {
-          logUris.clear();
-          Uri a = saveDownload(base + ".json", "application/json", json, "Kinora-Logs");
-          Uri b = saveDownload(base + ".txt", "text/plain", txt, "Kinora-Logs");
-          if (a != null) logUris.add(a);
-          if (b != null) logUris.add(b);
-          return new JSONObject().put("ok", !logUris.isEmpty()).put("dir", "Downloads/Kinora-Logs").toString();
-        } catch (Throwable e) {
-          return "{\"ok\":false}";
-        }
-      }
-      /** Opens the share sheet with the files saved by saveLogs (or the short text when they could not be saved). */
-      @JavascriptInterface
-      public boolean shareLogs(final String subject, final String fallbackText) {
-        runOnUiThread(() -> {
-          try {
-            Intent i;
-            if (!logUris.isEmpty()) {
-              i = new Intent(Intent.ACTION_SEND_MULTIPLE);
-              i.setType("*/*");
-              i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, new java.util.ArrayList<Uri>(logUris));
-              i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } else {
-              i = new Intent(Intent.ACTION_SEND);
-              i.setType("text/plain");
-              i.putExtra(Intent.EXTRA_TEXT, fallbackText);
-            }
-            i.putExtra(Intent.EXTRA_SUBJECT, subject);
-            startActivity(Intent.createChooser(i, "Send Kinora log"));
-          } catch (Throwable ignored) {}
-        });
-        return true;
-      }
       @JavascriptInterface public int crashes() { return crashes; }
       @JavascriptInterface public String lastCrash() { try { return kp.getString("last", ""); } catch (Throwable e) { return ""; } }
       @JavascriptInterface public void played() { try { crashes = 0; kp.edit().putInt("crashes", 0).apply(); } catch (Throwable ignored) {} }
@@ -260,6 +238,18 @@ public class MainActivity extends BridgeActivity {
       @JavascriptInterface public String probeResult(final String id) { String r = probes.get(id); return r == null ? "" : r; }
     }, "KinoraPlayer");
 
+    // Real phone volume and brightness for the player controls. begin() remembers the levels when the player opens,
+    // end() puts them back when it closes. caps() reports what this phone can decode and output (shown in Settings).
+    w.addJavascriptInterface(new Object() {
+      @JavascriptInterface public void begin() { runOnUiThread(() -> devBegin()); }
+      @JavascriptInterface public void end() { runOnUiThread(() -> devEnd()); }
+      @JavascriptInterface public float volume() { return devVolume(); }
+      @JavascriptInterface public void setVolume(final float v) { runOnUiThread(() -> devSetVolume(v)); }
+      @JavascriptInterface public float brightness() { return devBrightness(); }
+      @JavascriptInterface public void setBrightness(final float v) { runOnUiThread(() -> devSetBrightness(v)); }
+      @JavascriptInterface public String caps() { return buildCaps(); }
+    }, "KinoraDevice");
+
     getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
       @Override
       public void handleOnBackPressed() {
@@ -282,30 +272,213 @@ public class MainActivity extends BridgeActivity {
     } catch (Throwable ignored) {}
   }
 
-  /** Saves a text file into Downloads/<dir> (no permission needed on Android 10+). Returns its content address, or null. */
-  private Uri saveDownload(String name, String mime, String text, String dir) {
+  // ---------------------------------------------------------------- device volume and brightness
+  private AudioManager audio() {
+    if (am == null) am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+    return am;
+  }
+
+  private void devBegin() {
     try {
-      byte[] data = (text == null ? "" : text).getBytes("UTF-8");
-      if (Build.VERSION.SDK_INT >= 29) {
-        android.content.ContentValues cv = new android.content.ContentValues();
-        cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
-        cv.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime);
-        cv.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/" + dir);
-        Uri u = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
-        if (u == null) return null;
-        java.io.OutputStream os = getContentResolver().openOutputStream(u);
-        try { os.write(data); } finally { os.close(); }
-        return u;
+      if (devActive) return;
+      devActive = true;
+      AudioManager a = audio();
+      origVol = a != null ? a.getStreamVolume(AudioManager.STREAM_MUSIC) : -1;
+      origBr = getWindow().getAttributes().screenBrightness; // -1 means "follow the system setting"
+    } catch (Throwable ignored) {}
+  }
+
+  private void devEnd() {
+    try {
+      if (!devActive) return;
+      devActive = false;
+      WindowManager.LayoutParams lp = getWindow().getAttributes();
+      lp.screenBrightness = origBr >= 0f ? origBr : WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+      getWindow().setAttributes(lp);
+      AudioManager a = audio();
+      if (a != null && origVol >= 0) a.setStreamVolume(AudioManager.STREAM_MUSIC, origVol, 0);
+    } catch (Throwable ignored) {}
+  }
+
+  private float devVolume() {
+    try {
+      AudioManager a = audio();
+      int max = a.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+      return max > 0 ? a.getStreamVolume(AudioManager.STREAM_MUSIC) / (float) max : 0f;
+    } catch (Throwable e) { return 0f; }
+  }
+
+  private void devSetVolume(float v) {
+    try {
+      AudioManager a = audio();
+      int max = a.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+      a.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(Math.max(0f, Math.min(1f, v)) * max), 0);
+    } catch (Throwable ignored) {}
+  }
+
+  private float devBrightness() {
+    try {
+      float b = getWindow().getAttributes().screenBrightness;
+      if (b >= 0f) return b;
+      return Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS) / 255f;
+    } catch (Throwable e) { return 0.5f; }
+  }
+
+  private void devSetBrightness(float v) {
+    try {
+      WindowManager.LayoutParams lp = getWindow().getAttributes();
+      lp.screenBrightness = Math.max(0.02f, Math.min(1f, v));
+      getWindow().setAttributes(lp);
+    } catch (Throwable ignored) {}
+  }
+
+  // The levels go back when the app leaves the screen too (the page sets them again when it returns).
+  @Override
+  public void onStop() {
+    try { devEnd(); } catch (Throwable ignored) {}
+    super.onStop();
+  }
+
+  // ---------------------------------------------------------------- what this phone can really do (read from the system, shown in Settings)
+  // This is what the phone reports. Only playing a file proves a format works, so the page treats it as a hint, never a promise.
+  private static int dvNumber(int p) {
+    if (p == MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheDtr) return 4;
+    if (p == MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheStn) return 5;
+    if (p == MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheDth) return 6;
+    if (p == MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheDtb) return 7;
+    if (p == MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheSt) return 8;
+    if (p == MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvavSe) return 9;
+    return 0;
+  }
+
+  private JSONObject codecInfo(String mime) {
+    JSONObject o = new JSONObject();
+    try {
+      boolean any = false, hw = false, sw = false, uhd = false, main10 = false, hdr10 = false, hdr10p = false;
+      boolean video = mime.startsWith("video/");
+      JSONArray dv = new JSONArray();
+      MediaCodecInfo[] list = new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos();
+      for (MediaCodecInfo ci : list) {
+        if (ci.isEncoder()) continue;
+        String type = null;
+        for (String t : ci.getSupportedTypes()) { if (t.equalsIgnoreCase(mime)) { type = t; break; } }
+        if (type == null) continue;
+        any = true;
+        String n = ci.getName().toLowerCase(Locale.ROOT);
+        boolean soft = n.startsWith("omx.google.") || n.startsWith("c2.android.") || n.contains(".sw.");
+        boolean hard = Build.VERSION.SDK_INT >= 29 ? (ci.isHardwareAccelerated() && !ci.isSoftwareOnly()) : !soft;
+        if (hard) hw = true; else sw = true;
+        if (!hard) continue;
+        MediaCodecInfo.CodecCapabilities cc = ci.getCapabilitiesForType(type);
+        if (video) {
+          try {
+            MediaCodecInfo.VideoCapabilities vc = cc.getVideoCapabilities();
+            if (vc != null && vc.isSizeSupported(3840, 2160)) uhd = true;
+          } catch (Throwable ignored) {}
+        }
+        if (cc.profileLevels != null) {
+          for (MediaCodecInfo.CodecProfileLevel pl : cc.profileLevels) {
+            if ("video/hevc".equals(mime)) {
+              if (pl.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10) main10 = true;
+              if (pl.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10) hdr10 = true;
+              if (pl.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus) hdr10p = true;
+            } else if ("video/dolby-vision".equals(mime)) {
+              int num = dvNumber(pl.profile);
+              if (num > 0) {
+                boolean seen = false;
+                for (int i = 0; i < dv.length(); i++) { if (dv.optInt(i) == num) seen = true; }
+                if (!seen) dv.put(num);
+              }
+            }
+          }
+        }
       }
-      java.io.File d = new java.io.File(getExternalFilesDir(null), dir);
-      d.mkdirs();
-      java.io.File f = new java.io.File(d, name);
-      java.io.FileOutputStream os = new java.io.FileOutputStream(f);
-      try { os.write(data); } finally { os.close(); }
-      return Uri.fromFile(f);
-    } catch (Throwable e) {
-      return null;
-    }
+      o.put("any", any);
+      o.put("hw", hw);
+      o.put("sw", sw);
+      if (video) o.put("uhd", uhd);
+      if ("video/hevc".equals(mime)) { o.put("main10", main10); o.put("hdr10", hdr10); o.put("hdr10plus", hdr10p); }
+      if ("video/dolby-vision".equals(mime)) o.put("profiles", dv);
+    } catch (Throwable ignored) {}
+    return o;
+  }
+
+  /** The FFmpeg audio extension (software AC-3 / E-AC-3 / DTS / TrueHD) is optional in the build, so it is looked up by name. */
+  private boolean ffmpegReady() {
+    try {
+      Class<?> c = Class.forName("androidx.media3.decoder.ffmpeg.FfmpegLibrary");
+      return Boolean.TRUE.equals(c.getMethod("isAvailable").invoke(null));
+    } catch (Throwable e) { return false; }
+  }
+
+  private JSONArray displayHdr() {
+    JSONArray a = new JSONArray();
+    try {
+      if (Build.VERSION.SDK_INT < 24) return a;
+      Display d = getWindowManager().getDefaultDisplay();
+      Display.HdrCapabilities hc = d.getHdrCapabilities();
+      if (hc == null) return a;
+      for (int t : hc.getSupportedHdrTypes()) {
+        if (t == Display.HdrCapabilities.HDR_TYPE_DOLBY_VISION) a.put("dolby-vision");
+        else if (t == Display.HdrCapabilities.HDR_TYPE_HDR10) a.put("hdr10");
+        else if (t == Display.HdrCapabilities.HDR_TYPE_HLG) a.put("hlg");
+        else if (t == Display.HdrCapabilities.HDR_TYPE_HDR10_PLUS) a.put("hdr10+");
+      }
+    } catch (Throwable ignored) {}
+    return a;
+  }
+
+  /** Which compressed sound formats the CURRENT output (HDMI / AV receiver) accepts as they are. A phone speaker or Bluetooth accepts none. */
+  private JSONObject audioOut() {
+    JSONObject o = new JSONObject();
+    try {
+      boolean hdmi = false, ac3 = false, eac3 = false, joc = false, dts = false, dtshd = false, truehd = false;
+      if (Build.VERSION.SDK_INT >= 23) {
+        AudioManager a = audio();
+        AudioDeviceInfo[] ds = a.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        for (AudioDeviceInfo d : ds) {
+          int ty = d.getType();
+          if (ty == AudioDeviceInfo.TYPE_HDMI || ty == AudioDeviceInfo.TYPE_HDMI_ARC || ty == 29) hdmi = true;
+          for (int e : d.getEncodings()) {
+            if (e == AudioFormat.ENCODING_AC3) ac3 = true;
+            else if (e == AudioFormat.ENCODING_E_AC3) eac3 = true;
+            else if (e == AudioFormat.ENCODING_E_AC3_JOC) joc = true;
+            else if (e == AudioFormat.ENCODING_DTS) dts = true;
+            else if (e == AudioFormat.ENCODING_DTS_HD) dtshd = true;
+            else if (e == AudioFormat.ENCODING_DOLBY_TRUEHD) truehd = true;
+          }
+        }
+      }
+      o.put("hdmi", hdmi);
+      o.put("ac3", ac3);
+      o.put("eac3", eac3);
+      o.put("eac3joc", joc);
+      o.put("dts", dts);
+      o.put("dtshd", dtshd);
+      o.put("truehd", truehd);
+    } catch (Throwable ignored) {}
+    return o;
+  }
+
+  private String buildCaps() {
+    JSONObject o = new JSONObject();
+    try {
+      o.put("platform", "android");
+      o.put("sdk", Build.VERSION.SDK_INT);
+      o.put("device", Build.MANUFACTURER + " " + Build.MODEL);
+      o.put("avc", codecInfo("video/avc"));
+      o.put("hevc", codecInfo("video/hevc"));
+      o.put("av1", codecInfo("video/av01"));
+      o.put("dolbyVision", codecInfo("video/dolby-vision"));
+      o.put("ac3", codecInfo("audio/ac3"));
+      o.put("eac3", codecInfo("audio/eac3"));
+      o.put("dts", codecInfo("audio/vnd.dts"));
+      o.put("truehd", codecInfo("audio/true-hd"));
+      o.put("ffmpegAudio", ffmpegReady());
+      o.put("displayHdr", displayHdr());
+      o.put("audioOut", audioOut());
+    } catch (Throwable ignored) {}
+    return o.toString();
   }
 
   private String doLatest(String repo) {

@@ -81,7 +81,7 @@ const rank=(p,sel,pref,bad)=>{
  // App clients let learned startup speed outrank provider preference; web keeps provider-first ordering.
  /* KFit (ksource.js): clean copies first, then what keeps up with the measured speed, then files not squeezed too hard, then the biggest that fits */
  const [jk,ft,sv,sz]=window.KFit?KFit.keys(p):[0,0,0,0];
- return sel.pf?(APP_PLAYER?[bd,jk,ft,hv,sv,ps,lm,qd,sz,hd,webScore(p),pr,p.q?0:1]:[bd,jk,ft,hv,sv,ps,pr,lm,qd,sz,hd,webScore(p),p.q?0:1]):[bd,jk,ft,sv,ps,lm,qd,sz,hd,hv,pr,webScore(p),p.q?0:1];
+ return sel.pf?(APP_PLAYER?[bd,jk,hv,lm,qd,ft,sv,ps,sz,hd,webScore(p),pr,p.q?0:1]:[bd,jk,hv,ps,pr,lm,qd,ft,sv,sz,hd,webScore(p),p.q?0:1]):[bd,jk,lm,qd,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
@@ -419,8 +419,11 @@ V.watch=async function(type,id,vid){
   const mp=pool0.filter(x=>x.prov===MAIN),preferred=mp.length?mp:pool0;
   const safe=preferred.filter(okc),safeAny=APP_PLAYER?pool0.filter(okc):safe;
   const pool=safe.length?safe:safeAny.length?safeAny:preferred;
-  const have=[...new Set(pool.map(x=>x.q).filter(Boolean))].sort((a,b)=>b-a);
-  let q=kp.q&&have.includes(kp.q)?kp.q:0;
+  const have0=[...new Set(pool.map(x=>x.q).filter(Boolean))].sort((a,b)=>b-a);
+  /* automatic choice: the best quality that has a source keeping up with the measured speed; a quality chosen in the picker is always honoured */
+  const fitq=window.KFit&&!(kp.q&&have0.includes(kp.q))?have0.filter(x=>pool.some(p=>p.q===x&&KFit.fit(p)<=1)):[];
+  const have=fitq.length?fitq:have0;
+  let q=kp.q&&have0.includes(kp.q)?kp.q:0;
   // Keep automatic app playback at 1080p for faster starts; users can still choose 4K explicitly.
   if(!q){const pq=CFG().quality,maxq=LS.get('maxq',2160)||2160,cap=!pq||pq==='best'?(APP_PLAYER&&!(window.KFit&&KFit.fast())?Math.min(1080,maxq):maxq):+pq;q=have.find(x=>x<=cap)||have[have.length-1]||0}
   return{lang,q};

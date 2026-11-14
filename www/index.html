@@ -605,7 +605,7 @@ const typeLabel=t=>t==='movie'?'Movies':t==='series'?'Series':t==='anime'?'Anime
 const qc=s=>{const m=((s.name||'')+' '+(s.title||s.description||'')).match(/2160p|4k|1080p|720p|480p/i);return m?`<b class="qc">${m[0].toUpperCase()}</b>`:''};
 const ft=s=>{s=Math.max(0,s|0);const H=s/3600|0,m=(s%3600)/60|0;return(H?H+':'+String(m).padStart(2,'0'):m)+':'+String(s%60).padStart(2,'0')};
 const logoOrName=m=>m.logo?`<img class="lg" src="${h(m.logo)}" alt="${h(m.name)}">`:`<h1>${h(m.name)}</h1>`;
-function toggleLib(m){const l=LS.get('lib',{}),k=m.type+m.id;l[k]?delete l[k]:l[k]={id:m.id,type:m.type,name:m.name,poster:m.poster};LS.set('lib',l);toast(l[k]?'Added to library':'Removed from library');return !!l[k]}
+function toggleLib(m){const l=LS.get('lib',{}),k=m.type+m.id;if(l[k]){delete l[k];const d=LS.get('dlib',{});d[k]=Date.now();LS.set('dlib',d)}else l[k]={id:m.id,type:m.type,name:m.name,poster:m.poster,at:Date.now()};LS.set('lib',l);toast(l[k]?'Added to library':'Removed from library');return !!l[k]}
 const inLib=m=>!!LS.get('lib',{})[m.type+m.id];
 const watchUrl=(type,id,vid)=>`#/watch/${type}/${encodeURIComponent(id)}${vid?'/'+encodeURIComponent(vid):''}`;
 
@@ -1354,9 +1354,9 @@ function avatarSvg(i){
 /* ----- cloud (Supabase) ----- */
 const CL=()=>({url:'https://tmjrxyspvkiluwrpmsax.supabase.co',key:'sb_publishable_yZltzDsiXx7pqdzs2D9WGA_SU_g4Hxq',...LS.get('cloud',{})});
 let SB=null,USER=null,pulling=false,pushT=0;
-const SYNCK=new Set(['addons','lib','st','ew','prog','dprog','cfg','sub','me','av']);
+const SYNCK=new Set(['addons','lib','dlib','st','ew','prog','dprog','cfg','sub','me','av']);
 {const s0=LS.set;LS.set=function(k,v){s0.call(LS,k,v);if(SYNCK.has(k)&&!pulling)pushSoon()}}
-const snapshot=()=>({addons:LS.get('addons',[]).filter(a=>!a.core).map(a=>a.url),lib:LS.get('lib',{}),st:LS.get('st',{}),ew:LS.get('ew',{}),prog:LS.get('prog',{}),dprog:LS.get('dprog',{}),sub:LS.get('sub',{})});
+const snapshot=()=>({addons:LS.get('addons',[]).filter(a=>!a.core).map(a=>a.url),lib:LS.get('lib',{}),dlib:LS.get('dlib',{}),st:LS.get('st',{}),ew:LS.get('ew',{}),prog:LS.get('prog',{}),dprog:LS.get('dprog',{}),sub:LS.get('sub',{})});
 function sbInit(){
   const c=CL();if(!(c.url&&c.key&&window.supabase))return null;
   if(SB&&SB._u===c.url+c.key)return SB;
@@ -1381,7 +1381,11 @@ async function pull(){
     const d=row.data||{};
     if(row.name)LS.set('me',row.name);
     if(row.avatar!=null)LS.set('av',row.avatar);
-    LS.set('lib',{...(d.lib||{}),...LS.get('lib',{})});
+    /* a removed library item keeps a deletion time (dlib); an older cloud copy must not bring it back */
+    const dl=LS.get('dlib',{});for(const k in d.dlib||{})dl[k]=Math.max(dl[k]||0,d.dlib[k]);LS.set('dlib',dl);
+    const lb=LS.get('lib',{});for(const k in d.lib||{})if(!lb[k]&&(!dl[k]||(d.lib[k].at||0)>dl[k]))lb[k]=d.lib[k];
+    for(const k in lb)if(dl[k]&&(lb[k].at||0)<=dl[k])delete lb[k];
+    LS.set('lib',lb);
     LS.set('st',{...(d.st||{}),...LS.get('st',{})});
     LS.set('ew',{...(d.ew||{}),...LS.get('ew',{})});
     /* removed entries carry a deletion time (dprog); a cloud copy older than that must not bring them back, on this device or any other */

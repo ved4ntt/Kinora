@@ -95,7 +95,46 @@ html body .kh-d{font-size:13.5px!important;line-height:1.5!important;-webkit-lin
 @keyframes kgh{from{opacity:0}to{opacity:1}}
 #kst{position:fixed;z-index:60;transform:translateX(-50%);padding:5px 9px;border-radius:8px;background:rgba(10,11,14,.88);color:#fff;font:700 12px Manrope,system-ui,sans-serif;pointer-events:none;opacity:0;transition:opacity .15s}
 #sk{touch-action:none}
-@media(pointer:coarse){#ctl .kb{min-width:46px;min-height:46px}}`;
+@media(pointer:coarse){#ctl .kb{min-width:46px;min-height:46px}}
+
+/* smoother everywhere: off-screen rows are skipped while scrolling, pictures fade in, presses and pop-ups animate */
+.kh-row{content-visibility:auto;contain-intrinsic-size:auto 330px}
+.kh-sc{overscroll-behavior-x:contain;scroll-behavior:smooth}
+.kh-i img{opacity:0;transition:opacity .45s ease}.kh-i img.kl,.kh-i img.in{opacity:1}
+button,.btn,.kh-btn,.k6r,.kdi,.kh-c{-webkit-tap-highlight-color:transparent}
+.btn{transition:transform .2s ${ease},background .2s}.btn:active{transform:scale(.97)}
+@keyframes kpopin{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+#pop.on,#pm.on,.kdpop{animation:kpopin .3s ${ease} both}
+.kxp.sheet,.kxsh{transition:transform .38s ${ease}}
+body.reduce .kh-row{content-visibility:visible}
+
+/* settings: sidebar on wide screens, grouped list on phones */
+html body .k6.k7{max-width:1100px;margin:0 auto;padding:clamp(78px,11vh,112px) clamp(16px,4vw,48px) 120px}
+.k7m{min-width:0;animation:kin .45s ${ease} both}
+html body .k6.k7 h1{font:800 clamp(28px,4vw,38px)/1.1 Manrope,system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 22px}
+html body .k6.k7 .k6h{font:700 12px Manrope,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8e95a2;margin:26px 6px 10px}
+html body .k6.k7 .k6c{border-radius:22px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);overflow:hidden}
+html body .k6.k7 .k6o,html body .k6.k7 .k6r{padding:16px 18px;gap:18px;transition:background .2s}
+html body .k6.k7 .k6o+.k6o,html body .k6.k7 .k6r+.k6r{border-top:1px solid rgba(255,255,255,.06)}
+html body .k6.k7 .k6r:hover{background:rgba(255,255,255,.06)}
+html body .k6.k7 .k6o b,html body .k6.k7 .k6r b{font:700 15px Manrope,system-ui,sans-serif}
+html body .k6.k7 .k6o small,html body .k6.k7 .k6r small{display:block;margin-top:3px;font:500 13px/1.4 Manrope,system-ui,sans-serif;color:#98a0ad}
+html body .k6.k7 .k6t{transition:background .25s,box-shadow .25s}
+html body .k6.k7 .k6t::after,html body .k6.k7 .k6t i{transition:transform .3s ${ease}}
+.k7n{display:none}
+.k7n button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;border-radius:14px;background:none;color:#aab1bd;font:600 14.5px Manrope,system-ui,sans-serif;text-align:left;cursor:pointer;transition:background .2s,color .2s,transform .2s}
+.k7n button:hover{background:rgba(255,255,255,.06);color:#fff}.k7n button:active{transform:scale(.98)}
+.k7n button.on{background:rgba(255,255,255,.11);color:#fff}
+.k7n button i,.k7hub button i{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--c);flex:none}
+.k7n button i svg,.k7hub button i svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media(min-width:900px){html body .k6.k7{display:grid;grid-template-columns:250px minmax(0,1fr);gap:40px;align-items:start}.k7n{display:flex;flex-direction:column;gap:3px;position:sticky;top:96px}html body .k6.k7 .k6bk{display:none}}
+.k7hub{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.k7hub .k7g{border-radius:22px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);overflow:hidden}
+.k7hub button{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:0;background:none;color:#f4f2ee;text-align:left;cursor:pointer;transition:background .2s}
+.k7hub button+button{border-top:1px solid rgba(255,255,255,.06)}
+.k7hub button:active{background:rgba(255,255,255,.08)}
+.k7hub button span{flex:1;min-width:0}.k7hub button b{display:block;font:700 15px Manrope,system-ui,sans-serif}.k7hub button small{display:block;margin-top:2px;font:500 12.5px Manrope,system-ui,sans-serif;color:#98a0ad}
+.k7hub button em{opacity:.4;font-style:normal}`;
 D.head.append(css);
 
 /* ================= 1. card menu ================= */
@@ -472,5 +511,64 @@ if(P&&P.play){
   const t=Math.floor(p*d),f=n=>String(n).padStart(2,'0'),H=Math.floor(t/3600),M=Math.floor(t%3600/60),S=t%60;
   tip.textContent=(H?H+':'+f(M):M)+':'+f(S);tip.style.left=e.clientX+'px';tip.style.top=(r.top-34)+'px';tip.style.opacity=1;
  },true);
+}
+
+/* ================= 10. settings: new layout (the options and their saving stay as they are) ================= */
+{
+ const P=window.K6&&K6.PAGES;
+ if(P){
+  const svg=p=>'<svg viewBox="0 0 24 24">'+p+'</svg>';
+  const NAV=[
+   ['look','Look & feel','Banner, previews, motion','#7c9cff',svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>')],
+   ['play','Playback','Quality, speed, controls','#ff7a7a',svg('<path d="M8 5l11 7-11 7z"/>')],
+   ['subs','Subtitles','Language and style','#ffd166',svg('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 10h4M13 10h4M7 14h7"/>')],
+   ['streams','Sources','Filter and sort what you see','#4fd1c5',svg('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>')],
+   ['addons','Add-ons','Install and sort your sources','#b79cff',svg('<path d="M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3"/>')],
+   ['plugins','Plugins','Plugin repositories and providers','#f78fb3',svg('<path d="M12 3v18M3 12h18"/>')],
+   ['data','Data & device','Backup, history, server','#6ec1ff',svg('<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/>')],
+   ['integ','Integrations','TMDB key for cast','#8fe388',svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>')],
+   ['about','About','Credits and licenses','#9aa3b2',svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>')]
+  ];
+  const avail=()=>NAV.filter(n=>typeof P[n[0]]==='function');
+  const wide=()=>matchMedia('(min-width:900px)').matches;
+  const tile=n=>'<i style="--c:'+n[3]+'">'+n[4]+'</i>';
+  const decorate=name=>{
+   const pg=Q('.k6');if(!pg||pg.classList.contains('k7'))return;
+   pg.classList.add('k7');
+   /* no haptic switch (always on), no repeated rows */
+   QA('.k6o',pg).forEach(o=>{const t=(Q('b',o)||{}).textContent||'';if(/haptic|vibrat/i.test(t))o.remove()});
+   const seen=new Set();
+   QA('.k6o b,.k6r b',pg).forEach(b=>{const k=b.textContent.trim().toLowerCase();if(seen.has(k)){const r=b.closest('.k6o,.k6r');if(r)r.remove()}else seen.add(k)});
+   QA('.k6c',pg).forEach(c=>{if(!c.children.length){const hd=c.previousElementSibling;if(hd&&hd.classList.contains('k6h'))hd.remove();c.remove()}});
+   const main=D.createElement('div');main.className='k7m';
+   [...pg.children].forEach(ch=>main.append(ch));
+   const nav=D.createElement('nav');nav.className='k7n';
+   nav.innerHTML=avail().map(n=>'<button data-go="'+n[0]+'" class="'+(n[0]===name?'on':'')+'">'+tile(n)+n[1]+'</button>').join('');
+   pg.append(nav,main);
+  };
+  Object.keys(P).forEach(name=>{
+   if(name==='hub'||name==='profile'||typeof P[name]!=='function')return;
+   const f=P[name];
+   P[name]=function(){const r=f.apply(this,arguments);try{decorate(name)}catch{}return r};
+  });
+  /* the main screen: on a wide window it opens the first page next to the sidebar, on a phone it is a grouped list */
+  P.hub=function(){
+   if(wide()&&typeof P.look==='function')return P.look();
+   const a=avail(),grp=(t,items)=>'<h4 class="k6h">'+t+'</h4><div class="k7g">'+items.map(n=>'<button data-go="'+n[0]+'">'+tile(n)+'<span><b>'+n[1]+'</b><small>'+n[2]+'</small></span><em>\u203a</em></button>').join('')+'</div>';
+   const pick=ks=>a.filter(n=>ks.includes(n[0]));
+   app.innerHTML='<div class="page k6 k7"><div class="k7m"><h1>Settings</h1><div class="k7hub">'+grp('App',pick(['look','play','subs']))+grp('Sources',pick(['streams','addons','plugins']))+grp('More',pick(['data','integ','about']))+'</div></div></div>';
+  };
+  /* the gear opens Settings directly: no second pop-up with the same options */
+  D.addEventListener('click',e=>{const g=e.target.closest&&e.target.closest('#kdg');if(g){e.stopImmediatePropagation();e.preventDefault();location.hash='#/settings'}},true);
+ }
+}
+
+/* ================= 11. pictures fade in once loaded ================= */
+{
+ const mark=i=>{if(i.complete&&i.naturalWidth)i.classList.add('kl')};
+ D.addEventListener('load',e=>{if(e.target&&e.target.tagName==='IMG')e.target.classList.add('kl')},true);
+ D.addEventListener('error',e=>{if(e.target&&e.target.tagName==='IMG')e.target.classList.add('kl')},true);
+ new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType!==1)return;(n.tagName==='IMG'?[n]:QA('.kh-i img',n)).forEach(mark)}))).observe(D.body,{childList:true,subtree:true});
+ QA('.kh-i img').forEach(mark);
 }
 })();
