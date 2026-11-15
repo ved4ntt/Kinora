@@ -134,7 +134,22 @@ html body .k6.k7 .k6t::after,html body .k6.k7 .k6t i{transition:transform .3s ${
 .k7hub button+button{border-top:1px solid rgba(255,255,255,.06)}
 .k7hub button:active{background:rgba(255,255,255,.08)}
 .k7hub button span{flex:1;min-width:0}.k7hub button b{display:block;font:700 15px Manrope,system-ui,sans-serif}.k7hub button small{display:block;margin-top:2px;font:500 12.5px Manrope,system-ui,sans-serif;color:#98a0ad}
-.k7hub button em{opacity:.4;font-style:normal}`;
+.k7hub button em{opacity:.4;font-style:normal}
+
+/* more motion: the banner and details picture drift as you scroll, buttons ripple, rows below the fold arrive as you reach them */
+:root{--ks:0}
+.kh-hero .kh-in{opacity:calc(1 - var(--ks)*1.3);transform:translateY(calc(var(--ks)*-34px));will-change:transform,opacity}
+.kt-bg{transform:translateY(calc(var(--ks)*48px)) scale(calc(1.04 + var(--ks)*.06));will-change:transform}
+.kin .kh>*:not(.kr){animation:kin .62s ${ease} both}
+.kr{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .75s ${ease}}
+.kr.kv{opacity:1;transform:none}
+.krp{position:relative;overflow:hidden}
+.krp i.rp{position:absolute;border-radius:50%;background:rgba(255,255,255,.32);transform:scale(0);animation:krp .62s ease-out forwards;pointer-events:none}
+@keyframes krp{to{transform:scale(1);opacity:0}}
+.kin .k7m>*{animation:kin .5s ${ease} both}
+.kin .k7m>*:nth-child(2){animation-delay:.05s}.kin .k7m>*:nth-child(3){animation-delay:.1s}.kin .k7m>*:nth-child(4){animation-delay:.15s}.kin .k7m>*:nth-child(n+5){animation-delay:.2s}
+body.reduce .kr{opacity:1;transform:none;transition:none}
+body.reduce .kh-hero .kh-in,body.reduce .kt-bg{transform:none;opacity:1}`;
 D.head.append(css);
 
 /* ================= 1. card menu ================= */
@@ -491,6 +506,8 @@ if(P&&P.play){
   if(held){held=false;const v=vid();if(v)try{v.playbackRate=prevRate}catch{}if(badge){badge.remove();badge=null}}
   if(was||e.pointerType!=='touch'||!inVw(e))return;
   if(Math.abs(e.clientX-downX)>20)return;
+  /* a volume / brightness swipe (kdev.js) is not a tap */
+  if(window.__kSwipe&&Date.now()-window.__kSwipe<600){lastT=0;lastSide='';return}
   const s=side(e.clientX),now=Date.now();
   if(s!=='c'&&s===lastSide&&now-lastT<300){
    const v=vid();
@@ -570,5 +587,36 @@ if(P&&P.play){
  D.addEventListener('error',e=>{if(e.target&&e.target.tagName==='IMG')e.target.classList.add('kl')},true);
  new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType!==1)return;(n.tagName==='IMG'?[n]:QA('.kh-i img',n)).forEach(mark)}))).observe(D.body,{childList:true,subtree:true});
  QA('.kh-i img').forEach(mark);
+}
+
+/* ================= 12. scroll drift, ripples, rows arriving as you scroll ================= */
+{
+ let raf=0;
+ const root=D.documentElement;
+ const upd=()=>{raf=0;root.style.setProperty('--ks',Math.min(1,scrollY/620).toFixed(3))};
+ addEventListener('scroll',()=>{if(!raf)raf=requestAnimationFrame(upd)},{passive:true});
+ addEventListener('hashchange',()=>root.style.setProperty('--ks','0'));
+
+ const RP='.kh-btn,.btn,.k7n button,.k7hub button,.ks2-rec a,#kmn .a button,.kxpk,.kxe-pills button';
+ D.addEventListener('pointerdown',e=>{
+  if(calm()||e.button>0)return;
+  const t=e.target.closest&&e.target.closest(RP);if(!t)return;
+  t.classList.add('krp');
+  const r=t.getBoundingClientRect(),s=Math.max(r.width,r.height)*2.2,i=D.createElement('i');i.className='rp';
+  i.style.cssText='width:'+s+'px;height:'+s+'px;left:'+(e.clientX-r.left-s/2)+'px;top:'+(e.clientY-r.top-s/2)+'px';
+  t.append(i);setTimeout(()=>i.remove(),650);
+ },true);
+
+ if(window.IntersectionObserver){
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('kv');io.unobserve(e.target)}}),{rootMargin:'0px 0px -6% 0px'});
+  const prep=n=>{
+   if(calm()||!n.classList||!n.classList.contains('kh-row')||n.classList.contains('ks2-row')||n.classList.contains('kr'))return;
+   if(n.getBoundingClientRect().top<innerHeight*.98)return;
+   n.classList.add('kr');io.observe(n);
+   setTimeout(()=>n.classList.add('kv'),3500);
+  };
+  const scan=n=>{if(n.nodeType!==1)return;prep(n);QA('.kh-row',n).forEach(prep)};
+  new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(scan))).observe(app,{childList:true,subtree:true});
+ }
 }
 })();

@@ -81,7 +81,8 @@ const rank=(p,sel,pref,bad)=>{
  // App clients let learned startup speed outrank provider preference; web keeps provider-first ordering.
  /* KFit (ksource.js): clean copies first, then what keeps up with the measured speed, then files not squeezed too hard, then the biggest that fits */
  const [jk,ft,sv,sz]=window.KFit?KFit.keys(p):[0,0,0,0];
- return sel.pf?(APP_PLAYER?[bd,jk,hv,lm,qd,ft,sv,ps,sz,hd,webScore(p),pr,p.q?0:1]:[bd,jk,hv,ps,pr,lm,qd,ft,sv,sz,hd,webScore(p),p.q?0:1]):[bd,jk,lm,qd,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
+ const cr=window.KCaps&&KCaps.risk?KCaps.risk(p):0; /* kdev.js: Dolby Vision files with no HDR10 layer on a device with no Dolby Vision decoder, AV1 on a device without it */
+ return sel.pf?(APP_PLAYER?[bd,jk,hv,lm,qd,cr,ft,sv,ps,sz,hd,webScore(p),pr,p.q?0:1]:[bd,jk,hv,ps,pr,lm,qd,cr,ft,sv,sz,hd,webScore(p),p.q?0:1]):[bd,jk,lm,qd,cr,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
@@ -145,7 +146,12 @@ E.play=function(s,ctx,t0){
   return E.play({...s,_o:s._o||s,_kp:1,behaviorHints:bh,url:c.url.replace(/\/$/,'')+'/proxy?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(s.url)+(hd?'&h='+encodeURIComponent(btoa(JSON.stringify(hd))):'')+(/\.m3u8(\?|$)/i.test(s.url)?'&x=.m3u8':'')},ctx,t0);
  }
  if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders&&!(window.KNative&&KNative.can(s)))return play(srvStream(s),ctx,t0);
- if(SRVOK()&&!s._srv&&WIN&&(/hevc|x265|h\.?265|dts|truehd|e-?ac-?3|\bdd\+|\bddp?\d?\b|\bac3\b/i.test((s.name||'')+' '+(s.title||s.description||'')+' '+s.url)||/\.(mkv|avi|m2ts|ts|wmv|flv|mpe?g)$/i.test((((s._o&&s._o.url)||s.url||'')+'').split('?')[0])))return play(srvStream(s),ctx,t0);
+ /* hard files go through the built-in converter (Windows). HEVC on its own no longer does when this PC can decode it: it plays directly then
+    (instant start, real seeking). The converter is for sound Chromium cannot play (DD+, DTS, TrueHD, AC3), containers it cannot open, and
+    anything that fails to decode directly (see the error handler below). */
+ let cvTxt=(s.name||'')+' '+(s.title||s.description||'');
+ try{cvTxt+=' '+decodeURIComponent(((s._o&&s._o.url)||s.url||'')+'')}catch{cvTxt+=' '+(s.url||'')}
+ if(SRVOK()&&!s._srv&&WIN&&(/dts|truehd|e-?ac-?3|\bdd\+|\bddp?\d?\b|\bac-?3\b|atmos/i.test(cvTxt)||(!HEVC_OK&&/hevc|x265|h\.?265/i.test(cvTxt))||/\.(mkv|avi|m2ts|ts|wmv|flv|mpe?g)$/i.test((((s._o&&s._o.url)||s.url||'')+'').split('?')[0])))return play(srvStream(s),ctx,t0);
 
  const v=D.createElement('video');
  /* no crossorigin attribute: many hosts send no CORS headers and would refuse to play */
@@ -295,6 +301,8 @@ E.play=function(s,ctx,t0){
   const c=v.error&&v.error.code;
   if(c===2&&!v._net&&!HL&&!nat&&started){v._net=1;const ct=v.currentTime;try{v.load();v.addEventListener('loadedmetadata',()=>{try{v.currentTime=ct}catch{}tryPlay()},{once:true});return}catch{}}
   if(HL&&started)return; /* the HLS handler already decides */
+  /* a decode or container error on a stream Chromium opened directly: the built-in converter (ffmpeg) can usually still play it */
+  if(WIN&&SRVOK()&&!s._srv&&!HL&&(c===3||(c===4&&/DEMUXER_ERROR|DECODE/i.test((v.error&&v.error.message)||'')))){say('Converting this video for your PC\u2026');play(srvStream({...s}),ctx,v.currentTime>5?v.currentTime:(t0||0));return}
   fail((v.error&&v.error.message)||(c===3?'This device cannot decode this video or audio (often HEVC video or DTS/AC3 sound).':c===4?'This stream cannot be opened here. It may be blocked by the host or not meant for players.':'A network error stopped this stream.'));
  });
 
@@ -360,7 +368,7 @@ V.watch=async function(type,id,vid){
  try{window.kinoraWin&&kinoraWin.act&&kinoraWin.act('fs-on')}catch{}
  let it;
  const hideDelay=matchMedia('(pointer:coarse)').matches?5000:3200;
- pl.wake=()=>{pl.classList.add('act');pl.classList.remove('rest');clearTimeout(it);it=setTimeout(()=>{if(Q('#kpop.on')||pl.classList.contains('scrub'))return pl.wake();pl.classList.remove('act');const v=VID();if(v&&v.paused&&!pl.classList.contains('buf')&&!Q('#ld.on'))pl.classList.add('rest')},hideDelay)};
+ pl.wake=()=>{pl.classList.add('act');pl.classList.remove('rest');clearTimeout(it);it=setTimeout(()=>{if(Q('#kpop.on,#kdv.on')||pl.classList.contains('scrub'))return pl.wake();pl.classList.remove('act');const v=VID();if(v&&v.paused&&!pl.classList.contains('buf')&&!Q('#ld.on'))pl.classList.add('rest')},hideDelay)};
  pl.onmousemove=pl.wake;pl.wake();
 
  /* ---------- meta-dependent bits ---------- */

@@ -52,6 +52,8 @@ function startServer({ www, tmp, port = 38787 }) {
   const FFMPEG = bin('ffmpeg-static', 'ffmpeg');
   const FFPROBE = bin('ffprobe-static', 'ffprobe');
   fs.mkdirSync(tmp, { recursive: true });
+  // Conversions from an earlier run are never reused, so they are cleared on start (they used to pile up on disk).
+  try { for (const d of fs.readdirSync(tmp)) fs.rmSync(path.join(tmp, d), { recursive: true, force: true }); } catch {}
   const jobs = new Map();
   const metaCache = new Map();
   const hostOk = new Map();
@@ -77,6 +79,59 @@ function startServer({ www, tmp, port = 38787 }) {
   const auth = (req, res, next) => (req.query.k === KEY ? next() : res.status(401).send('Bad key'));
   app.get('/health', auth, (req, res) => res.json({ ok: true }));
   app.get('/cfg', auth, (req, res) => { if (req.query.hevc !== undefined) caps.hevc = req.query.hevc === '1'; res.json(caps); });
+
+  // Stops conversions that are still running. Before, a conversion that was no longer watched kept downloading the whole film for five
+  // minutes (and one more for every source tried), which starved the next source of bandwidth and made the player look dead.
+  function killJobs(except) {
+    for (const [jid, j] of jobs) {
+      if (jid === except || j.done) continue;
+      try { j.proc.kill('SIGKILL'); } catch {}
+      jobs.delete(jid);
+      setTimeout(() => { try { fs.rmSync(j.dir, { recursive: true, force: true }); } catch {} }, 2000);
+    }
+  }
+  app.get('/stop', auth, (req, res) => { killJobs(); res.json({ ok: true }); });
+
+  // "Does this link answer?" Asks for the first 2 KB only. The player uses it to skip dead links before anything plays (the Android app has the same check).
+  app.get('/probe', auth, async (req, res) => {
+    const t0 = Date.now();
+    const done = (o) => { try { res.set('Cache-Control', 'no-store').json(o); } catch {} };
+    const u = req.query.u;
+    if (!(await safeUrl(u))) return done({ ok: false, code: 0, ms: 0, err: 'bad url' });
+    const headers = decodeHeaders(req.query.h);
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort(), Math.min(8000, Math.max(1500, +req.query.ms || 3800)));
+    try {
+      let cur = u, r = null;
+      for (let hop = 0; hop < 6; hop++) {
+        r = await fetch(cur, { headers: { ...UP(headers), Range: 'bytes=0-2047' }, redirect: 'manual', signal: ac.signal });
+        const loc = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null;
+        if (!loc) break;
+        try { r.body && r.body.cancel(); } catch {}
+        cur = new URL(loc, cur).href;
+        if (!(await safeUrl(cur))) return done({ ok: false, code: 0, ms: Date.now() - t0, err: 'bad redirect' });
+      }
+      const ttfb = Date.now() - t0;
+      const ct = (r.headers.get('content-type') || '').toLowerCase();
+      const cr = /\/(\d+)$/.exec(r.headers.get('content-range') || '');
+      const size = cr ? +cr[1] : (r.status === 200 ? +(r.headers.get('content-length') || 0) : 0);
+      const range = r.status === 206 || /bytes/i.test(r.headers.get('accept-ranges') || '');
+      let first = null;
+      if (r.status >= 200 && r.status < 300 && r.body) {
+        const reader = r.body.getReader();
+        const x = await reader.read();
+        first = x.value ? Buffer.from(x.value) : null;
+        try { reader.cancel(); } catch {}
+      } else { try { r.body && r.body.cancel(); } catch {} }
+      const ms = Date.now() - t0;
+      // a playlist is fine even when the host calls it text/plain
+      const isList = !!first && first.subarray(0, 8).toString('latin1').trimStart().startsWith('#EXTM3U');
+      const page = !isList && /text\/html|application\/json|text\/plain/.test(ct);
+      done({ ok: r.status >= 200 && r.status < 300 && !page && !!first && first.length > 0, code: r.status, ms, ttfb, range, size, type: ct });
+    } catch (e) {
+      done({ ok: false, code: 0, ms: Date.now() - t0, err: String((e && e.message) || e) });
+    } finally { clearTimeout(to); }
+  });
 
   /* ---------------------------------------------------------------- proxy ---------------------------------------------------------------- */
   const keyOf = (u, h) => u + '|' + JSON.stringify(h);
@@ -347,14 +402,14 @@ function startServer({ www, tmp, port = 38787 }) {
   /* ---------------------------------------------------------------- conversion to HLS ---------------------------------------------------------------- */
   function probe(u, hs) {
     return new Promise((resolve) => {
-      execFile(FFPROBE, ['-v', 'error', '-analyzeduration', '3000000', '-probesize', '5000000', ...(hs ? ['-headers', hs] : []), '-show_entries', 'stream=codec_type,codec_name,pix_fmt', '-of', 'json', u], { timeout: 20000, windowsHide: true }, (err, out) => {
+      execFile(FFPROBE, ['-v', 'error', '-analyzeduration', '3000000', '-probesize', '5000000', ...(hs ? ['-headers', hs] : []), '-show_entries', 'stream=codec_type,codec_name,pix_fmt,channels', '-of', 'json', u], { timeout: 20000, windowsHide: true }, (err, out) => {
         // JSON, not CSV: ffprobe prints CSV fields in its own order (codec_name before codec_type), which the old parser got wrong
         // and so never found the codec; every stream was re-encoded even when it could simply be copied.
         let streams = [];
         try { streams = JSON.parse(out || '{}').streams || []; } catch {}
         const v = streams.find((s) => s.codec_type === 'video') || {};
         const a = streams.find((s) => s.codec_type === 'audio') || {};
-        resolve({ codec: v.codec_name || '', pix: v.pix_fmt || '', acodec: a.codec_name || '' });
+        resolve({ codec: v.codec_name || '', pix: v.pix_fmt || '', acodec: a.codec_name || '', channels: +a.channels || 2 });
       });
     });
   }
@@ -366,8 +421,10 @@ function startServer({ www, tmp, port = 38787 }) {
     const dir = path.join(tmp, id);
     fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
+    // One playback at a time: whatever is still converting for an earlier source is stopped first.
+    killJobs(id);
     const hs = headerArg(headers);
-    const [{ codec, pix, acodec }, hw] = await Promise.all([probe(u, hs), detectHw()]);
+    const [{ codec, pix, acodec, channels }, hw] = await Promise.all([probe(u, hs), detectHw()]);
     const hevcCopy = caps.hevc && codec === 'hevc' && /^yuv420p(10le)?$/.test(pix);
     const copyVideo = (codec === 'h264' && (pix === 'yuv420p' || pix === '')) || hevcCopy;
     // Copy whenever the player can decode the video as it is (no quality loss, no CPU). Re-encode only when it cannot,
@@ -380,7 +437,8 @@ function startServer({ www, tmp, port = 38787 }) {
       '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5', '-i', u,
       '-map', '0:v:0', '-map', '0:a:0?', '-sn',
       ...(copyVideo ? ['-c:v', 'copy', ...(hevcCopy ? ['-tag:v', 'hvc1'] : [])] : [...encArgs(hw), ...(soft ? ['-vf', "scale='min(1920,iw)':-2"] : [])]),
-      ...(acodec === 'aac' ? ['-c:a', 'copy'] : ['-c:a', 'aac', '-ac', '2', '-b:a', '192k']),
+      // Surround is kept (up to 5.1) instead of being folded down to stereo: DD+ 5.1 becomes AAC 5.1. Chromium cannot pass Dolby through, so this is the best it can play.
+      ...(acodec === 'aac' ? ['-c:a', 'copy'] : ['-c:a', 'aac', '-ac', String(Math.max(1, Math.min(6, channels || 2))), '-b:a', (channels || 2) > 2 ? '384k' : '192k']),
       '-f', 'hls', '-hls_time', '2', '-hls_list_size', '0', '-hls_playlist_type', 'event', '-hls_flags', 'independent_segments+temp_file',
       ...(hevcCopy ? ['-hls_segment_type', 'fmp4', '-hls_fmp4_init_filename', 'init.mp4', '-hls_segment_filename', path.join(dir, 'seg%05d.m4s')] : ['-hls_segment_filename', path.join(dir, 'seg%05d.ts')]),
       path.join(dir, 'index.m3u8')];
@@ -423,7 +481,7 @@ function startServer({ www, tmp, port = 38787 }) {
 
   return new Promise((resolve, reject) => {
     const tryListen = (p) => {
-      const s = app.listen(p, '127.0.0.1', () => { app.locals.port = p; detectHw().catch(() => {}); resolve({ port: p, key: KEY, server: s }); });
+      const s = app.listen(p, '127.0.0.1', () => { app.locals.port = p; detectHw().catch(() => {}); resolve({ port: p, key: KEY, server: s, killAll: () => killJobs() }); });
       s.on('error', (e) => { if (e.code === 'EADDRINUSE' && p < port + 10) tryListen(p + 1); else reject(e); });
     };
     tryListen(port);

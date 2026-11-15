@@ -48,6 +48,7 @@ function sendAuth(u) {
 }
 
 let win;
+let stopJobs = null;
 let lastNav = 0;
 // One place for "go back / forward" so the mouse side buttons never fire twice.
 function nav(dir) {
@@ -61,10 +62,11 @@ function nav(dir) {
 }
 
 async function createWindow() {
-  const { port } = await startServer({
+  const srvInfo = await startServer({
     www: path.join(__dirname, '..', 'www'),
     tmp: path.join(app.getPath('userData'), 'cache'),
   });
+  const { port } = srvInfo; stopJobs = srvInfo.killAll;
   Menu.setApplicationMenu(null);
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 480, minHeight: 600,
@@ -103,6 +105,20 @@ ipcMain.on('win', (_e, a) => {
   else if (a === 'back') nav('back');
   else if (a === 'forward') nav('forward');
 });
+
+// What this PC can really do for video: the graphics driver's own report (hardware decoding on or off) and the card in use.
+ipcMain.handle('sys:caps', async () => {
+  const out = { gpu: {}, devices: [] };
+  try { out.gpu = app.getGPUFeatureStatus() || {}; } catch {}
+  try {
+    const i = await app.getGPUInfo('basic');
+    out.devices = ((i && i.gpuDevice) || []).slice(0, 3).map((d) => ({ vendor: d.vendorId, device: d.deviceId, active: !!d.active, driver: String(d.driverVersion || '') }));
+  } catch {}
+  return out;
+});
+
+// Conversions started by the built-in server must not outlive the app (they would keep downloading in the background).
+app.on('before-quit', () => { try { stopJobs && stopJobs(); } catch {} });
 
 ipcMain.on('open-external', (_e, u) => { if (typeof u === 'string' && /^https:\/\//i.test(u)) shell.openExternal(u); });
 

@@ -734,6 +734,7 @@ public class MainActivity extends BridgeActivity {
         .setDefaultRequestProperties(h2);
       MediaItem.Builder mi = new MediaItem.Builder().setUri(url);
       if (url.toLowerCase(Locale.ROOT).contains(".m3u8")) mi.setMimeType(MimeTypes.APPLICATION_M3U8);
+      else if (url.toLowerCase(Locale.ROOT).contains(".mpd")) mi.setMimeType(MimeTypes.APPLICATION_MPD);
       MediaSource ms = new DefaultMediaSourceFactory(hf).createMediaSource(mi.build());
       player.stop();
       player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
