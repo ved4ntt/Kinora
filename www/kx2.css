@@ -1,12 +1,12 @@
 /* Kinora kx2: player bar, details page, settings on phones. Loaded after kx.css. */
 
-/* ---------- player: no dark bar behind the seek bar and buttons. Controls stay readable through soft shadows only. ---------- */
-#pl.kp #ctl{background:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
-#pl.kp #ctl:before,#pl.kp #ctl:after{display:none!important}
-#pl.kp #ctl button,#pl.kp #ctl svg{filter:drop-shadow(0 1px 5px rgba(0,0,0,.65))}
-#pl.kp #ctl,#pl.kp #ctl span,#pl.kp #ctl time{text-shadow:0 1px 6px rgba(0,0,0,.7)}
-#pl.kp #sk::before{box-shadow:0 0 0 1px rgba(0,0,0,.18)}
-#pl.kp #sk #stp{background:rgba(24,26,32,.72)!important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+/* player glass: see kglass.css (the old "no bar" rules that were here are gone) */
+
+
+
+
+
+
 
 /* ---------- details page: the picture melts into the page, no hard edge ---------- */
 .kt-hero{position:relative;isolation:isolate;background:#07080b}

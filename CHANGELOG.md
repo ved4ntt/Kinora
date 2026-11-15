@@ -20,6 +20,14 @@ Each release on GitHub shows the section for its version. Add a new `## [version
 - Ratings from IMDb, Rotten Tomatoes, Metacritic and Letterboxd on the details page (through your own backend, the key is not in the app).
 - Pages slide in, pictures fade in, pop-ups and sheets animate, bottom sheets can be dragged down. The Windows dock only opens when you hover the Home / Series pill.
 
+### Player and playback
+- Windows: files now play as they are. HEVC (including 10-bit) and WEB-DL files are no longer sent through the converter; the picture is decoded by the graphics card straight from the source, with real seeking. MKV files open directly too.
+- Windows: Dolby Digital Plus, DTS, TrueHD and AC-3 sound is prepared on its own and played next to the untouched picture (up to 5.1, kept in 5.1 instead of folded to stereo). The old converter is only the last fallback.
+- Windows: a quick "does this link answer?" check skips dead links in a second, and stopped conversions no longer keep downloading in the background or after the app closes.
+- Android: DASH and Smooth Streaming links now play (MovieBox links failed with "No suitable media source factory").
+- Android: the brightness and volume controls drive the real phone settings (swipe on the left/right half of the video, or the sliders button) and put them back when the player closes.
+- New glass player controls, a tidier Watch together panel, and Settings > Playback > Device check (what this device really decodes and outputs).
+
 ### Privacy
 - Anonymous playback diagnostics (which source host worked or failed, start time, buffering). On by default, switch off in Settings > Playback > Privacy. No account, title or IP is sent.
 

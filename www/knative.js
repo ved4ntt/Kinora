@@ -115,7 +115,9 @@ const W=window.kinoraWin;
 let info=null,once=false;
 if(W&&W.playerInfo)W.playerInfo().then(i=>{info=i}).catch(()=>{});
 const HARD=/hevc|x265|h\.?265|dts|truehd|e-?ac-?3|\bac-?3\b|\.mkv(\?|$)/i;
-const mode=()=>cfg().extPlayer||'needed';
+const mode=()=>cfg().extPlayer||'off';
+const lab=k=>({mpv:'mpv',vlc:'VLC',pot:'PotPlayer'}[k]||k);
+const selKind=()=>{const w=cfg().extWhich||'',a=(info&&info.all)||[info&&info.kind];return a.includes(w)?w:a[0]};
 function handle(s,ctx,t0,fail){
  if(!W||!W.playExternal||!info||once)return false;
  const m=mode();if(m==='off')return false;
@@ -126,13 +128,28 @@ function handle(s,ctx,t0,fail){
  const prog=cfg().resume?(LS.get('prog',{})[ctx.vid||ctx.id]||{}):{};
  const start=t0||(prog.t>30&&prog.d&&prog.t<prog.d-60?prog.t:0);
  const ld=Q('#ld'),box=Q('#vw');
- if(box)box.innerHTML='<div class="kmsg">Playing in '+(info.kind==='mpv'?'mpv':'VLC')+'<small style="color:#98a1ac;font-weight:500">Close the player window to come back here.</small><div class="kacts"><button class="btn" id="kx-w">Play here instead</button></div></div>';
+ if(box)box.innerHTML='<div class="kmsg">Playing in '+lab(selKind())+'<small style="color:#98a1ac;font-weight:500">Close the player window to come back here.</small><div class="kacts"><button class="btn" id="kx-w">Play here instead</button></div></div>';
  if(ld)ld.classList.remove('on');
  const b=Q('#kx-w');if(b)b.onclick=()=>{once=true;play(s,ctx,t0);setTimeout(()=>{once=false},1500)};
- W.playExternal({url:s.url,headers:hd,start,title:ctx.name||'Kinora'}).then(r=>{if(!r||!r.ok){once=true;fail('Could not open '+info.kind+'. Playing here instead.');setTimeout(()=>{once=false},1500)}}).catch(()=>{});
+ W.playExternal({url:s.url,headers:hd,start,title:ctx.name||'Kinora',prefer:cfg().extWhich||''}).then(r=>{if(!r||!r.ok){once=true;fail('Could not open '+lab(selKind())+'. Playing here instead.');setTimeout(()=>{once=false},1500)}}).catch(()=>{});
  return true;
 }
 window.KExt={handle,stop(){},info:()=>info};
+
+/* Windows: an installed player is an option, never the default. Kinora plays everything inside the app unless this is switched on. */
+if(W&&!AND&&window.K6&&K6.PAGES&&K6.PAGES.play){
+ const pp=K6.PAGES.play;
+ K6.PAGES.play=function(){
+  const r=pp.apply(this,arguments);
+  try{
+   const p=Q('.k6');if(!p||Q('#kext',p))return r;
+   const m=mode(),all=(info&&info.all)||[],w=cfg().extWhich||'';
+   const chips=(attr,list,cur)=>list.map(x=>'<button class="ch'+(x[0]===cur?' on':'')+'" '+attr+'="'+x[0]+'">'+x[1]+'</button>').join('');
+   p.insertAdjacentHTML('beforeend','<h4 class="k6h">External player (optional)</h4><div class="k6c" id="kext"><div class="k6o col"><span><b>Use an installed player</b><small>'+(all.length?'Found '+all.map(lab).join(', ')+'. Kinora plays everything inside the app by default.':'No mpv, VLC or PotPlayer found. Kinora plays everything inside the app.')+'</small></span><div class="k6ch wrap">'+chips('data-kex',[['off','Never'],['needed','Hard files only'],['always','Always']],m)+'</div></div>'+(all.length>1?'<div class="k6o col"><span><b>Which player</b></span><div class="k6ch wrap">'+chips('data-kwh',[['','Auto']].concat(all.map(k=>[k,lab(k)])),w)+'</div></div>':'')+'</div>');
+  }catch{}
+  return r;
+ };
+}
 
 /* settings rows for the player were removed: the apps choose what is best on their own */
 if(false&&window.K6&&K6.PAGES&&K6.PAGES.play&&(AND||W)){
@@ -153,5 +170,7 @@ D.addEventListener('click',e=>{
  if(n){const v=cfg().native!==false;setCfg({native:!v});n.classList.toggle('on',!v);n.setAttribute('aria-checked',String(!v));return}
  const x=e.target.closest&&e.target.closest('[data-kex]');
  if(x){setCfg({extPlayer:x.dataset.kex});QA('[data-kex]').forEach(b=>b.classList.toggle('on',b===x))}
+ const y=e.target.closest&&e.target.closest('[data-kwh]');
+ if(y){setCfg({extWhich:y.dataset.kwh});QA('[data-kwh]').forEach(b=>b.classList.toggle('on',b===y))}
 });
 })();

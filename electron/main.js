@@ -137,15 +137,32 @@ function findPlayer() {
   hit = vlc.find((p) => fsx.existsSync(p));
   return (extFound = hit ? { kind: 'vlc', exe: hit } : null);
 }
-ipcMain.handle('ext:info', () => { const p = findPlayer(); return p ? { kind: p.kind } : null; });
+// every installed player, in the order mpv, VLC, PotPlayer (the page decides if and which one to use; the default is none)
+let extAll;
+function listPlayers() {
+  if (extAll) return extAll;
+  const pf = process.env['ProgramFiles'] || 'C:\\Program Files', pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', la = process.env.LOCALAPPDATA || '';
+  const out = [], first = findPlayer();
+  const vlcExe = [path.join(pf, 'VideoLAN', 'VLC', 'vlc.exe'), path.join(pf86, 'VideoLAN', 'VLC', 'vlc.exe')].find((p) => fsx.existsSync(p));
+  const potExe = [path.join(pf, 'DAUM', 'PotPlayer', 'PotPlayerMini64.exe'), path.join(pf, 'PotPlayer', 'PotPlayerMini64.exe'), path.join(la, 'Programs', 'PotPlayer', 'PotPlayerMini64.exe'), path.join(pf86, 'DAUM', 'PotPlayer', 'PotPlayerMini.exe'), path.join(pf86, 'PotPlayer', 'PotPlayerMini.exe'), path.join(pf, 'DAUM', 'PotPlayer', 'PotPlayerMini.exe')].find((p) => fsx.existsSync(p));
+  if (first && first.kind === 'mpv') out.push(first);
+  if (vlcExe) out.push({ kind: 'vlc', exe: vlcExe }); else if (first && first.kind === 'vlc') out.push(first);
+  if (potExe) out.push({ kind: 'pot', exe: potExe });
+  return (extAll = out);
+}
+const pickPlayer = (prefer) => { const a = listPlayers(); return a.find((p) => p.kind === prefer) || a[0] || null; };
+ipcMain.handle('ext:info', () => { const a = listPlayers(); return a.length ? { kind: a[0].kind, all: a.map((p) => p.kind) } : null; });
 ipcMain.handle('ext:play', (_e, o) => {
-  const p = findPlayer();
+  const p = pickPlayer(o && o.prefer);
   if (!p || !o || typeof o.url !== 'string' || !/^https?:\/\//i.test(o.url)) return { ok: false };
   const h = o.headers && typeof o.headers === 'object' ? o.headers : {};
   const ua = h['User-Agent'] || h['user-agent'] || '', ref = h['Referer'] || h['referer'] || '';
   const start = Math.max(0, Math.floor(+o.start || 0));
   let args;
-  if (p.kind === 'mpv') {
+  if (p.kind === 'pot') {
+    args = [o.url, '/new'];
+    if (start) args.push('/seek=' + new Date(start * 1000).toISOString().substr(11, 8));
+  } else if (p.kind === 'mpv') {
     args = ['--fullscreen', '--force-window=yes', '--hwdec=auto-safe', '--cache=yes', '--demuxer-max-bytes=300MiB', '--title=' + String(o.title || 'Kinora').slice(0, 120)];
     if (start) args.push('--start=' + start);
     if (ua) args.push('--user-agent=' + ua);

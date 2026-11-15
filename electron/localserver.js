@@ -83,6 +83,7 @@ function startServer({ www, tmp, port = 38787 }) {
   // Stops conversions that are still running. Before, a conversion that was no longer watched kept downloading the whole film for five
   // minutes (and one more for every source tried), which starved the next source of bandwidth and made the player look dead.
   function killJobs(except) {
+    if (!except) for (const p of audioProcs) { try { p.kill('SIGKILL'); } catch {} }
     for (const [jid, j] of jobs) {
       if (jid === except || j.done) continue;
       try { j.proc.kill('SIGKILL'); } catch {}
@@ -131,6 +132,50 @@ function startServer({ www, tmp, port = 38787 }) {
     } catch (e) {
       done({ ok: false, code: 0, ms: Date.now() - t0, err: String((e && e.message) || e) });
     } finally { clearTimeout(to); }
+  });
+
+  // ---- sound on its own: the VIDEO plays exactly as it is, in the page (hardware HEVC, 10-bit, HDR, real seeking). Only the sound that Chromium
+  // cannot play (DD+, DTS, TrueHD, AC-3) is turned into AAC here, up to 5.1, and played next to the picture by the page (kaudio.js). ----
+  const audioProcs = new Set();
+  app.get('/tracks', auth, async (req, res) => {
+    const u = req.query.u;
+    if (!(await safeUrl(u))) return res.json({ ok: false, audio: [] });
+    const hs = headerArg(decodeHeaders(req.query.h));
+    execFile(FFPROBE, ['-v', 'error', '-analyzeduration', '3000000', '-probesize', '5000000', ...(hs ? ['-headers', hs] : []), '-show_entries', 'stream=codec_type,codec_name,channels:stream_tags=language,title:stream_disposition=default', '-of', 'json', u], { timeout: 20000, windowsHide: true }, (err, out) => {
+      let streams = [];
+      try { streams = JSON.parse(out || '{}').streams || []; } catch {}
+      const audio = streams.filter((s) => s.codec_type === 'audio').map((s) => ({ codec: s.codec_name || '', channels: +s.channels || 2, lang: (s.tags && s.tags.language) || '', title: (s.tags && s.tags.title) || '', def: !!(s.disposition && s.disposition.default) }));
+      const v = streams.find((s) => s.codec_type === 'video') || {};
+      res.set('Cache-Control', 'no-store').json({ ok: audio.length > 0, audio, video: { codec: v.codec_name || '' } });
+    });
+  });
+  app.get('/audio', auth, async (req, res) => {
+    const u = req.query.u;
+    if (!(await safeUrl(u))) return res.status(400).end();
+    const hs = headerArg(decodeHeaders(req.query.h));
+    const ss = Math.max(0, +req.query.ss || 0);
+    const a = Math.max(0, Math.min(31, parseInt(req.query.a, 10) || 0));
+    const chq = parseInt(req.query.ch, 10);
+    const ch = chq > 0 ? Math.min(6, chq) : 0; // 0 = not known yet: keep the track's own layout
+    const args = ['-hide_banner', '-loglevel', 'error', '-nostdin', '-analyzeduration', '2000000', '-probesize', '4000000',
+      ...(hs ? ['-headers', hs] : []), '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '4',
+      ...(ss > 0 ? ['-ss', ss.toFixed(3)] : []), '-i', u,
+      '-map', '0:a:' + a + '?', '-vn', '-sn', '-dn',
+      '-c:a', 'aac', ...(ch ? ['-ac', String(ch)] : []), '-b:a', ch && ch <= 2 ? '192k' : '384k', '-flush_packets', '1', '-f', 'adts', 'pipe:1'];
+    const proc = spawn(FFMPEG, args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    audioProcs.add(proc);
+    let sent = false;
+    res.on('close', () => { try { proc.kill('SIGKILL'); } catch {} });
+    proc.on('close', () => {
+      audioProcs.delete(proc);
+      try { if (!sent) res.status(502).end(); else res.end(); } catch {}
+    });
+    proc.stdout.once('data', (first) => {
+      sent = true;
+      res.writeHead(200, { 'Content-Type': 'audio/aac', 'Cache-Control': 'no-store' });
+      res.write(first);
+      proc.stdout.pipe(res);
+    });
   });
 
   /* ---------------------------------------------------------------- proxy ---------------------------------------------------------------- */

@@ -64,7 +64,7 @@ const nativeOK=()=>!!(window.KNative&&KNative.on&&KNative.on());
 const AV1_OK=(()=>{try{return MediaSource.isTypeSupported('video/mp4; codecs="av01.0.08M.08"')}catch{return false}})();
 const webScore=p=>{
  let s=0;const ext=(p.url.split('?')[0].match(/\.([a-z0-9]{2,4})$/i)||[])[1]||'';
- if(p.kind==='hls')s-=1;else if(/^(mp4|m4v|webm)$/i.test(ext))s+=0;else if(/^mkv$/i.test(ext))s+=nativeOK()?0:1.5;else s+=1;
+ if(p.kind==='hls')s-=1;else if(/^(mp4|m4v|webm)$/i.test(ext))s+=0;else if(/^mkv$/i.test(ext))s+=(nativeOK()||(WIN&&SRVOK()))?0:1.5;else s+=1;
  if(p.exotic&&!nativeOK()&&!(WIN&&SRVOK()))s+=2;
  if(p.av1&&!AV1_OK&&!nativeOK())s+=1.5;
  if(window.KSpeed){try{s+=Math.min(3,KSpeed.pen(p.raw)/3)}catch{}}
@@ -123,7 +123,7 @@ let seq=0,wd=0,stallT=0,vel=null;
 function cleanup(){
  clearTimeout(wd);clearTimeout(stallT);clearInterval(E._fz);clearTimeout(E._sr);
  if(HL){try{HL.destroy()}catch{}HL=null}
- if(vel){try{vel.pause();vel.removeAttribute('src');vel.load()}catch{}vel=null}
+ if(vel){try{vel._side&&vel._side.stop()}catch{}try{vel.pause();vel.removeAttribute('src');vel.load()}catch{}vel=null}
  try{window.KNative&&KNative.detach()}catch{}
  D.documentElement.classList.remove('knat');
 }
@@ -146,12 +146,17 @@ E.play=function(s,ctx,t0){
   return E.play({...s,_o:s._o||s,_kp:1,behaviorHints:bh,url:c.url.replace(/\/$/,'')+'/proxy?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(s.url)+(hd?'&h='+encodeURIComponent(btoa(JSON.stringify(hd))):'')+(/\.m3u8(\?|$)/i.test(s.url)?'&x=.m3u8':'')},ctx,t0);
  }
  if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders&&!(window.KNative&&KNative.can(s)))return play(srvStream(s),ctx,t0);
- /* hard files go through the built-in converter (Windows). HEVC on its own no longer does when this PC can decode it: it plays directly then
-    (instant start, real seeking). The converter is for sound Chromium cannot play (DD+, DTS, TrueHD, AC3), containers it cannot open, and
-    anything that fails to decode directly (see the error handler below). */
+ /* Windows: files play AS THEY ARE. Only two things still go through the converter: containers Chromium cannot open (avi, wmv, ts ...) and HEVC on a PC that
+    cannot decode it. Dolby Digital Plus / DTS / TrueHD sound is played by the sound sidecar (kaudio.js) next to the untouched video; the converter
+    is only the last fallback (decode error, no picture, sidecar failing). */
  let cvTxt=(s.name||'')+' '+(s.title||s.description||'');
  try{cvTxt+=' '+decodeURIComponent(((s._o&&s._o.url)||s.url||'')+'')}catch{cvTxt+=' '+(s.url||'')}
- if(SRVOK()&&!s._srv&&WIN&&(/dts|truehd|e-?ac-?3|\bdd\+|\bddp?\d?\b|\bac-?3\b|atmos/i.test(cvTxt)||(!HEVC_OK&&/hevc|x265|h\.?265/i.test(cvTxt))||/\.(mkv|avi|m2ts|ts|wmv|flv|mpe?g)$/i.test((((s._o&&s._o.url)||s.url||'')+'').split('?')[0])))return play(srvStream(s),ctx,t0);
+ let side=false;
+ if(SRVOK()&&!s._srv&&WIN){
+  const ext0=((((s._o&&s._o.url)||s.url||'')+'').split('?')[0].match(/\.([a-z0-9]{2,4})$/i)||[])[1]||'';
+  if(/^(avi|m2ts|ts|wmv|flv|mpe?g)$/i.test(ext0)||(!HEVC_OK&&/hevc|x265|h\.?265/i.test(cvTxt)))return play(srvStream(s),ctx,t0);
+  if(/dts|truehd|e-?ac-?3|\bdd\+|\bddp?\d?\b|\bac-?3\b|atmos/i.test(cvTxt)){if(window.KAudio&&KAudio.can())side=true;else return play(srvStream(s),ctx,t0)}
+ }
 
  const v=D.createElement('video');
  /* no crossorigin attribute: many hosts send no CORS headers and would refuse to play */
@@ -232,6 +237,8 @@ E.play=function(s,ctx,t0){
   });
   hl.loadSource(s.url);hl.attachMedia(v);
  }else v.src=s.url;
+ /* the sound sidecar: this video plays untouched, only its sound is prepared separately. If that fails, the converter takes over. */
+ if(side&&!isHls&&!nat)v._side=KAudio.attach(v,s,{fail:why=>{if(my!==seq||dead)return;say('Preparing the sound another way\u2026');play(srvStream({...s}),ctx,v.currentTime>5?v.currentTime:(t0||0))}});
 
  const key=ctx.vid||ctx.id;let last=0;
  const markW=()=>{if(!v.duration||v.currentTime/v.duration<.9)return;if(ctx.vid){const w=EW();if(!w[ctx.vid]){w[ctx.vid]=1;LS.set('ew',w)}}else if(!stOf(ctx).w)setSt(ctx,{w:true})};
@@ -281,12 +288,25 @@ E.play=function(s,ctx,t0){
   if(first)try{window.KSpeed&&KSpeed.ok(s._o||s,performance.now()-tStart)}catch{}
   if(ld)ld.classList.remove('on');H('state');if(first)H('playing',s);
   if(first&&!nat&&'webkitAudioDecodedByteCount' in v)setTimeout(()=>{
-   if(my!==seq||dead||v.paused||v.muted||v.volume===0||v.currentTime<1.5)return;
+   if(my!==seq||dead||v.paused||v.muted||v.volume===0||v.currentTime<1.5||v._side)return;
    if(v.webkitAudioDecodedByteCount===0){
-    if(SRVOK()&&!s._srv){say('Fixing the sound\u2026');play(srvStream({...s}),ctx,v.currentTime);return}
+    if(SRVOK()&&!s._srv){
+     /* the sound is the only problem: play it next to the untouched picture instead of converting the whole film */
+     if(window.KAudio&&KAudio.can()&&!v._side){
+      say('Fixing the sound\u2026');
+      v._side=KAudio.attach(v,s,{late:true,fail:()=>{if(my!==seq||dead)return;play(srvStream({...s}),ctx,v.currentTime>5?v.currentTime:(t0||0))}});
+      if(v._side)return;
+     }
+     say('Fixing the sound\u2026');play(srvStream({...s}),ctx,v.currentTime);return
+    }
     fail('This source has no sound on this device.','audio');
    }
   },4500);
+  /* the picture never appeared (audio only): the file's video is something this PC cannot show as it is, so the converter takes over */
+  if(first&&!nat&&!HL&&WIN&&SRVOK()&&!s._srv)setTimeout(()=>{
+   if(my!==seq||dead||v.paused||v.currentTime<1)return;
+   if(!v.videoWidth){say('Converting this video for your PC\u2026');play(srvStream({...s}),ctx,v.currentTime)}
+  },3500);
  });
  v.addEventListener('pause',()=>H('state'));v.addEventListener('play',()=>H('state'));
  v.addEventListener('volumechange',()=>H('vol'));
