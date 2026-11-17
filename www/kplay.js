@@ -16,7 +16,7 @@ const APP_PLAYER=WIN||ANDROID;
 const withT=(p,ms)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(Error('timeout')),ms))]);
 const qlab=q=>q>=2160?'4K':q?q+'p':'Auto';
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return''}};
-const MAIN='4KHDHub';
+const MAIN='PenguPlay'; /* always tried first; then the HDHub family; CNCVerse is a last resort (its 3 best sources only) */
 
 /* one-time settings: always auto-pick, let every quality through, no torrents, no stale stream filters */
 try{
@@ -29,7 +29,7 @@ try{
 
 /* ================= reading what an add-on returned ================= */
 const LANGS=[['Hindi',/\b(hindi|hin)\b/i],['English',/\b(english|eng)\b/i],['Tamil',/\b(tamil|tam)\b/i],['Telugu',/\b(telugu|tel)\b/i],['Malayalam',/\bmalayalam\b/i],['Kannada',/\bkannada\b/i],['Bengali',/\b(bengali|bangla)\b/i],['Marathi',/\bmarathi\b/i],['Punjabi',/\bpunjabi\b/i],['Gujarati',/\bgujarati\b/i],['Urdu',/\burdu\b/i],['Spanish',/\b(spanish|espa[n\u00f1]ol|castellano|latino|spa)\b/i],['French',/\b(french|fran[c\u00e7]ais|fre)\b/i],['German',/\b(german|deutsch|ger)\b/i],['Italian',/\b(italian|italiano|ita)\b/i],['Portuguese',/\b(portugu[e\u00ea]s|portuguese)\b/i],['Russian',/\b(russian|rus)\b/i],['Arabic',/\barabic\b/i],['Turkish',/\bturkish\b/i],['Japanese',/\b(japanese|jpn)\b/i],['Korean',/\b(korean|kor)\b/i],['Chinese',/\b(chinese|mandarin|cantonese)\b/i],['Thai',/\bthai\b/i],['Vietnamese',/\bvietnamese\b/i],['Indonesian',/\bindonesian\b/i],['Malay',/\bmalay\b/i],['Polish',/\bpolish\b/i]];
-const PROV=[['4KHDHub',/4khdhub/],['HDHub4u',/hdhub4u/],['HdHub',/hdhub/],['MoviesDrives',/moviesdrives?/],['VegaMovies',/vegamovies/],['MovieBox',/moviebox/],['VidLink',/vidlink/],['VidFast',/vidfast/],['VAPlayer',/vaplayer/],['2Peckle',/2peckle/],['Cinejoy',/cinejoy/],['Miruro',/miruro/],['KissKH',/kisskh/],['Anikoto',/anikoto/],['Vidy',/\bvidy\b/],['Obejrzyj',/obejrzyj/],['Arctic',/arctic/],['ToonWorld4All',/toonworld4all/],['Ani.pm',/anipm/],['Reanime',/reanime/],['LaMovie',/lamovie/],['SoloLatino',/sololatino/],['Moflix',/moflix/],['PremiumSmart',/premiumsmart/]];
+const PROV=[['PenguPlay',/pengu/],['HDHub4u',/hdhub4u/],['4KHDHub',/4khdhub/],['HdHub',/hdhub/],['MoviesDrives',/moviesdrives?/],['VegaMovies',/vegamovies/],['MovieBox',/moviebox/],['VidLink',/vidlink/],['VidFast',/vidfast/],['VAPlayer',/vaplayer/],['2Peckle',/2peckle/],['Cinejoy',/cinejoy/],['Miruro',/miruro/],['KissKH',/kisskh/],['Anikoto',/anikoto/],['Vidy',/\bvidy\b/],['Obejrzyj',/obejrzyj/],['Arctic',/arctic/],['ToonWorld4All',/toonworld4all/],['Ani.pm',/anipm/],['Reanime',/reanime/],['LaMovie',/lamovie/],['SoloLatino',/sololatino/],['Moflix',/moflix/],['PremiumSmart',/premiumsmart/],['CNCVerse',/cncverse/]];
 const ORDER=PROV.map(x=>x[0]);
 const DON=/donat|buy\s*me\s*a?\s*coffee|\bko-?fi\b|patreon|sponsor|support\s+(the\s+)?(dev|developer|project|us|add-?on)|tip\s*jar/i,DONH=/ko-fi\.com|buymeacoffee|patreon\.com|paypal\.me|razorpay\.com|upi:\/\//i;
 const resOf=t=>/\b(2160p?|4k|uhd)\b|3840\s*x\s*2160/i.test(t)?2160:/\b1440p?\b|2560\s*x\s*1440|\b2k\b/i.test(t)?1440:/\b1080p?\b|1920\s*x\s*1080|\bfhd\b/i.test(t)?1080:/\b720p?\b|1280\s*x\s*720/i.test(t)?720:/\b480p?\b|\bsd\b|854\s*x\s*480/i.test(t)?480:/\b(360p?|240p?)\b/i.test(t)?360:0;
@@ -59,7 +59,7 @@ function parse(raw,an){
  return p;
 }
 const main=()=>MAIN;
-const provRank=p=>p.prov===MAIN?0:1+(ORDER.indexOf(p.prov)<0?40:ORDER.indexOf(p.prov));
+const provRank=p=>p.prov===MAIN?0:p.prov==='CNCVerse'?500:1+(ORDER.indexOf(p.prov)<0?40:ORDER.indexOf(p.prov));
 const nativeOK=()=>!!(window.KNative&&KNative.on&&KNative.on());
 const AV1_OK=(()=>{try{return MediaSource.isTypeSupported('video/mp4; codecs="av01.0.08M.08"')}catch{return false}})();
 const webScore=p=>{
@@ -82,7 +82,7 @@ const rank=(p,sel,pref,bad)=>{
  /* KFit (ksource.js): clean copies first, then what keeps up with the measured speed, then files not squeezed too hard, then the biggest that fits */
  const [jk,ft,sv,sz]=window.KFit?KFit.keys(p):[0,0,0,0];
  const cr=window.KCaps&&KCaps.risk?KCaps.risk(p):0; /* kdev.js: Dolby Vision files with no HDR10 layer on a device with no Dolby Vision decoder, AV1 on a device without it */
- return sel.pf?(APP_PLAYER?[bd,jk,hv,lm,qd,cr,ft,sv,ps,sz,hd,webScore(p),pr,p.q?0:1]:[bd,jk,hv,ps,pr,lm,qd,cr,ft,sv,sz,hd,webScore(p),p.q?0:1]):[bd,jk,lm,qd,cr,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
+ return sel.pf?[bd,jk,pr,hv,lm,qd,cr,ft,sv,ps,sz,hd,webScore(p),p.q?0:1]:[bd,jk,lm,qd,cr,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
@@ -419,7 +419,12 @@ V.watch=async function(type,id,vid){
  let cur=null,st={lang:'',q:0},started=false,graceT=0,waiting=false,popTab='lang';
  KPlay.last=E0.S;
  const all=()=>extra.concat(E0.S);
- const playable=()=>all().filter(x=>x.playable);
+ const playable=()=>{
+  const a=all().filter(x=>x.playable),cnc=a.filter(x=>x.prov==='CNCVerse');
+  if(cnc.length<=3)return a;
+  const keep=new Set(cnc.slice().sort((x,y)=>(y.q-x.q)||((y.size||0)-(x.size||0))).slice(0,3).map(x=>x.key));
+  return a.filter(x=>x.prov!=='CNCVerse'||keep.has(x.key));
+ };
  const curTime=()=>{const v=VID();return v&&v.currentTime>5?v.currentTime:0};
  const live=()=>window.__kw===token&&!!Q('#pl');
 
@@ -435,7 +440,7 @@ V.watch=async function(type,id,vid){
  const okS=x=>!bad.has(x.key)&&!(window.KSpeed&&KSpeed.dead(x.raw));
  const order=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:true},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
  /* when a source fails: another source with the SAME language and quality comes first, the provider only breaks ties */
- const orderSame=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:false},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
+ const orderSame=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:true},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
  window.KEngineMore=()=>!E0.finished;
  KPlay.alts=()=>order({lang:st.lang,q:st.q}).filter(x=>x!==cur).length;
  const defSel=()=>{

@@ -820,7 +820,7 @@ function play(s,ctx,t0){
   if(!s.url||/^(magnet|torrent):/.test(s.url))return fail('This source is a torrent. Browsers cannot play torrents directly. Choose a source that returns direct HTTPS links.');
   if(location.protocol==='https:'&&s.url.startsWith('http:'))toast('This link is not HTTPS, so your browser may block it.');
   const v=document.createElement('video');v.autoplay=true;v.playsInline=true;v.preload='auto';v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.crossOrigin='anonymous';box.append(v);
-  if(/\.m3u8(\?|$)/i.test(s.url)&&window.Hls&&Hls.isSupported()){HL=new Hls({fragLoadingMaxRetry:8,manifestLoadingMaxRetry:6,levelLoadingMaxRetry:6});HL.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal){if(d.type===Hls.ErrorTypes.NETWORK_ERROR&&(HL._nr=(HL._nr||0)+1)<=5)return HL.startLoad();if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&(HL._mr=(HL._mr||0)+1)<=3)return HL.recoverMediaError()}});HL.loadSource(s.url);HL.attachMedia(v)}else v.src=s.url;
+  if(/\.m3u8(\?|$)/i.test(s.url)&&window.Hls&&Hls.isSupported()){HL=new Hls({backBufferLength:30,fragLoadingMaxRetry:8,manifestLoadingMaxRetry:6,levelLoadingMaxRetry:6});HL.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal){if(d.type===Hls.ErrorTypes.NETWORK_ERROR&&(HL._nr=(HL._nr||0)+1)<=5)return HL.startLoad();if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&(HL._mr=(HL._mr||0)+1)<=3)return HL.recoverMediaError()}});HL.loadSource(s.url);HL.attachMedia(v)}else v.src=s.url;
   const startPlay=()=>{const pr=v.play();if(pr&&pr.catch)pr.catch(()=>{const unlock=()=>{v.play().catch(()=>{});['click','touchstart','touchend','keydown'].forEach(ev=>document.removeEventListener(ev,unlock,true))};['click','touchstart','touchend','keydown'].forEach(ev=>document.addEventListener(ev,unlock,true))})};
   if(v.readyState>=2)startPlay();else v.addEventListener('canplay',startPlay,{once:true});
   const key=ctx.vid||ctx.id;let last=0;
@@ -1430,7 +1430,7 @@ V.profile=function(){
     :USER?`<div class="acard"><div><b>${h(USER.email||'Signed in')}</b><small>${last?'Last synced '+new Date(last).toLocaleString():'Not synced yet'}</small></div><button class="btn" id="sy">Sync now</button><button class="btn" id="so2">Sign out</button></div>`
     :`<form id="af2" class="auth"><input class="t" id="ae" type="email" placeholder="Email" autocomplete="email" required><input class="t" id="ap" type="password" placeholder="Password (6+ characters)" autocomplete="current-password" minlength="6" required><div class="acts"><button class="btn p" id="si">Sign in</button><button class="btn" type="button" id="su">Create account</button></div></form><div class="or"><span>or</span></div><button class="btn gbtn" id="gg"><svg viewBox="0 0 24 24"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.9-5.5 3.9a6.1 6.1 0 1 1 0-12.2c1.9 0 3.2.8 3.9 1.5l2.7-2.6A9.9 9.9 0 0 0 12 2a10 10 0 1 0 0 20c5.8 0 9.6-4 9.6-9.8 0-.7-.1-1.2-.2-2z"/></svg>Continue with Google</button>`;
   app.innerHTML=`<div class="page"><h1>Edit profile</h1><div class="pe"><div class="avb">${avatarSvg(av)}</div><div class="pf"><label class="lbl">Name<input class="t" id="pn" value="${h(n)}" maxlength="30" placeholder="Your name"></label><label class="lbl">Email<input class="t" value="${h(USER?USER.email:'')}" placeholder="Guest · sign in to add an email" disabled></label></div></div>
-    <h2>Choose an avatar</h2><div class="avg">${Array.from({length:12},(_,i)=>`<button class="avs${i===av?' on':''}" data-a="${i}" aria-label="Avatar ${i+1}">${avatarSvg(i)}</button>`).join('')}</div>
+    <h2>Choose an avatar</h2><div class="avg">${Array.from({length:window.AV_COUNT||12},(_,i)=>`<button class="avs${i===av?' on':''}" data-a="${i}" aria-label="Avatar ${i+1}">${avatarSvg(i)}</button>`).join('')}</div>
     <h2>Account and sync</h2><p class="sub">Your name, avatar, sources, settings, library, reactions and watch progress are saved to your account so they follow you to any device.</p>${acct}</div>`;
   $('#pn').oninput=e=>{LS.set('me',e.target.value.trim());renderPm()};
   app.querySelectorAll('.avs').forEach(b=>b.onclick=()=>{LS.set('av',+b.dataset.a);app.querySelectorAll('.avs').forEach(x=>x.classList.toggle('on',x===b));$('.pe .avb').innerHTML=avatarSvg(+b.dataset.a);renderPm()});
@@ -1589,10 +1589,13 @@ else if(!IS_APP&&'serviceWorker' in navigator&&/^https?:$/.test(location.protoco
 <script src="kdock.js"></script>
 <link rel="stylesheet" href="kx.css">
 <link rel="stylesheet" href="kx2.css">
-<link rel="stylesheet" href="kglass.css">
+<link rel="stylesheet" href="kfinal.css">
 <script src="kx.js"></script>
 <script src="kaudio.js"></script>
 <script src="kdev.js"></script>
+<script src="kavatar.js"></script>
+<script src="ksubs.js"></script>
+<script src="kfx.js"></script>
 <script>boot()</script>
 </body>
 </html>

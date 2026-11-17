@@ -511,7 +511,29 @@ function startServer({ www, tmp, port = 38787 }) {
     } catch { res.status(500).send('Error'); }
   });
 
-  app.use('/hls/:id', (req, res, next) => { const j = jobs.get(req.params.id); if (j) j.last = Date.now(); res.set('Cache-Control', 'no-cache'); next(); });
+  app.use('/hls/:id', (req, res, next) => {
+    const j = jobs.get(req.params.id);
+    if (j) { j.last = Date.now(); const m = /seg0*(\d+)\.(?:ts|m4s)$/.exec(req.path); if (m) j.maxSeg = Math.max(j.maxSeg || 0, +m[1]); }   // how far the viewer has got
+    res.set('Cache-Control', 'no-cache'); next();
+  });
+
+  // Disk safety for long conversions: when a conversion's files pass 4 GB, the parts far BEHIND the viewer (more than the last 15 minutes) are deleted,
+  // oldest first, down to 3 GB. Past 12 GB the conversion stops running ahead. Nothing near the playhead is ever touched.
+  function trimBehind(j) {
+    if (!j.dir || !fs.existsSync(j.dir)) return;
+    const files = fs.readdirSync(j.dir).filter((f) => /^seg\d+\.(ts|m4s)$/.test(f));
+    let total = 0;
+    const sized = files.map((f) => { let n = 0; try { n = fs.statSync(path.join(j.dir, f)).size; } catch {} total += n; return [f, n]; });
+    const CAP = 4 * 1024 ** 3, KEEP = 450;   // 450 segments of 2 s = 15 minutes
+    if (total > 12 * 1024 ** 3 && !j.done) { try { j.proc.kill('SIGKILL'); } catch {} }
+    if (total <= CAP) return;
+    const lim = (j.maxSeg || 0) - KEEP;
+    sized.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    for (const [f, n] of sized) {
+      if (+/\d+/.exec(f)[0] >= lim || total <= CAP * 0.75) break;
+      try { fs.unlinkSync(path.join(j.dir, f)); total -= n; } catch {}
+    }
+  }
   app.use('/hls', express.static(tmp));
   app.use(express.static(www));
 
@@ -520,6 +542,7 @@ function startServer({ www, tmp, port = 38787 }) {
     for (const [id, j] of jobs) {
       if (!j.done && now - j.last > 5 * 60000) j.proc.kill('SIGKILL');
       if (now - j.last > 2 * 3600000) { fs.rmSync(j.dir, { recursive: true, force: true }); jobs.delete(id); }
+      else { try { trimBehind(j); } catch {} }
     }
     for (const [k, m] of metaCache) if (now - m.t > 900000) metaCache.delete(k);
   }, 60000).unref();
