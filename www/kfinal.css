@@ -4,12 +4,16 @@
 /* ---------- 1. ambient glow: a big, soft, saturated copy of the poster/backdrop behind the whole page ---------- */
 #amb{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--bg)}
 /* drawn small and scaled up: the blur is computed on a tenth of the pixels, which keeps scrolling smooth on phones and old PCs */
-#amb div{position:absolute;left:-10%;top:-10%;width:32%;height:32%;transform:scale(4.4);transform-origin:0 0;background-size:cover;background-position:center;filter:blur(20px) saturate(1.9);opacity:0;transition:opacity 1.4s ease;will-change:opacity}
+#amb div{position:absolute;left:-10%;top:-10%;width:32%;height:32%;transform:scale(4.4);transform-origin:0 0;background-size:cover;background-position:center;filter:blur(20px) saturate(1.9);opacity:0;transition:opacity 1.4s ease}
 #amb div.on{opacity:.6}
 #amb:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 130% 95% at 50% 20%,rgba(7,8,11,0) 0,rgba(7,8,11,.4) 58%,rgba(7,8,11,.8) 100%)}
 @media(max-width:820px){#amb div{filter:blur(10px) saturate(1.8)}#amb div.on{opacity:.8}#amb:after{background:linear-gradient(rgba(7,8,11,.1),rgba(7,8,11,.4) 55%,rgba(7,8,11,.75))}}
-/* rows far below the screen are not drawn until they get close (long home pages scroll smoothly) */
-.kh-row{content-visibility:auto;contain-intrinsic-size:auto 420px}
+/* home rows: no dark panels behind them (they hid the glow) and normal text colours */
+.kh,.kh-row,.kh-sc{background:none!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-radius:0!important}
+.kh-row>h2,.kh-c>span{color:#f1efea!important}
+
+/* the player's control row is also called "kr", and kui.js hides every .kr until it scrolls into view (home page rows): the player's row must always show */
+#pl .kr,#pl.kp .kr{opacity:1!important;transform:none!important;transition:none!important}
 
 /* ---------- 2. hero pictures fade into the glow instead of ending on a flat bar ---------- */
 .kh-hero,.kt-hero{background:transparent!important}

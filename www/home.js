@@ -38,7 +38,7 @@ function hero(it){
  function show(k){
   i=(k+it.length)%it.length;const m=it[i];try{setAmb(m.background)}catch{}
   bgs.forEach((b,j)=>b.classList.toggle('on',j===i));dots.forEach((d,j)=>d.classList.toggle('on',j===i));
-  inn.innerHTML=(m.logo?'<img class="kh-logo" src="'+h(m.logo)+'" alt="'+h(m.name)+'">':'<h1 class="kh-h">'+h(m.name)+'</h1>')+
+  inn.innerHTML='<h1 class="kh-h">'+h(m.name)+'</h1>'+
    '<div class="kh-meta">'+(m.imdbRating?'<b>'+STAR+h(m.imdbRating)+'</b>':'')+'<span>'+h(typeLabel(m.type))+'</span>'+(yr(m)?'<span>'+h(yr(m))+'</span>':'')+(m.genres||[]).slice(0,3).map(g=>'<span>'+h(g)+'</span>').join('')+'</div>'+
    '<p class="kh-d">'+h(short(m.description))+'</p><div class="kh-acts"><a class="kh-btn" href="'+dt(m)+'">'+ic('play')+'Play</a><a class="kh-btn kh-b2" href="'+dt(m)+'">More info</a><button type="button" class="kh-btn kh-b3" aria-label="My list"></button></div>';
   const lb=inn.querySelector('.kh-b3');

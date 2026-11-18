@@ -82,7 +82,7 @@ const rank=(p,sel,pref,bad)=>{
  /* KFit (ksource.js): clean copies first, then what keeps up with the measured speed, then files not squeezed too hard, then the biggest that fits */
  const [jk,ft,sv,sz]=window.KFit?KFit.keys(p):[0,0,0,0];
  const cr=window.KCaps&&KCaps.risk?KCaps.risk(p):0; /* kdev.js: Dolby Vision files with no HDR10 layer on a device with no Dolby Vision decoder, AV1 on a device without it */
- return sel.pf?[bd,jk,pr,hv,lm,qd,cr,ft,sv,ps,sz,hd,webScore(p),p.q?0:1]:[bd,jk,lm,qd,cr,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
+ return sel.pf?[bd,jk,(ft>=2?1:0),lm,pr,hv,qd,cr,ft,sv,ps,sz,hd,webScore(p),p.q?0:1]:[bd,jk,lm,qd,cr,ft,sv,ps,sz,hd,hv,pr,webScore(p),p.q?0:1];
 };
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]-b[i];return 0};
 
@@ -139,7 +139,8 @@ E.play=function(s,ctx,t0){
  const fail=(why,kind)=>{if(dead||my!==seq)return;dead=true;clearTimeout(wd);clearTimeout(stallT);clearInterval(E._fz);if(!started)try{window.KSpeed&&KSpeed.bad(s._o||s)}catch{}const x=vel;KPlay.fail&&KPlay.fail(why,x&&x.currentTime>5?x.currentTime:t0||0,s,kind)};
  if(!s.url||/^(magnet|torrent):/i.test(s.url)){setTimeout(()=>fail('This source is a torrent, which a player cannot open directly.'),0);return}
  /* Windows app: hand hard files to mpv or VLC when it is installed */
- try{if(window.KExt&&KExt.handle&&KExt.handle(s,ctx,t0,why=>fail(why)))return}catch{}
+ /* external player (mpv / VLC hand-off): switched off for now; the built-in player handles everything */
+ try{if(false&&window.KExt&&KExt.handle&&KExt.handle(s,ctx,t0,why=>fail(why)))return}catch{}
  /* Windows app: plain files go through the built-in fast proxy (it also adds the headers the host wants) */
  if(WIN&&SRVOK()&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&(!/\.m3u8(\?|$)/i.test(s.url)||!!(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request))&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)){
   const c=srvCfg(),hd=s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request,bh={...(s.behaviorHints||{})};delete bh.proxyHeaders;
@@ -155,7 +156,8 @@ E.play=function(s,ctx,t0){
  if(SRVOK()&&!s._srv&&WIN){
   const ext0=((((s._o&&s._o.url)||s.url||'')+'').split('?')[0].match(/\.([a-z0-9]{2,4})$/i)||[])[1]||'';
   if(/^(avi|m2ts|ts|wmv|flv|mpe?g)$/i.test(ext0)||(!HEVC_OK&&/hevc|x265|h\.?265/i.test(cvTxt)))return play(srvStream(s),ctx,t0);
-  if(/dts|truehd|e-?ac-?3|\bdd\+|\bddp?\d?\b|\bac-?3\b|atmos/i.test(cvTxt)){if(window.KAudio&&KAudio.can())side=true;else return play(srvStream(s),ctx,t0)}
+  /* sound the web engine cannot play (DD+, DTS, TrueHD, AC-3): the built-in converter copies the picture as it is and only turns the sound into AAC 5.1 */
+  if(/dts|truehd|e-?ac-?3|\bdd\+|\bddp?\d?\b|\bac-?3\b|atmos/i.test(cvTxt))return play(srvStream(s),ctx,t0);
  }
 
  const v=D.createElement('video');
@@ -276,8 +278,15 @@ E.play=function(s,ctx,t0){
   H('time');
   if(!started&&v.buffered.length){arm(22000);setLt('Buffering\u2026')}
  });
+ /* repeated buffering: 3 stalls inside a minute means this source cannot keep up with your connection. Another source at the SAME resolution takes over (see KPlay.fail). */
+ let stl=[];
+ const noteStall=()=>{
+  const t=Date.now();stl=stl.filter(x=>t-x<60000);stl.push(t);
+  if(stl.length>=3&&my===seq&&!v.paused&&CFG().autoSwitch!==false&&(KPlay.alts?KPlay.alts():0)>0){stl=[];say('This source keeps buffering. Trying a faster one\u2026');fail('This source keeps buffering.','slow')}
+ };
  v.addEventListener('waiting',()=>{
   if(!started)return;
+  if(!v.seeking)noteStall();
   setBuf(true);clearTimeout(stallT);stallT=setTimeout(stallRecover,5000);
  });
  v.addEventListener('stalled',()=>{if(started&&v.readyState<3){setBuf(true);clearTimeout(stallT);stallT=setTimeout(stallRecover,5000)}});
@@ -291,12 +300,6 @@ E.play=function(s,ctx,t0){
    if(my!==seq||dead||v.paused||v.muted||v.volume===0||v.currentTime<1.5||v._side)return;
    if(v.webkitAudioDecodedByteCount===0){
     if(SRVOK()&&!s._srv){
-     /* the sound is the only problem: play it next to the untouched picture instead of converting the whole film */
-     if(window.KAudio&&KAudio.can()&&!v._side){
-      say('Fixing the sound\u2026');
-      v._side=KAudio.attach(v,s,{late:true,fail:()=>{if(my!==seq||dead)return;play(srvStream({...s}),ctx,v.currentTime>5?v.currentTime:(t0||0))}});
-      if(v._side)return;
-     }
      say('Fixing the sound\u2026');play(srvStream({...s}),ctx,v.currentTime);return
     }
     fail('This source has no sound on this device.','audio');
@@ -611,7 +614,14 @@ V.watch=async function(type,id,vid){
   if(!live()||!cur||(s&&s._kk&&s._kk!==cur.key))return;
   bad.add(cur.key);
   let n=null;
-  if(kind==='slow'&&st.q){n=order({lang:st.lang,q:st.q}).find(x=>x.q&&x.q<st.q);if(n)say('Slow connection: switching to '+qlab(n.q))}
+  if(kind==='slow'&&st.q){
+   /* constant quality: the resolution never drops. Another source at the same resolution takes over, the lightest one that is not squeezed first. */
+   const rate=x=>{try{return window.KFit?KFit.rate(x):0}catch{return 0}},cr0=cur?rate(cur):0,starved=x=>{try{return window.KFit?KFit.starved(x):0}catch{return 0}};
+   const same=order({lang:st.lang,q:st.q}).filter(x=>x.q===st.q&&(!cur||x.key!==cur.key));
+   const lighter=same.filter(x=>!cr0||(rate(x)>0&&rate(x)<=cr0*.9)).sort((a,b)=>starved(a)-starved(b)||rate(a)-rate(b));
+   n=lighter[0]||same[0]||null;
+   if(n)say('Buffering: switching to a faster source at the same quality');
+  }
   if(!n){n=orderSame({lang:st.lang,q:st.q})[0];if(n)say('That source did not work. Trying another\u2026')}
   if(n){use(n,t);return}
   if(!E0.finished){waiting=true;const l=Q('#ld');if(l)l.classList.add('on');const e=Q('#lt');if(e)e.textContent='Looking for another source\u2026';return}

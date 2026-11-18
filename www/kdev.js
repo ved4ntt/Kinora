@@ -321,6 +321,8 @@ window.KCaps={
   let r=0;
   if(p.dv&&!p.hdr&&!c.dv.decoder)r++;          /* Dolby Vision with no HDR10 layer needs a Dolby Vision decoder, or the colours come out purple and green */
   if(p.av1&&c.av1&&c.av1.ok===false)r++;
+  /* Android draws the picture on a TextureView, which does not carry HDR: HDR and Dolby Vision files come out grey and washed out. Same-resolution SDR copies are preferred. */
+  if(c.platform==='android'&&(p.hdr||p.dv))r++;
   return r;
  }
 };
