@@ -59,16 +59,29 @@ async function check(){
  }catch{S.s='error';S.m='Could not reach the update server'}
  S.at=Date.now();render();
 }
+/* Android: the download runs in the system download manager; the page follows it so the app shows the same progress bar as on Windows */
+let tk=0;
+function track(){
+ clearInterval(tk);
+ tk=setInterval(()=>{
+  let r=null;try{r=JSON.parse(window.KinoraNative.dlStatus())}catch{}
+  if(!r)return;
+  if(r.state==='running'){if(r.p!==S.p){S.p=r.p;render()}}
+  else if(r.state==='ok'){clearInterval(tk);S.s='ready';S.p=100;render()}
+  else if(r.state==='failed'){clearInterval(tk);S.s='error';S.m='The download failed. Try again.';render()}
+ },700);
+}
 function act(){
  if(S.s==='available'){
   if(W){S.s='downloading';S.p=0;render();W.download()}
   else{
    /* Android: the file downloads in the background with a notification; when it is done the installer opens by itself */
    let ok=false;try{ok=!!(window.KinoraNative&&KinoraNative.download&&KinoraNative.download(S.url,'Kinora-'+S.v+'.apk'))}catch{}
-   if(ok){S.s='bg';S.m='';render();try{toast('Downloading the update. The installer opens when it is done.')}catch{}}
+   if(ok){S.s='downloading';S.p=0;S.m='';render();track()}
    else{try{if(CAP&&CAP.Plugins&&CAP.Plugins.Browser)CAP.Plugins.Browser.open({url:S.url});else window.open(S.url,'_blank')}catch{window.open(S.url,'_blank')}}
   }
  }else if(S.s==='ready'&&W)W.install();
+ else if(S.s==='ready'&&AND){let ok=false;try{ok=!!KinoraNative.installUpdate()}catch{}if(!ok)check()}
  else check();
 }
 if(W)W.on(e=>{
@@ -81,7 +94,7 @@ if(W)W.on(e=>{
 /* ---- settings page ---- */
 const title=()=>({web:'You are on the newest version',idle:'Not checked yet',checking:'Checking for updates…',uptodate:'Kinora is up to date',available:'Version '+S.v+' is available',downloading:'Downloading version '+S.v+'… '+S.p+'%',ready:'Version '+S.v+' is ready to install',bg:'Downloading version '+S.v+' in the background',error:S.m||'Could not check for updates'})[S.s];
 function card(){
- const b=S.s==='available'?(W?'Download update':'Get update'):S.s==='ready'?'Restart to update':'Check for updates',dis=S.s==='checking'||S.s==='downloading'||S.s==='bg';
+ const b=S.s==='available'?(W?'Download update':'Get update'):S.s==='ready'?(W?'Restart to update':'Install now'):'Check for updates',dis=S.s==='checking'||S.s==='downloading'||S.s==='bg';
  return opt(h(title()),KIND==='web'?'Kinora on the web':'Kinora '+h(S.cur||'')+' · '+(S.at?'checked '+ago(S.at):'not checked yet'),KIND==='web'?'':'<button class="btn p" data-upd="act"'+(dis?' disabled':'')+'>'+b+'</button>')+
   (S.s==='downloading'?'<div style="height:4px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden;margin:6px 4px"><i style="display:block;height:100%;width:'+S.p+'%;background:#f1efea;transition:width .3s"></i></div>':'');
 }
@@ -108,10 +121,10 @@ st.textContent='#kupdp{position:fixed;left:0;right:0;margin:auto;width:max-conte
 D.head.append(st);
 function pill(){
  let p=Q('#kupdp');
- const on=/available|ready/.test(S.s)&&!later&&!Q('#pl')&&(location.hash===''||location.hash==='#'||location.hash==='#/');
+ const on=/available|ready|downloading/.test(S.s)&&!later&&!Q('#pl')&&(location.hash===''||location.hash==='#'||location.hash==='#/');
  if(!on){if(p)p.remove();return}
  if(!p){p=D.createElement('div');p.id='kupdp';D.body.append(p)}
- p.innerHTML='<span>'+(S.s==='ready'?'Update ready':'Kinora '+h(S.v)+' is available')+'</span><button data-upd="act">'+(S.s==='ready'?'Restart':'Update')+'</button><button data-upd="later" aria-label="Later">\u00d7</button>';
+ p.innerHTML=S.s==='downloading'?'<span>Downloading update\u2026 '+S.p+'%</span><span style="display:block;width:90px;height:4px;border-radius:9px;background:rgba(255,255,255,.14);overflow:hidden"><i style="display:block;height:100%;width:'+S.p+'%;background:#f1efea;transition:width .3s"></i></span><span style="width:8px"></span>':'<span>'+(S.s==='ready'?'Update ready':'Kinora '+h(S.v)+' is available')+'</span><button data-upd="act">'+(S.s==='ready'?(W?'Restart':'Install'):'Update')+'</button><button data-upd="later" aria-label="Later">\u00d7</button>';
 }
 function render(){
  const c=Q('#kupd-card');

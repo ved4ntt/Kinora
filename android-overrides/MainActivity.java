@@ -204,6 +204,39 @@ public class MainActivity extends BridgeActivity {
           return true;
         } catch (Throwable e) { return false; }
       }
+      /** Progress of the update download, so the page can show a progress bar: {"state":"none|running|ok|failed","p":0-100,"bytes":n,"total":n} */
+      @JavascriptInterface
+      public String dlStatus() {
+        try {
+          if (updId < 0) return "{\"state\":\"none\"}";
+          DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+          android.database.Cursor c = dm.query(new DownloadManager.Query().setFilterById(updId));
+          try {
+            if (c == null || !c.moveToFirst()) return "{\"state\":\"none\"}";
+            int st = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+            long got = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+            long tot = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+            String s = st == DownloadManager.STATUS_SUCCESSFUL ? "ok" : st == DownloadManager.STATUS_FAILED ? "failed" : "running";
+            int p = tot > 0 ? (int) Math.min(100L, got * 100L / tot) : 0;
+            return "{\"state\":\"" + s + "\",\"p\":" + p + ",\"bytes\":" + got + ",\"total\":" + tot + "}";
+          } finally { if (c != null) c.close(); }
+        } catch (Throwable e) { return "{\"state\":\"none\"}"; }
+      }
+      /** Opens the installer for the downloaded update again (when the first prompt was dismissed). */
+      @JavascriptInterface
+      public boolean installUpdate() {
+        try {
+          if (updId < 0) return false;
+          DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+          Uri u = dm.getUriForDownloadedFile(updId);
+          if (u == null) return false;
+          Intent i = new Intent(Intent.ACTION_VIEW);
+          i.setDataAndType(u, "application/vnd.android.package-archive");
+          i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+          startActivity(i);
+          return true;
+        } catch (Throwable e) { return false; }
+      }
     }, "KinoraNative");
 
     w.addJavascriptInterface(new Object() {
