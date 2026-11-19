@@ -146,6 +146,25 @@ function detach(){
  try{h.be.stop()}catch{}
 }
 
+/* a short, honest line about what is really playing: read from the engine (ExoPlayer or mpv), never guessed from the file name */
+const VC={hevc:'HEVC',h265:'HEVC',avc:'H.264',h264:'H.264',av01:'AV1',av1:'AV1',vp9:'VP9',vp8:'VP8',mpeg2video:'MPEG-2',mpeg4:'MPEG-4'};
+const AC={eac3:'E-AC-3 (Dolby Digital Plus)','ec-3':'E-AC-3 (Dolby Digital Plus)',ac3:'AC-3 (Dolby Digital)','true-hd':'TrueHD',truehd:'TrueHD','vnd.dts':'DTS',dts:'DTS',dtshd:'DTS-HD',aac:'AAC','mp4a-latm':'AAC',opus:'Opus',mp3:'MP3',mpeg:'MP3',flac:'FLAC',vorbis:'Vorbis'};
+function tech(v){
+ try{
+  const j=v&&v.kStat&&v.kStat();if(!j)return'';
+  const f=j.vf||{},a=j.af||{},out=[];
+  const vc=String(f.codec||f.mime||'').toLowerCase().replace(/^video\//,'');
+  if(vc)out.push((VC[vc]||vc.toUpperCase())+(f.bits>8?' '+f.bits+'-bit':''));
+  if(f.w&&f.h)out.push(f.w+'\u00d7'+f.h);
+  if(f.hdr==='pq'||f.tr===6)out.push('HDR (PQ)');else if(f.hdr==='hlg'||f.tr===7)out.push('HDR (HLG)');
+  if(f.hw)out.push(/^(no|none|software)$/i.test(f.hw)?'software decoding':'hardware decoding'+(f.hw==='yes'?'':' ('+f.hw+')'));
+  const ac=String(a.codec||a.mime||'').toLowerCase().replace(/^audio\//,'');
+  if(ac)out.push((AC[ac]||ac.toUpperCase())+(a.ch>2?' '+(a.ch===6?'5.1':a.ch===8?'7.1':a.ch+'ch'):''));
+  return out.join(' \u00b7 ');
+ }catch{return''}
+}
+window.KTech=tech;
+
 window.KPlayback={
  detect,sniff,
  mimeOf:k=>MIME[k]||'',

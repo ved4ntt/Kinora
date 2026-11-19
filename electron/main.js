@@ -1,9 +1,14 @@
 // Kinora for Windows: frameless full-screen window around the Kinora site with a built-in streaming server.
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, screen } = require('electron');
 const path = require('path');
 const { startServer } = require('./localserver');
 let autoUpdater = null;
 try { ({ autoUpdater } = require('electron-updater')); } catch {}
+
+// Video engine. "builtin" (default) = Chromium plays the video, exactly as before. "mpv" (beta, Settings > Playback > Video engine) = mpv.exe draws the picture in a
+// native window behind a see-through Kinora window. It is only used when it was chosen AND mpv.exe exists, so nothing changes for anyone else.
+const mpvMod = require('./mpv');
+const MPV_ON = process.platform === 'win32' && mpvMod.readEngine(app) === 'mpv' && !!mpvMod.findMpv(app);
 
 process.on('uncaughtException', (err) => {
   if (err && (err.name === 'AbortError' || err.code === 'ABORT_ERR' || String(err).includes('aborted'))) return;
@@ -49,6 +54,31 @@ function sendAuth(u) {
 let win;
 let stopJobs = null;
 let lastNav = 0;
+
+// ---- mpv mode only: the black window mpv draws into, kept exactly behind the Kinora window ----
+// A transparent window cannot be maximised or made full screen by Windows itself, so in this mode both are done by setting the bounds.
+let videoWin = null, videoShown = false, isMax = false, isFull = false, restoreBounds = null, mpvCtl = null;
+const workArea = () => screen.getDisplayMatching(win.getBounds()).workArea;
+function followVideo() { if (videoShown && videoWin && !videoWin.isDestroyed() && win) { try { videoWin.setBounds(win.getBounds()); } catch {} } }
+function raiseVideo() {
+  if (!videoShown || !videoWin || videoWin.isDestroyed() || !win || win.isDestroyed()) return;
+  try { videoWin.setBounds(win.getBounds()); videoWin.setAlwaysOnTop(win.isAlwaysOnTop(), 'screen-saver'); videoWin.showInactive(); win.moveTop(); } catch {}
+}
+function showVideo() { videoShown = true; raiseVideo(); }
+function hideVideo() { videoShown = false; try { if (videoWin && !videoWin.isDestroyed()) videoWin.hide(); } catch {} }
+function setMax(on) {
+  if (!win) return;
+  if (on) { if (!isFull) restoreBounds = win.getBounds(); win.setBounds(workArea()); isMax = true; }
+  else { if (restoreBounds) win.setBounds(restoreBounds); isMax = false; }
+  followVideo(); win.webContents.send('win-state', { max: isMax, full: isFull });
+}
+function setFull(on) {
+  if (!win || on === isFull) return;
+  isFull = on;
+  if (on) { if (!isMax) restoreBounds = win.getBounds(); win.setBounds(screen.getDisplayMatching(win.getBounds()).bounds); win.setAlwaysOnTop(true, 'screen-saver'); }
+  else { win.setAlwaysOnTop(false); win.setBounds(isMax ? workArea() : (restoreBounds || win.getBounds())); }
+  followVideo(); raiseVideo(); win.webContents.send('win-state', { max: isMax, full: isFull });
+}
 // One place for "go back / forward" so the mouse side buttons never fire twice.
 function nav(dir) {
   if (!win) return;
@@ -67,13 +97,24 @@ async function createWindow() {
   });
   const { port } = srvInfo; stopJobs = srvInfo.killAll;
   Menu.setApplicationMenu(null);
+  if (MPV_ON) {
+    videoWin = new BrowserWindow({ show: false, frame: false, skipTaskbar: true, focusable: false, hasShadow: false, backgroundColor: '#000000', title: 'Kinora video', webPreferences: { backgroundThrottling: false } });
+    videoWin.setIgnoreMouseEvents(true);
+    videoWin.loadURL('about:blank');
+  }
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 480, minHeight: 600,
-    frame: false, show: false, backgroundColor: '#07080b', title: 'Kinora',
+    frame: false, show: false, transparent: MPV_ON, backgroundColor: MPV_ON ? '#00000000' : '#07080b', title: 'Kinora',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, webSecurity: false, backgroundThrottling: false, preload: path.join(__dirname, 'preload.js') },
   });
-  win.once('ready-to-show', () => { win.maximize(); win.show(); });
+  if (MPV_ON) {
+    ['move', 'resize'].forEach((ev) => win.on(ev, followVideo));
+    ['focus', 'restore', 'show'].forEach((ev) => win.on(ev, raiseVideo));
+    win.on('minimize', () => { try { videoWin && !videoWin.isDestroyed() && videoWin.hide(); } catch {} });
+    win.on('closed', () => { try { videoWin && !videoWin.isDestroyed() && videoWin.destroy(); } catch {} });
+  }
+  win.once('ready-to-show', () => { if (MPV_ON) setMax(true); else win.maximize(); win.show(); });
   win.loadURL(`http://127.0.0.1:${port}/index.html`);
   win.webContents.once('did-finish-load', () => { if (pendingAuth) { const u = pendingAuth; pendingAuth = null; setTimeout(() => sendAuth(u), 1200); } });
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
@@ -88,18 +129,18 @@ async function createWindow() {
     if (input.type === 'keyDown' && input.alt && input.key === 'ArrowRight') { e.preventDefault(); nav('forward'); }
   });
 
-  const st = () => win.webContents.send('win-state', { max: win.isMaximized(), full: win.isFullScreen() });
+  const st = () => win.webContents.send('win-state', MPV_ON ? { max: isMax, full: isFull } : { max: win.isMaximized(), full: win.isFullScreen() });
   ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach((ev) => win.on(ev, st));
 }
 
 ipcMain.on('win', (_e, a) => {
   if (!win) return;
   if (a === 'min') win.minimize();
-  else if (a === 'max') win.isMaximized() ? win.unmaximize() : win.maximize();
-  else if (a === 'full') win.setFullScreen(!win.isFullScreen());
+  else if (a === 'max') { if (MPV_ON) setMax(!isMax); else win.isMaximized() ? win.unmaximize() : win.maximize(); }
+  else if (a === 'full') { if (MPV_ON) setFull(!isFull); else win.setFullScreen(!win.isFullScreen()); }
   // the player asks for full screen by itself while a video plays, and gives it back when you leave the player
-  else if (a === 'fs-on') { if (!win.isFullScreen()) win.setFullScreen(true); }
-  else if (a === 'fs-off') { if (win.isFullScreen()) win.setFullScreen(false); }
+  else if (a === 'fs-on') { if (MPV_ON) setFull(true); else if (!win.isFullScreen()) win.setFullScreen(true); }
+  else if (a === 'fs-off') { if (MPV_ON) setFull(false); else if (win.isFullScreen()) win.setFullScreen(false); }
   else if (a === 'quit') app.quit();
   else if (a === 'back') nav('back');
   else if (a === 'forward') nav('forward');
@@ -117,9 +158,12 @@ ipcMain.handle('sys:caps', async () => {
 });
 
 // Conversions started by the built-in server must not outlive the app (they would keep downloading in the background).
-app.on('before-quit', () => { try { stopJobs && stopJobs(); } catch {} });
+app.on('before-quit', () => { try { stopJobs && stopJobs(); } catch {} try { mpvCtl && mpvCtl.quit(); } catch {} });
 
 ipcMain.on('open-external', (_e, u) => { if (typeof u === 'string' && /^https:\/\//i.test(u)) shell.openExternal(u); });
+
+// mpv engine: info, engine switch, load / control (see mpv.js). Registered always, so the page can ask whether the engine exists; it only acts when MPV_ON.
+mpvCtl = mpvMod.register({ ipcMain, app, getWin: () => win, getVideoWin: () => videoWin, running: MPV_ON, show: showVideo, hide: hideVideo });
 
 // Smooth playback: hand a stream to mpv or VLC when one is installed (Windows)
 const { spawn, execFileSync } = require('child_process');

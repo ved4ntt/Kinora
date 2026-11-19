@@ -24,7 +24,7 @@ const be={
  can:s=>!!(s&&/^https?:/i.test(s.url||'')&&!s._srv&&!s._nompv&&!/^https?:\/\/(127\.|localhost)/i.test(s.url)),
  open(o){
   latest=IDLE;
-  return M.load({url:o.url,headers:o.headers||{},start:Math.max(0,(o.start||0)/1000),rate:o.rate||1,volume:o.volume==null?1:o.volume})
+  return M.load({url:o.url,headers:o.headers||{},start:Math.max(0,(o.start||0)/1000),rate:o.rate||1,volume:o.volume==null?1:o.volume,lang:(()=>{try{return(LS.get('kpick',{})||{}).lang||''}catch{return''}})()})
    .then(r=>{if(!r||!r.ok){bad=true;throw new Error('engine not supported here: '+((r&&r.error)||'mpv could not start'))}});
  },
  play:()=>M.cmd('play'),

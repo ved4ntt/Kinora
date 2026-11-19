@@ -46,6 +46,7 @@ import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.DecoderCounters;
@@ -99,6 +100,10 @@ public class MainActivity extends BridgeActivity {
   private final ConcurrentHashMap<String, String> probes = new ConcurrentHashMap<>();
   private final ExecutorService pool = Executors.newFixedThreadPool(4);
   private volatile long updId = -1;
+  private String pendingMime = "";
+  private int netRetries = 0;
+  private StateSink sink = null;
+  private boolean sinkLooked = false;
 
   // ---- device volume / brightness: the player's controls drive the real phone settings and give them back when it closes ----
   private AudioManager am;
@@ -143,7 +148,10 @@ public class MainActivity extends BridgeActivity {
       });
     } catch (Throwable ignored) {}
 
+    // The Capacitor plugin is looked up by name: if its file is not in a build, the app still compiles and the page uses the older JavaScript bridge.
+    try { registerPlugin((Class) Class.forName("app.kinora.player.KinoraPlayerPlugin")); } catch (Throwable ignored) {}
     super.onCreate(savedInstanceState);
+    cleanOldUpdate();
     try { setVolumeControlStream(AudioManager.STREAM_MUSIC); } catch (Throwable ignored) {}
     final WebView w = getBridge().getWebView();
     web = w;
@@ -183,6 +191,9 @@ public class MainActivity extends BridgeActivity {
         } catch (Throwable e) { return ""; }
       }
       @JavascriptInterface public boolean nativeOff() { return nativeOff; }
+      /** Android 8+: the user must allow this app to install APKs once. The page asks before it offers the install button. */
+      @JavascriptInterface public boolean canInstall() { return canInstallApks(); }
+      @JavascriptInterface public void allowInstall() { runOnUiThread(() -> openInstallSettings()); }
       @JavascriptInterface public int crashes() { return crashes; }
       @JavascriptInterface public String lastCrash() { try { return kp.getString("last", ""); } catch (Throwable e) { return ""; } }
       @JavascriptInterface public void played() { try { crashes = 0; kp.edit().putInt("crashes", 0).apply(); } catch (Throwable ignored) {} }
@@ -194,6 +205,7 @@ public class MainActivity extends BridgeActivity {
       public boolean download(final String url, final String name) {
         try {
           DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+          try { long old = kp.getLong("updId", -1); if (old >= 0) dm.remove(old); } catch (Throwable ignored) {}
           DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
           r.setTitle("Kinora update");
           r.setDescription(name);
@@ -201,6 +213,7 @@ public class MainActivity extends BridgeActivity {
           r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
           r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
           updId = dm.enqueue(r);
+          try { kp.edit().putLong("updId", updId).putString("updName", name).apply(); } catch (Throwable ignored) {}
           return true;
         } catch (Throwable e) { return false; }
       }
@@ -226,7 +239,9 @@ public class MainActivity extends BridgeActivity {
       @JavascriptInterface
       public boolean installUpdate() {
         try {
+          if (updId < 0) updId = kp.getLong("updId", -1);
           if (updId < 0) return false;
+          if (!canInstallApks()) { openInstallSettings(); return false; }
           DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
           Uri u = dm.getUriForDownloadedFile(updId);
           if (u == null) return false;
@@ -302,6 +317,101 @@ public class MainActivity extends BridgeActivity {
     try {
       IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
       if (Build.VERSION.SDK_INT >= 33) registerReceiver(dlDone, f, Context.RECEIVER_EXPORTED); else registerReceiver(dlDone, f);
+    } catch (Throwable ignored) {}
+  }
+
+  // ---------------------------------------------------------------- Capacitor plugin entry points (KinoraPlayerPlugin) and small helpers
+  /** null = accepted, otherwise the reason it was refused. The real work happens on the UI thread like every other player call. */
+  String pLoad(final String url, final String headers, final long startMs, final float rate, final String mode, final String mime) {
+    if (nativeOff) return "NATIVE_OFF: the native player was switched off after repeated crashes";
+    runOnUiThread(() -> { pendingMime = mime == null ? "" : mime; doLoad(url, headers, startMs, rate, mode == null || mode.isEmpty() ? "auto" : mode); });
+    return null;
+  }
+  void pPlay() { runOnUiThread(() -> { try { mark(true); if (useVlc && vlc != null) vlc.play(); else if (player != null) player.setPlayWhenReady(true); } catch (Throwable ignored) {} }); }
+  void pPause() { runOnUiThread(() -> { try { if (useVlc && vlc != null) vlc.pause(); else if (player != null) player.setPlayWhenReady(false); } catch (Throwable ignored) {} }); }
+  void pSeek(final long ms) { runOnUiThread(() -> { try { if (useVlc && vlc != null) vlc.seek(ms); else if (player != null) player.seekTo(Math.max(0, ms)); } catch (Throwable ignored) {} }); }
+  void pRate(final float r) { runOnUiThread(() -> { try { if (useVlc && vlc != null) vlc.rate(r); else if (player != null && r > 0) player.setPlaybackSpeed(r); } catch (Throwable ignored) {} }); }
+  void pVolume(final float v) { runOnUiThread(() -> { try { if (useVlc && vlc != null) vlc.volume(v); else if (player != null) player.setVolume(Math.max(0f, Math.min(1f, v))); } catch (Throwable ignored) {} }); }
+  void pStop() { runOnUiThread(() -> doStop()); }
+  void pAudio(final int i) { runOnUiThread(() -> { if (useVlc && vlc != null) vlc.selectAudio(i); else pickTrack(C.TRACK_TYPE_AUDIO, i); }); }
+  void pText(final int i) { runOnUiThread(() -> { if (useVlc && vlc != null) vlc.selectText(i); else pickTrack(C.TRACK_TYPE_TEXT, i); }); }
+  String pState() { return stateJson; }
+  String pCaps() { return buildCaps(); }
+  String pProbe(String url, String headers) { return doProbe(url, headers); }
+  void pSwitch(final String mode) {
+    runOnUiThread(() -> {
+      try {
+        if (lastUrl == null || lastUrl.isEmpty()) return;
+        long p = 0;
+        try { p = useVlc ? new JSONObject(stateJson).optLong("p", 0) : (player != null ? player.getCurrentPosition() : 0); } catch (Throwable ignored) {}
+        if ("vlc".equals(mode)) { triedVlc = true; startVlc(lastUrl, parseHeaders(lastHdr), p, lastRate); }
+        else startExo(lastUrl, parseHeaders(lastHdr), p, lastRate);
+      } catch (Throwable ignored) {}
+    });
+  }
+
+  /** The player state goes to the page as an event (about four times a second), so the page does not have to poll the bridge. */
+  private void pushPlug() {
+    try {
+      if (!sinkLooked) {
+        sinkLooked = true;
+        com.getcapacitor.PluginHandle ph = getBridge().getPlugin("KinoraExoPlayer");
+        if (ph != null && ph.getInstance() instanceof StateSink) sink = (StateSink) ph.getInstance();
+      }
+      if (sink != null) sink.pushState(stateJson);
+    } catch (Throwable ignored) {}
+  }
+
+  /** A sentence a person can act on, not just the error code name. */
+  private String humanError(PlaybackException e) {
+    try {
+      Throwable cz = e.getCause();
+      if (cz instanceof HttpDataSource.InvalidResponseCodeException) {
+        int rc = ((HttpDataSource.InvalidResponseCodeException) cz).responseCode;
+        if (rc == 401 || rc == 403) return "HTTP " + rc + ": the host refused the request (the link may have expired or needs other headers)";
+        if (rc == 404 || rc == 410) return "HTTP " + rc + ": the file is gone on the host";
+        if (rc == 429) return "HTTP 429: the host is limiting requests, try again in a minute";
+        if (rc >= 500) return "HTTP " + rc + ": the host has a problem";
+        return "HTTP " + rc + " from the host";
+      }
+      switch (e.errorCode) {
+        case PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED: return "IO_NETWORK_CONNECTION_FAILED: could not reach the host";
+        case PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT: return "IO_NETWORK_CONNECTION_TIMEOUT: the host did not answer in time";
+        case PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND: return "IO_FILE_NOT_FOUND: the file is gone on the host";
+        case PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED:
+        case PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED: return "PARSING_CONTAINER: this link is not a video file this phone can open (the host may have sent a web page)";
+        case PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES: return "DECODING_FORMAT_EXCEEDS_CAPABILITIES: this phone cannot decode this resolution or profile";
+        case PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED: return "DECODING_FORMAT_UNSUPPORTED: this phone cannot decode this video or audio format";
+        default: return e.getErrorCodeName() + (e.getMessage() == null ? "" : ": " + e.getMessage());
+      }
+    } catch (Throwable x) { return String.valueOf(e); }
+  }
+
+  private boolean canInstallApks() {
+    try { return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls(); } catch (Throwable e) { return true; }
+  }
+
+  private void openInstallSettings() {
+    try {
+      if (Build.VERSION.SDK_INT < 26) return;
+      Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
+      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      startActivity(i);
+    } catch (Throwable ignored) {}
+  }
+
+  /** After an update, the downloaded APK is no longer needed: remove it from Downloads. */
+  private void cleanOldUpdate() {
+    try {
+      long id = kp.getLong("updId", -1);
+      String nm = kp.getString("updName", "");
+      if (id < 0 || nm.isEmpty()) return;
+      PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+      String cur = pi.versionName == null ? "" : pi.versionName;
+      if (!cur.isEmpty() && nm.contains(cur)) {
+        ((DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE)).remove(id);
+        kp.edit().remove("updId").remove("updName").apply();
+      }
     } catch (Throwable ignored) {}
   }
 
@@ -544,6 +654,7 @@ public class MainActivity extends BridgeActivity {
         DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
         Uri u = dm.getUriForDownloadedFile(id);
         if (u == null) return;
+        if (!canInstallApks()) { openInstallSettings(); return; }
         Intent i = new Intent(Intent.ACTION_VIEW);
         i.setDataAndType(u, "application/vnd.android.package-archive");
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -642,6 +753,7 @@ public class MainActivity extends BridgeActivity {
       DefaultLoadControl lc = new DefaultLoadControl.Builder()
         .setBufferDurationsMs(12000, 45000, 500, 1500)
         .setTargetBufferBytes(40 * 1024 * 1024)
+        .setBackBuffer(30000, true)
         .setPrioritizeTimeOverSizeThresholds(true)
         .build();
       DefaultTrackSelector ts = new DefaultTrackSelector(this);
@@ -674,6 +786,11 @@ public class MainActivity extends BridgeActivity {
         }
 
         @Override
+        public void onPlaybackStateChanged(int state) {
+          if (state == Player.STATE_READY) netRetries = 0;
+        }
+
+        @Override
         public void onPlayerError(PlaybackException e) {
           int c = e.errorCode;
           boolean decoder = c == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED || c == PlaybackException.ERROR_CODE_DECODING_FAILED
@@ -692,9 +809,20 @@ public class MainActivity extends BridgeActivity {
               return;
             }
             // ExoPlayer cannot decode this: VLC takes the same stream from the same spot, the page notices nothing.
+            // a dropped connection or a timeout: the same stream again from the same spot, three times, a little later each time
+            boolean net = c == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || c == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+              || c == PlaybackException.ERROR_CODE_IO_UNSPECIFIED || c == PlaybackException.ERROR_CODE_TIMEOUT;
+            if (net && netRetries < 3 && player != null) {
+              netRetries++;
+              final long at = player.getCurrentPosition();
+              handler.postDelayed(() -> {
+                try { if (player != null) { player.prepare(); if (at > 0) player.seekTo(at); player.setPlayWhenReady(true); } } catch (Throwable ignored2) {}
+              }, 700L * netRetries);
+              return;
+            }
             if (codec && fallbackToVlc(player.getCurrentPosition())) return;
           } catch (Throwable ignored) {}
-          err = e.getErrorCodeName() + (e.getMessage() == null ? "" : ": " + e.getMessage());
+          err = humanError(e);
         }
 
         @Override
@@ -736,6 +864,7 @@ public class MainActivity extends BridgeActivity {
       err = "";
       stateJson = IDLE;
       retried = false;
+      netRetries = 0;
       triedVlc = false;
       lastUrl = url; lastHdr = headersJson == null ? "{}" : headersJson; lastRate = rate > 0 ? rate : 1f;
       Map<String, String> hdr = parseHeaders(headersJson);
@@ -766,8 +895,11 @@ public class MainActivity extends BridgeActivity {
         .setUserAgent(ua)
         .setDefaultRequestProperties(h2);
       MediaItem.Builder mi = new MediaItem.Builder().setUri(url);
-      if (url.toLowerCase(Locale.ROOT).contains(".m3u8")) mi.setMimeType(MimeTypes.APPLICATION_M3U8);
-      else if (url.toLowerCase(Locale.ROOT).contains(".mpd")) mi.setMimeType(MimeTypes.APPLICATION_MPD);
+      String low = url.toLowerCase(Locale.ROOT);
+      // the file name decides first; when a link has no extension, the type the page found out from the host's own answer is used
+      if (low.contains(".m3u8") || "application/x-mpegURL".equals(pendingMime)) mi.setMimeType(MimeTypes.APPLICATION_M3U8);
+      else if (low.contains(".mpd") || "application/dash+xml".equals(pendingMime)) mi.setMimeType(MimeTypes.APPLICATION_MPD);
+      else if (low.contains(".ism") || "application/vnd.ms-sstr+xml".equals(pendingMime)) mi.setMimeType(MimeTypes.APPLICATION_SS);
       MediaSource ms = new DefaultMediaSourceFactory(hf).createMediaSource(mi.build());
       player.stop();
       player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
@@ -832,6 +964,7 @@ public class MainActivity extends BridgeActivity {
     try {
       if (useVlc && vlc != null) {
         stateJson = vlc.state();
+        pushPlug();
         handler.postDelayed(this::poll, 250);
         return;
       }
@@ -872,6 +1005,7 @@ public class MainActivity extends BridgeActivity {
           vj.put("w", vf.width); vj.put("h", vf.height); vj.put("br", vf.bitrate); vj.put("fps", vf.frameRate);
           vj.put("mime", vf.sampleMimeType == null ? "" : vf.sampleMimeType);
           vj.put("codecs", vf.codecs == null ? "" : vf.codecs);
+          if (vf.colorInfo != null) vj.put("tr", vf.colorInfo.colorTransfer);
           o.put("vf", vj);
         }
         Format af = player.getAudioFormat();
@@ -886,6 +1020,7 @@ public class MainActivity extends BridgeActivity {
       } catch (Throwable ignored) {}
       stateJson = o.toString();
     } catch (Throwable ignored) {}
+    pushPlug();
     handler.postDelayed(this::poll, 250);
   }
 

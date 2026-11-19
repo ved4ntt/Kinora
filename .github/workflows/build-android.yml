@@ -80,6 +80,9 @@ jobs:
       - run: npx cap sync android
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/app/kinora/player/MainActivity.java
       - run: cp android-overrides/KEngine.java android/app/src/main/java/app/kinora/player/KEngine.java
+      # Capacitor plugin "KinoraExoPlayer" (promise API + state events). Optional: if it ever fails to compile, the build is retried without it and the page uses the older bridge.
+      - run: cp android-overrides/StateSink.java android/app/src/main/java/app/kinora/player/StateSink.java
+      - run: cp android-overrides/KinoraPlayerPlugin.java android/app/src/main/java/app/kinora/player/KinoraPlayerPlugin.java
       # Sign with the fixed Kinora key (same signature on every build, so updates install over old versions)
       # Print the version the APK will carry (must equal the release number)
       - run: node -p "'APK version ' + require('./package.json').version"
@@ -118,10 +121,14 @@ jobs:
       # If the VLC engine ever fails to compile, the app is built again without it (ExoPlayer only) instead of losing the whole release
       - run: |
           ./gradlew assembleRelease || {
-            echo "::warning::Build failed with the VLC engine, retrying without it"
-            rm -f app/src/main/java/app/kinora/player/VlcEngine.java
-            sed -i "/libvlc-all/d" app/build.gradle
-            ./gradlew assembleRelease
+            echo "::warning::Build failed, retrying without the Capacitor player plugin"
+            rm -f app/src/main/java/app/kinora/player/KinoraPlayerPlugin.java
+            ./gradlew assembleRelease || {
+              echo "::warning::Build failed with the VLC engine, retrying without it"
+              rm -f app/src/main/java/app/kinora/player/VlcEngine.java
+              sed -i "/libvlc-all/d" app/build.gradle
+              ./gradlew assembleRelease
+            }
           }
         working-directory: android
       - run: cp android/app/build/outputs/apk/release/app-release.apk Kinora.apk

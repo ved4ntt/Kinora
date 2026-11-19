@@ -18,4 +18,15 @@ contextBridge.exposeInMainWorld('kinoraWin', {
     install: () => ipcRenderer.send('upd:install'),
     on: (cb) => ipcRenderer.on('upd:event', (_e, s) => cb(s)),
   },
+  // mpv video engine (beta). Everything answers { ok:false } / nothing when the engine is off, so the page can always fall back to the built-in player.
+  mpv: {
+    info: () => ipcRenderer.invoke('mpv:info'),
+    engine: () => ipcRenderer.invoke('mpv:engine'),
+    setEngine: (n) => ipcRenderer.invoke('mpv:setEngine', n),
+    relaunch: () => ipcRenderer.send('mpv:relaunch'),
+    load: (o) => ipcRenderer.invoke('mpv:load', o),
+    cmd: (c, v) => ipcRenderer.send('mpv:cmd', { c, v }),
+    stop: () => ipcRenderer.invoke('mpv:stop'),
+    onState: (cb) => ipcRenderer.on('mpv:state', (_e, s) => cb(s)),
+  },
 });
