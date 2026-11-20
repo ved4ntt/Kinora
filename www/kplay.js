@@ -121,7 +121,7 @@ const KPlay=window.KPlay={hooks:null,fail:null,alts:null,report:()=>'',last:[],_
 const H=(n,...a)=>{try{KPlay.hooks&&KPlay.hooks[n]&&KPlay.hooks[n](...a)}catch{}};
 let seq=0,wd=0,stallT=0,vel=null;
 function cleanup(){
- clearTimeout(wd);clearTimeout(stallT);clearInterval(E._fz);clearTimeout(E._sr);
+ clearTimeout(wd);clearTimeout(stallT);clearInterval(E._fz);clearTimeout(E._sr);clearInterval(E._lt);
  if(HL){try{HL.destroy()}catch{}HL=null}
  if(vel){try{vel._side&&vel._side.stop()}catch{}try{vel.pause();vel.removeAttribute('src');vel.load()}catch{}vel=null}
  try{window.KNative&&KNative.detach()}catch{}
@@ -131,7 +131,17 @@ E.stop=()=>{seq++;cleanup();try{window.KExt&&KExt.stop()}catch{}};
 E.play=function(s,ctx,t0){
  const box=Q('#vw'),ld=Q('#ld');if(!box)return;
  const my=++seq;cleanup();box.innerHTML='';
- const setLt=t=>{const e=Q('#lt');if(e)e.textContent=t};
+ /* what the loader says: the stage, how long it has been, which source, and (after 7 s, when there is another source) a way out */
+ let stage='Starting\u2026';const tT=performance.now();
+ const paint=()=>{
+  const e=Q('#lt');if(!e)return;
+  const sec=Math.floor((performance.now()-tT)/1000);
+  if(!Q('.ltx',e))e.innerHTML='<span class="ltx"></span><small class="lts"></small><span class="lsk"><button type="button" id="kslow" class="btn" hidden>Try another source</button></span>';
+  Q('.ltx',e).textContent=stage;
+  Q('.lts',e).textContent=sec>=3?((s._pv?s._pv+' \u00b7 ':'')+sec+' s'):'';
+  const bt=Q('#kslow',e);if(bt)bt.hidden=!(sec>=7&&(KPlay.alts?KPlay.alts():0)>0);
+ };
+ const setLt=t=>{stage=t;paint()};
  if(ld)ld.classList.add('on');setLt('Starting\u2026');
  const pl=Q('#pl');if(pl)pl.classList.remove('buf','knat');
  if(s.ytId&&!s.url){if(ld)ld.classList.remove('on');return box.innerHTML='<iframe src="https://www.youtube.com/embed/'+encodeURIComponent(s.ytId)+'?autoplay=1" allow="autoplay;fullscreen" allowfullscreen></iframe>'}
@@ -141,19 +151,20 @@ E.play=function(s,ctx,t0){
  /* Windows app: hand hard files to mpv or VLC when it is installed */
  /* external player (mpv / VLC hand-off): switched off for now; the built-in player handles everything */
  try{if(false&&window.KExt&&KExt.handle&&KExt.handle(s,ctx,t0,why=>fail(why)))return}catch{}
+ const mpvGo=!!(window.KMpv&&KMpv.wants&&KMpv.wants(s)); /* the mpv engine opens links itself (headers, redirects, byte ranges), so: no proxy and no converter */
  /* Windows app: plain files go through the built-in fast proxy (it also adds the headers the host wants) */
- if(WIN&&SRVOK()&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&(!/\.m3u8(\?|$)/i.test(s.url)||!!(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request))&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)){
+ if(!mpvGo&&WIN&&SRVOK()&&!s._srv&&!s._kp&&/^https?:/i.test(s.url)&&(!/\.m3u8(\?|$)/i.test(s.url)||!!(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request))&&!/^https?:\/\/127\.0\.0\.1/.test(s.url)){
   const c=srvCfg(),hd=s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request,bh={...(s.behaviorHints||{})};delete bh.proxyHeaders;
   return E.play({...s,_o:s._o||s,_kp:1,behaviorHints:bh,url:c.url.replace(/\/$/,'')+'/proxy?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(s.url)+(hd?'&h='+encodeURIComponent(btoa(JSON.stringify(hd))):'')+(/\.m3u8(\?|$)/i.test(s.url)?'&x=.m3u8':'')},ctx,t0);
  }
- if(SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders&&!(window.KNative&&KNative.can(s)))return play(srvStream(s),ctx,t0);
+ if(!mpvGo&&SRVOK()&&!s._srv&&s.behaviorHints&&s.behaviorHints.proxyHeaders&&!(window.KNative&&KNative.can(s)))return play(srvStream(s),ctx,t0);
  /* Windows: files play AS THEY ARE. Only two things still go through the converter: containers Chromium cannot open (avi, wmv, ts ...) and HEVC on a PC that
     cannot decode it. Dolby Digital Plus / DTS / TrueHD sound is played by the sound sidecar (kaudio.js) next to the untouched video; the converter
     is only the last fallback (decode error, no picture, sidecar failing). */
  let cvTxt=(s.name||'')+' '+(s.title||s.description||'');
  try{cvTxt+=' '+decodeURIComponent(((s._o&&s._o.url)||s.url||'')+'')}catch{cvTxt+=' '+(s.url||'')}
  let side=false;
- if(SRVOK()&&!s._srv&&WIN){
+ if(!mpvGo&&SRVOK()&&!s._srv&&WIN){
   const ext0=((((s._o&&s._o.url)||s.url||'')+'').split('?')[0].match(/\.([a-z0-9]{2,4})$/i)||[])[1]||'';
   if(/^(avi|m2ts|ts|wmv|flv|mpe?g)$/i.test(ext0)||(!HEVC_OK&&/hevc|x265|h\.?265/i.test(cvTxt)))return play(srvStream(s),ctx,t0);
   /* sound the web engine cannot play (DD+, DTS, TrueHD, AC-3): the built-in converter copies the picture as it is and only turns the sound into AAC 5.1 */
@@ -180,6 +191,10 @@ E.play=function(s,ctx,t0){
  /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
  const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
  arm(s._srv?50000:alts>0?16000:(window.KEngineMore&&KEngineMore()?20000:40000));
+ clearInterval(E._lt);
+ E._lt=setInterval(()=>{if(my!==seq||started||dead){clearInterval(E._lt);return}paint()},1000);
+ if(ld)ld.onclick=e=>{const b=e.target.closest&&e.target.closest('#kslow');if(!b)return;e.stopPropagation();fail('Skipped: you chose another source.')};
+ paint();
  /* the native check tells within a second whether this source answers at all; fast answers get a tight limit, slow ones a little more room */
  try{if(window.KProbe&&KProbe.on()&&!s._srv&&/^https?:/i.test(s.url||'')){
   KProbe.test(s).then(r=>{
@@ -357,7 +372,13 @@ const IC2={
  f10:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/><path d="M10.2 9.6v5M13 9.6h1.8a1.2 1.2 0 0 1 1.2 1.2v2.4a1.2 1.2 0 0 1-1.2 1.2H13z"/></svg>',
  pk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z"/></svg>',
  dn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
- ck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+ ck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ cc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6"/></svg>',
+ au:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3.5L12 18V6L7.5 10z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>',
+ sp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 13l4-4"/></svg>',
+ ar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="10" rx="1.5"/><path d="M8 10.5h3M13 13.5h3"/></svg>',
+ lk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+ fs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>'
 };
 const rt2s=r=>{if(!r)return 0;const s=String(r),hh=/(\d+)\s*h/i.exec(s),m=/(\d+)\s*m/i.exec(s);if(hh||m)return((hh?+hh[1]:0)*60+(m?+m[1]:0))*60;const x=/(\d+)/.exec(s);return x?+x[1]*60:0};
 const SUBCOL=[['#ffffff','White'],['#ffe45c','Yellow'],['#7de3ff','Cyan'],['#8dffa0','Green']];
@@ -381,12 +402,12 @@ V.watch=async function(type,id,vid){
   '<div id="ld" class="on"><div class="lb" style="background-image:url(\''+h(meta.background||meta.poster||'')+'\')"></div><div class="lc">'+logoOrName(nm0)+'<div class="lt" id="lt">Finding sources\u2026</div></div></div><div id="bfs"><i></i></div>'+
   '<div id="kcue"></div>'+
   '<div id="ov"></div>'+
-  '<div id="top"><a class="rb" id="kback" href="#/title/'+type+'/'+encodeURIComponent(id)+'" aria-label="Back">'+ic('back')+'</a><b id="ktl">'+h(nm0.name||'')+'</b><div id="clk"></div>'+
-  '<button class="kpk" id="kpk" aria-label="Language, quality and subtitles" aria-haspopup="true">'+IC2.pk+'<span id="kqt">Auto</span>'+IC2.dn+'</button></div>'+
+  '<div id="top"><a class="rb" id="kback" href="#/title/'+type+'/'+encodeURIComponent(id)+'" aria-label="Back">'+ic('back')+'</a><div class="kti"><b id="ktl">'+h(nm0.name||'')+'</b><small id="kts"></small></div><div id="clk"></div>'+
+  '<div class="ktr"><button class="kpk kic" id="kpk-s" aria-label="Subtitles" title="Subtitles">'+IC2.cc+'</button><button class="kpk kic" id="kpk-a" aria-label="Audio language" title="Audio">'+IC2.au+'</button><button class="kpk" id="kpk" aria-label="Quality and speed" aria-haspopup="true"><span id="kqt">Auto</span>'+IC2.dn+'</button></div></div>'+
   '<div id="kpop" role="dialog" aria-label="Language, quality and subtitles"></div>'+
+  '<div id="kmid"><button class="kb ksk" id="kmb10" aria-label="Back 10 seconds">'+IC2.b10+'</button><button class="kb kbig" id="kmpp" aria-label="Play or pause">'+ic('play')+'</button><button class="kb ksk" id="kmf10" aria-label="Forward 10 seconds">'+IC2.f10+'</button></div>'+
   '<div id="ctl"><div id="sk"><i id="bf"></i><i id="pg"></i><b id="stp"></b></div><div class="kr"><div class="kl"><button class="kb" id="pp" aria-label="Play or pause">'+ic('play')+'</button><button class="kb ksk" id="kb10" aria-label="Back 10 seconds">'+IC2.b10+'</button><button class="kb ksk" id="kf10" aria-label="Forward 10 seconds">'+IC2.f10+'</button><button class="kb kvol" id="vb" aria-label="Mute">'+ic('vol2')+'</button><input class="kvol" id="vs" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume"><span id="tt">0:00 / 0:00</span></div>'+
-  '<div class="krr"><i id="cc" hidden></i></div></div></div>'+
-  '<button id="fs" hidden aria-hidden="true" tabindex="-1"></button></div>';
+  '<div class="krr"><i id="cc" hidden></i><button class="kb" id="sd" aria-label="Playback speed" title="Speed">'+IC2.sp+'</button><button class="kb" id="k9z" aria-label="Picture size" title="Picture size">'+IC2.ar+'</button><button class="kb" id="klock" aria-label="Lock controls" title="Lock controls">'+IC2.lk+'</button><button class="kb" id="fs" aria-label="Full screen" title="Full screen"'+(ANDROID?' hidden':'')+'>'+IC2.fs+'</button></div></div></div></div>';
  const pl=Q('#pl'),VID=()=>Q('#vw video');
  try{window.kinoraWin&&kinoraWin.act&&kinoraWin.act('fs-on')}catch{}
  let it;
@@ -404,13 +425,15 @@ V.watch=async function(type,id,vid){
   const nm=meta.name?meta:{name:''};
   ctx.name=nm.name;ctx.poster=meta.poster||ctx.poster;ctx.label=ep?'S'+ep.season+'E'+ep.episode:'';
   RT=rt2s((ep&&ep.runtime)||meta.runtime);
-  const t=h(ctx.name)+(ctx.label?' \u00b7 '+h(ctx.label):'')+(ep&&ep.title?' \u00b7 '+h(ep.title):'');
-  const tl=Q('#ktl');if(tl)tl.innerHTML=t;
+  const tl=Q('#ktl');if(tl)tl.textContent=ctx.name||'';
+  const sub=[ctx.label,ep&&ep.title].filter(Boolean).join(' \u00b7 ')||(!ep?[meta.year||meta.releaseInfo,meta.runtime].filter(Boolean).join(' \u00b7 '):'');
+  const ks=Q('#kts');if(ks)ks.textContent=sub;
   const ov=Q('#ov');if(ov)ov.innerHTML=logoOrName(nm)+'<div class="mt">'+mt(meta)+'</div><p>'+h((ep&&ep.overview)||meta.description||'')+'</p>';
   const lb=Q('#ld .lb');if(lb&&(meta.background||meta.poster))lb.style.backgroundImage='url(\''+(meta.background||meta.poster)+'\')';
   const krr=Q('.krr');
   if(krr&&nx&&!Q('#nx')){krr.insertAdjacentHTML('afterbegin','<button class="kb" id="nx" aria-label="Next episode" title="Next episode">'+ic('next')+'</button>');Q('#nx').onclick=()=>{location.hash=watchUrl(type,id,nx.id)}}
   if(krr&&!nx){const b=Q('#nx');if(b)b.remove()}
+  {const nb=Q('#nx');if(nb&&nx){const l='S'+nx.season+' E'+nx.episode+(nx.title?' \u00b7 '+nx.title:'');nb.dataset.l=l;nb.title='Next episode: '+l}}
   try{tick()}catch{}
  };
  /* run once everything below is defined (the seek bar and its helpers are created further down) */
@@ -419,6 +442,7 @@ V.watch=async function(type,id,vid){
 
  /* ---------- streams ---------- */
  const E0=(pick&&pick._a==='Live TV')?{S:[],don:[],finished:true,subs:new Set()}:entryFor(type,id,vid,meta),extra=[],bad=new Set(),don=E0.don;
+ const tried=[];
  let cur=null,st={lang:'',q:0},started=false,graceT=0,waiting=false,popTab='lang';
  KPlay.last=E0.S;
  const all=()=>extra.concat(E0.S);
@@ -468,8 +492,9 @@ V.watch=async function(type,id,vid){
  /* ---------- the language / quality / subtitles popup (top right) ---------- */
  const setPill=()=>{
   const e=Q('#kqt');if(!e)return;
-  e.textContent=[st.lang,qlab(st.q)].filter(Boolean).join(' \u00b7 ')||'Auto';
-  const b=Q('#kpk');if(b)b.title=cur?'Source: '+cur.prov:'';
+  e.textContent=qlab(st.q);
+  const b=Q('#kpk');if(b)b.title=cur?'Quality and speed \u00b7 source: '+cur.prov:'Quality and speed';
+  const a=Q('#kpk-a');if(a)a.title=st.lang?'Audio: '+st.lang:'Audio';
  };
  const subList=()=>{
   const v=VID();if(!v)return[];
@@ -509,6 +534,7 @@ V.watch=async function(type,id,vid){
    const v=VID(),rate=v?v.playbackRate:1;
    body+='<h5>Playback speed</h5><div class="kcs">'+[.5,.75,1,1.25,1.5,2].map(r=>chip('data-r="'+r+'"',r+'\u00d7',rate===r)).join('')+'</div>';
    if(cur)body+='<p class="kn">Playing from '+h(cur.prov)+'</p>';
+   const tl=window.KTech?KTech(v):'';if(tl)body+='<p class="kn ktech">'+h(tl)+'</p>';
   }else{
    const T=subList(),o={...SUBD,...LS.get('sub',{})};
    body='<h5>Subtitles</h5>'+row('data-t="off"','Off','',!cursub)+T.map(t=>row('data-t="'+t.k+t.i+'"',h(t.n),'',cursub&&cursub.k===t.k&&cursub.i===t.i)).join('')+(T.length?'':'<p class="kn">No subtitles from your add-ons yet. They load a few seconds after the video starts.</p>');
@@ -526,8 +552,10 @@ V.watch=async function(type,id,vid){
   const b=Q('.kpb',el);if(b)b.scrollTop=keep;
  };
  const popOpen=()=>{const el=Q('#kpop');return!!(el&&el.classList.contains('on'))};
- const showPop=tab=>{const el=Q('#kpop');if(!el)return;if(tab)popTab=tab;renderPop();el.classList.add('on');const b=Q('#kpk');if(b)b.classList.add('on');pl.wake()};
- const hidePop=()=>{const el=Q('#kpop');if(el)el.classList.remove('on');const b=Q('#kpk');if(b)b.classList.remove('on')};
+ /* the button that opened the popup stays lit: subtitles, audio or quality */
+ const syncPk=()=>{QA('.kpk').forEach(b=>b.classList.remove('on'));if(popOpen()){const b=Q(popTab==='subs'?'#kpk-s':popTab==='lang'?'#kpk-a':'#kpk');if(b)b.classList.add('on')}};
+ const showPop=tab=>{const el=Q('#kpop');if(!el)return;if(tab)popTab=tab;renderPop();el.classList.add('on');syncPk();pl.wake()};
+ const hidePop=()=>{const el=Q('#kpop');if(el)el.classList.remove('on');syncPk()};
 
  /* ---------- subtitles drawn by the player (the same on every device) ---------- */
  const clean=t=>h(String(t||'').replace(/<(?!\/?(i|b|u)\b)[^>]*>/gi,'').replace(/\{\\[^}]*\}/g,'')).replace(/&lt;(\/?)(i|b|u)&gt;/gi,'<$1$2>').replace(/\n/g,'<br>');
@@ -581,7 +609,7 @@ V.watch=async function(type,id,vid){
   cur=p;st.q=p.q||st.q;st.lang=st.lang&&p.langs.includes(st.lang)?st.lang:(p.langs[0]||'');
   started=true;setPill();if(popOpen())renderPop();
   adoptSubs.done=0;cursub=null;
-  play({...p.raw,_q:p.q,_kk:p.key},ctx,t0||0);
+  play({...p.raw,_q:p.q,_kk:p.key,_pv:p.prov},ctx,t0||0);
  }
  function start(){
   if(started||start.busy)return;
@@ -613,6 +641,7 @@ V.watch=async function(type,id,vid){
  KPlay.fail=(why,t,s,kind)=>{
   if(!live()||!cur||(s&&s._kk&&s._kk!==cur.key))return;
   bad.add(cur.key);
+  tried.push({p:cur.prov,q:cur.q,why:String(why||'').replace(/^(ExoPlayer|mpv|VLC):\s*/,'')});
   let n=null;
   if(kind==='slow'&&st.q){
    /* constant quality: the resolution never drops. Another source at the same resolution takes over, the lightest one that is not squeezed first. */
@@ -622,7 +651,7 @@ V.watch=async function(type,id,vid){
    n=lighter[0]||same[0]||null;
    if(n)say('Buffering: switching to a faster source at the same quality');
   }
-  if(!n){n=orderSame({lang:st.lang,q:st.q})[0];if(n)say('That source did not work. Trying another\u2026')}
+  if(!n){n=orderSame({lang:st.lang,q:st.q})[0];if(n){const w=String(why||'').replace(/^(ExoPlayer|mpv|VLC):\s*/,'').replace(/[.\s]+$/,'').slice(0,90);say((w?w+'. ':'')+'Trying another source\u2026')}}
   if(n){use(n,t);return}
   if(!E0.finished){waiting=true;const l=Q('#ld');if(l)l.classList.add('on');const e=Q('#lt');if(e)e.textContent='Looking for another source\u2026';return}
   showFail(why);
@@ -630,7 +659,8 @@ V.watch=async function(type,id,vid){
  function showFail(why){
   const l=Q('#ld');if(l)l.classList.remove('on');
   const box=Q('#vw');if(!box)return;
-  box.innerHTML='<div class="kmsg">'+h(why)+'<div class="kacts"><button class="btn p" id="kre">Try again</button>'+(cur&&cur.url?'<button class="btn" id="kcp">Copy link</button>':'')+(ANDROID&&cur&&cur.url?'<button class="btn" id="kext">Open in a player app</button>':'')+'</div></div>';
+  const dt=tried.length?'<details class="kdet"><summary>What was tried ('+tried.length+')</summary>'+tried.slice(-8).map(x=>'<p><b>'+h(x.p)+(x.q?' \u00b7 '+qlab(x.q):'')+'</b> '+h(x.why)+'</p>').join('')+'</details>':'';
+  box.innerHTML='<div class="kmsg">'+h(why)+dt+'<div class="kacts"><button class="btn p" id="kre">Try again</button>'+(cur&&cur.url?'<button class="btn" id="kcp">Copy link</button>':'')+(ANDROID&&cur&&cur.url?'<button class="btn" id="kext">Open in a player app</button>':'')+'</div></div>';
   const re=Q('#kre');if(re)re.onclick=()=>{bad.clear();started=false;waiting=false;SC.delete(type+'|'+(vid||id));const b=Q('#ld');if(b)b.classList.add('on');start()};
   const cp=Q('#kcp');if(cp)cp.onclick=()=>navigator.clipboard.writeText(cur.url).then(()=>say('Link copied. Paste it into VLC or MX Player.')).catch(()=>say('Could not copy the link'));
   const ex=Q('#kext');if(ex)ex.onclick=()=>openExternal(cur);
@@ -694,7 +724,7 @@ V.watch=async function(type,id,vid){
  sk.addEventListener('lostpointercapture',()=>{if(scrub)endScrub()});
 
  /* ---------- hooks the engine calls ---------- */
- const sync=()=>{const v=VID();if(!v)return;const b=Q('#pp');if(b)b.innerHTML=stIcon(v);pl.wake()};
+ const sync=()=>{const v=VID();if(!v)return;const b=Q('#pp');if(b)b.innerHTML=stIcon(v);const m=Q('#kmpp');if(m)m.innerHTML=stIcon(v);pl.classList.toggle('paused',!!v.paused);pl.wake()};
  KPlay.hooks={
   state:sync,time:()=>{tick();drawCue()},
   vol:()=>{const v=VID();if(!v)return;const b=Q('#vb');if(b)b.innerHTML=volIc(v);const r=Q('#vs');if(r)r.value=v.muted?0:v.volume},
@@ -716,6 +746,7 @@ V.watch=async function(type,id,vid){
  const jump=d=>{const v=VID();if(!v)return;const base=pend!=null?pend:v.currentTime;seekTo(base+d)};
  Q('#pp').onclick=tog;Q('#fs').onclick=fs;
  Q('#kb10').onclick=()=>jump(-(CFG().skip||10));Q('#kf10').onclick=()=>jump(CFG().skip||10);
+ Q('#kmpp').onclick=tog;Q('#kmb10').onclick=()=>jump(-(CFG().skip||10));Q('#kmf10').onclick=()=>jump(CFG().skip||10);
  Q('#tt').onclick=()=>{setCfg({rem:!CFG().rem});tick()};
  Q('#vb').onclick=()=>{const v=VID();if(v)v.muted=!v.muted};
  Q('#vs').oninput=e=>{const v=VID();if(v){v.volume=+e.target.value;v.muted=false}};
@@ -735,11 +766,13 @@ V.watch=async function(type,id,vid){
  };
  D.addEventListener('keydown',kkh,true);
 
- Q('#kpk').onclick=e=>{e.stopPropagation();popOpen()?hidePop():showPop()};
+ Q('#kpk').onclick=e=>{e.stopPropagation();popOpen()&&popTab==='qual'?hidePop():showPop('qual')};
+ Q('#kpk-s').onclick=e=>{e.stopPropagation();popOpen()&&popTab==='subs'?hidePop():showPop('subs')};
+ Q('#kpk-a').onclick=e=>{e.stopPropagation();popOpen()&&popTab==='lang'?hidePop():showPop('lang')};
  Q('#kpop').onclick=e=>{
   e.stopPropagation();
   const g=sel=>e.target.closest(sel),v=VID();
-  const tb=g('[data-tab]');if(tb){popTab=tb.dataset.tab;renderPop();return}
+  const tb=g('[data-tab]');if(tb){popTab=tb.dataset.tab;renderPop();syncPk();return}
   const l=g('[data-l]'),q=g('[data-q]'),a=g('[data-a]'),t=g('[data-t]'),r=g('[data-r]');
   if(l){choose(l.dataset.l,null);renderPop();return}
   if(q){choose(null,+q.dataset.q);renderPop();return}
@@ -757,7 +790,7 @@ V.watch=async function(type,id,vid){
   }
   if(g('[data-d]')&&don[0]){const u=don[0].raw.externalUrl||don[0].url;if(window.kinoraWin&&kinoraWin.openExternal)kinoraWin.openExternal(u);else open(u,'_blank','noopener')}
  };
- pl.onclick=e=>{if(!e.target.closest('#kpop,#kpk'))hidePop()};
+ pl.onclick=e=>{if(!e.target.closest('#kpop,.kpk'))hidePop()};
  addEventListener('resize',styleCue);
 
  /* ---------- go ---------- */
@@ -790,7 +823,18 @@ async function prefetchTitle(){
   vid=(pr&&vs.find(v=>v.id===pr.vid)?pr.vid:(vs.find(v=>!EW()[v.id])||vs[0]||{}).id)||'';
   if(!vid)return;
  }
- entryFor(type,id,vid,meta);
+ const e=entryFor(type,id,vid,meta);
+ /* warm the first-bytes check of the three best sources while you are still on the details page: dead links are already known and the answers are cached when you press Play */
+ try{if(window.KProbe&&KProbe.on()){
+  const warm=()=>{
+   if(warm.done)return;
+   const pls=e.S.filter(x=>x.playable);
+   if(!pls.length||(!pls.some(x=>x.prov===MAIN)&&!e.finished))return;
+   warm.done=1;
+   pls.map(s=>({s,k:rank(s,{lang:'',q:0,pf:true},null,null)})).sort((a,b)=>cmp(a.k,b.k)).slice(0,3).forEach(x=>{KProbe.test(x.s.raw).catch(()=>{})});
+  };
+  e.subs.add(warm);warm();
+ }}catch{}
 }
 let pft=0;
 const early=()=>{clearTimeout(pft);pft=setTimeout(()=>{prefetchTitle().catch(()=>{})},200)};

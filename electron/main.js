@@ -114,7 +114,7 @@ async function createWindow() {
     win.on('minimize', () => { try { videoWin && !videoWin.isDestroyed() && videoWin.hide(); } catch {} });
     win.on('closed', () => { try { videoWin && !videoWin.isDestroyed() && videoWin.destroy(); } catch {} });
   }
-  win.once('ready-to-show', () => { if (MPV_ON) setMax(true); else win.maximize(); win.show(); });
+  win.once('ready-to-show', () => { if (MPV_ON) setMax(true); else win.maximize(); win.show(); if (MPV_ON) setTimeout(() => { try { mpvCtl && mpvCtl.warm(); } catch {} }, 2500); });
   win.loadURL(`http://127.0.0.1:${port}/index.html`);
   win.webContents.once('did-finish-load', () => { if (pendingAuth) { const u = pendingAuth; pendingAuth = null; setTimeout(() => sendAuth(u), 1200); } });
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });

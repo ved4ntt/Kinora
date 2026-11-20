@@ -16,6 +16,24 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      # mpv for the optional mpv video engine (Settings > Playback > Video engine). Only mpv.exe and its one DLL are shipped.
+      # If the download ever fails, the app is built without it: the built-in engine keeps working and the switch says mpv is not available.
+      - name: Fetch mpv
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force build/mpv | Out-Null
+          $rel = gh api repos/shinchiro/mpv-winbuild-cmake/releases/latest | ConvertFrom-Json
+          $a = $rel.assets | Where-Object { $_.name -match '^mpv-x86_64-\d{8}-git-[0-9a-f]+\.7z$' } | Select-Object -First 1
+          if (-not $a) { throw 'no mpv build found' }
+          Write-Host "Using $($a.name)"
+          Invoke-WebRequest $a.browser_download_url -OutFile mpv.7z
+          7z x mpv.7z -ompv-tmp -y | Out-Null
+          Copy-Item mpv-tmp/mpv.exe build/mpv/mpv.exe -Force
+          if (Test-Path mpv-tmp/d3dcompiler_43.dll) { Copy-Item mpv-tmp/d3dcompiler_43.dll build/mpv/ -Force }
+          Get-ChildItem build/mpv | Format-Table Name, Length
       # Every push gets its own version (0.3.<number of commits>), so every build is a new release
       - run: node scripts/stamp-version.js
       - run: npx electron-builder --win --x64 --publish never

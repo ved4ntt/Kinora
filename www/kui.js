@@ -282,6 +282,7 @@ function segTick(){
  showSkip(hit,Math.max(0,t-hit.s)/win);
 }
 function segRoute(){
+ if(window.KSeg)return; /* kseg.js now owns the skip buttons (it also draws the segments on the seek bar and the next-episode card) */
  clearInterval(seg.iv);hideSkip();seg.list=[];
  const m=WATCH.exec(location.hash);
  if(!m||cfg().skipSeg===false)return;

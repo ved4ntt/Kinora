@@ -91,7 +91,7 @@ class Mpv {
       '--cursor-autohide=no', '--keep-open=yes', '--ytdl=no', '--save-position-on-quit=no', '--sid=no', '--sub-auto=no', '--audio-display=no',
       '--wid=' + wid, '--input-ipc-server=' + pipe, '--vo=' + vo, '--hwdec=auto-safe',
       // network and buffering: reconnect on a dropped connection, bounded cache, old data behind the playhead is dropped
-      '--network-timeout=20', '--stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5', '--cache=yes', '--demuxer-max-bytes=300MiB', '--demuxer-max-back-bytes=96MiB', '--demuxer-readahead-secs=120'];
+      '--network-timeout=20', '--stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5,multiple_requests=1', '--cache=yes', '--demuxer-max-bytes=300MiB', '--demuxer-max-back-bytes=96MiB', '--demuxer-readahead-secs=120'];
     this.stderr = '';
     let exited = false;
     const p = spawn(this.found.exe, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
@@ -252,7 +252,7 @@ function register({ ipcMain, app, getWin, getVideoWin, running, show, hide }) {
   ipcMain.handle('mpv:load', (_e, o) => { if (!running || !o || typeof o.url !== 'string' || !/^https?:\/\//i.test(o.url)) return { ok: false, error: 'engine is off' }; return get().load(o).catch((e) => ({ ok: false, error: String(e && e.message || e) })); });
   ipcMain.on('mpv:cmd', (_e, o) => { if (running && mpv && o) { try { mpv.act(o.c, o.v); } catch {} } });
   ipcMain.handle('mpv:stop', async () => { if (running && mpv) await mpv.stop(); return true; });
-  return { quit: () => { try { mpv && mpv.quit(); } catch {} } };
+  return { quit: () => { try { mpv && mpv.quit(); } catch {} }, /* start mpv in the background a few seconds after launch so the first video does not pay for it */ warm: () => { try { if (running) { const m = get(); if (m.ready) m.ensure().catch(() => {}); } } catch {} } };
 }
 
 module.exports = { readEngine, writeEngine, findMpv, register };
