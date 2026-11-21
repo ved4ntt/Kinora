@@ -24,6 +24,8 @@ try{
  if(!LS.get('kmig1',0)){setCfg({sMin:0,sMax:0});LS.set('kmig1',1)}
  /* sources that were wrongly marked bad by the old 5 s limit get a fresh start once */
  if(!LS.get('kmig2',0)){try{window.KSpeed&&KSpeed.reset()}catch{}LS.set('kmig2',1)}
+ /* once more: sources that were written off by the old short start limits and first-bytes check (slow hosts looked dead) get a fresh start */
+ if(!LS.get('kmig4',0)){setTimeout(()=>{try{window.KSpeed&&KSpeed.reset()}catch{}},2500);LS.set('kmig4',1)}
  if(!LS.get('kmig3',0)){setCfg({langOnly:false,qOnly:false,p2p:false,autoSwitch:true});LS.set('kmig3',1)}
 }catch{}
 
@@ -131,15 +133,14 @@ E.stop=()=>{seq++;cleanup();try{window.KExt&&KExt.stop()}catch{}};
 E.play=function(s,ctx,t0){
  const box=Q('#vw'),ld=Q('#ld');if(!box)return;
  const my=++seq;cleanup();box.innerHTML='';
- /* what the loader says: the stage, how long it has been, which source, and (after 7 s, when there is another source) a way out */
+ /* what the loader says: the stage, how long it has been, and which source is being tried */
  let stage='Starting\u2026';const tT=performance.now();
  const paint=()=>{
   const e=Q('#lt');if(!e)return;
   const sec=Math.floor((performance.now()-tT)/1000);
-  if(!Q('.ltx',e))e.innerHTML='<span class="ltx"></span><small class="lts"></small><span class="lsk"><button type="button" id="kslow" class="btn" hidden>Try another source</button></span>';
+  if(!Q('.ltx',e))e.innerHTML='<span class="ltx"></span><small class="lts"></small>';
   Q('.ltx',e).textContent=stage;
   Q('.lts',e).textContent=sec>=3?((s._pv?s._pv+' \u00b7 ':'')+sec+' s'):'';
-  const bt=Q('#kslow',e);if(bt)bt.hidden=!(sec>=7&&(KPlay.alts?KPlay.alts():0)>0);
  };
  const setLt=t=>{stage=t;paint()};
  if(ld)ld.classList.add('on');setLt('Starting\u2026');
@@ -177,30 +178,32 @@ E.play=function(s,ctx,t0){
  v.defaultPlaybackRate=v.playbackRate=CFG().speed||1;
  box.append(v);vel=v;
  const deadline=Date.now()+120000,tStart=performance.now();
+ /* how long a source gets before it is given up on. Phones get more: hosts that need 10 to 25 s for the first picture are normal there, and a source that is
+    still sending data keeps going (up to FLOW_MAX). The old 16 s limit is what made good sources look dead. */
+ const START_MS=ANDROID?32000:16000,FLOW_MAX=ANDROID?60000:36000;
  const arm=(ms,grace)=>{clearTimeout(wd);
  const alt=(()=>{try{return(KPlay.alts?KPlay.alts():0)>0||!!(window.KEngineMore&&KEngineMore())}catch{return false}})();
- /* measured on real devices: a working source needs 5 to 14 s for its first picture, so the limit is 16 s, and it is extended while data keeps arriving (up to 36 s) */
- if(alt&&!s._srv)ms=Math.min(ms,Math.max(2500,16000-(performance.now()-tStart)));
+ /* a working source needs 5 to 14 s for its first picture on a PC and up to 30 s on a phone connection, so the limit is START_MS, and it is extended while data keeps arriving (up to FLOW_MAX) */
+ if(alt&&!s._srv)ms=Math.min(ms,Math.max(2500,START_MS-(performance.now()-tStart)));
  wd=setTimeout(()=>{
   if(my!==seq||started)return;
   const x=vel,be=x&&x.buffered&&x.buffered.length?x.buffered.end(0):0,flow=x&&(be>.4||x.readyState>=3);
   const grew=be>(arm._be||0)+.05;arm._be=be;
-  if(alt&&flow&&grew&&performance.now()-tStart<36000){arm(6000,1);return}
+  if(alt&&flow&&grew&&performance.now()-tStart<FLOW_MAX){arm(6000,1);return}
   fail('This source took too long to start.');
  },Math.max(2500,Math.min(ms,deadline-Date.now())))};
  /* a source with nothing to show for a few seconds is dropped when there is another to try; a lone source gets longer */
  const alts=(()=>{try{return KPlay.alts?KPlay.alts():0}catch{return 0}})();
- arm(s._srv?50000:alts>0?16000:(window.KEngineMore&&KEngineMore()?20000:40000));
+ arm(s._srv?50000:alts>0?START_MS:(window.KEngineMore&&KEngineMore()?20000:40000));
  clearInterval(E._lt);
  E._lt=setInterval(()=>{if(my!==seq||started||dead){clearInterval(E._lt);return}paint()},1000);
- if(ld)ld.onclick=e=>{const b=e.target.closest&&e.target.closest('#kslow');if(!b)return;e.stopPropagation();fail('Skipped: you chose another source.')};
  paint();
  /* the native check tells within a second whether this source answers at all; fast answers get a tight limit, slow ones a little more room */
  try{if(window.KProbe&&KProbe.on()&&!s._srv&&/^https?:/i.test(s.url||'')){
   KProbe.test(s).then(r=>{
    if(my!==seq||started||dead)return;
-   if(!r.ok){if(alts>0||(window.KEngineMore&&KEngineMore()))fail('This source did not answer.');return}
-   if(r.ms&&alts>0){const lim=r.ms<700?14000:Math.min(24000,r.ms*3+10000);arm(Math.max(2500,lim-(performance.now()-tStart)))}
+   if(!r.ok){if(alts>0||(window.KEngineMore&&KEngineMore()))fail('This link is not a playable video (the host says it is gone or sent a web page).');return}
+   if(alts>0)arm(Math.max(2500,(r.slow?START_MS+8000:r.ms<700?(ANDROID?24000:14000):Math.min(ANDROID?40000:24000,(r.ms||0)*3+(ANDROID?16000:10000)))-(performance.now()-tStart)));
   }).catch(()=>{});
  }}catch{}
 
@@ -464,7 +467,11 @@ V.watch=async function(type,id,vid){
   const pool=playable().filter(x=>!lang||x.langs.includes(lang)||(!x.langs.length&&!st.lang));
   return pool.map(s=>({s,k:rank(s,{lang,q},null,bad)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s)[0];
  };
- const okS=x=>!bad.has(x.key)&&!(window.KSpeed&&KSpeed.dead(x.raw));
+ /* Quality floor: automatic playback and automatic fallback never drop below 720p. A lower quality plays only when you pick it yourself, when nothing
+    better exists for the title, or when you press "Play lower quality" after every better source failed. */
+ const FLOOR=720;let allowLow=false;
+ const lowOk=x=>!x.q||x.q>=FLOOR||allowLow||(st.q>0&&st.q<FLOOR);
+ const okS=x=>!bad.has(x.key)&&!(window.KSpeed&&KSpeed.dead(x.raw))&&lowOk(x);
  const order=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:true},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
  /* when a source fails: another source with the SAME language and quality comes first, the provider only breaks ties */
  const orderSame=sel=>playable().filter(okS).map(s=>({s,k:rank(s,{...sel,pf:true},pref,null)})).sort((a,b)=>cmp(a.k,b.k)).map(x=>x.s);
@@ -480,9 +487,10 @@ V.watch=async function(type,id,vid){
   const safe=preferred.filter(okc),safeAny=APP_PLAYER?pool0.filter(okc):safe;
   const pool=safe.length?safe:safeAny.length?safeAny:preferred;
   const have0=[...new Set(pool.map(x=>x.q).filter(Boolean))].sort((a,b)=>b-a);
-  /* automatic choice: the best quality that has a source keeping up with the measured speed; a quality chosen in the picker is always honoured */
-  const fitq=window.KFit&&!(kp.q&&have0.includes(kp.q))?have0.filter(x=>pool.some(p=>p.q===x&&KFit.fit(p)<=1)):[];
-  const have=fitq.length?fitq:have0;
+  /* automatic choice: the best quality that has a source keeping up with the measured speed, but never below the floor while a better one exists (a slow start beats a blurry picture); a quality chosen in the picker is always honoured */
+  const hi0=have0.filter(x=>x>=FLOOR),hv=hi0.length?hi0:have0;
+  const fitq=window.KFit&&!(kp.q&&have0.includes(kp.q))?hv.filter(x=>pool.some(p=>p.q===x&&KFit.fit(p)<=1)):[];
+  const have=fitq.length?fitq:hv;
   let q=kp.q&&have0.includes(kp.q)?kp.q:0;
   // Keep automatic app playback at 1080p for faster starts; users can still choose 4K explicitly.
   if(!q){const pq=CFG().quality,maxq=LS.get('maxq',2160)||2160,cap=!pq||pq==='best'?(APP_PLAYER&&!(window.KFit&&KFit.fast())?Math.min(1080,maxq):maxq):+pq;q=have.find(x=>x<=cap)||have[have.length-1]||0}
@@ -613,8 +621,10 @@ V.watch=async function(type,id,vid){
  }
  function start(){
   if(started||start.busy)return;
-  const sel=defSel(),list=order(sel);if(!list.length)return;
-  st={lang:sel.lang,q:sel.q};
+  const sel=defSel();st={lang:sel.lang,q:sel.q};
+  let list=order(sel);
+  if(!list.length&&!allowLow&&!playable().some(x=>!x.q||x.q>=FLOOR)){allowLow=true;list=order(sel)} /* the title only exists in low quality: play that */
+  if(!list.length)return;
   if(!(window.KProbe&&KProbe.on())||list.length<2)return use(list[0]);
   /* ask the best three sources for their first bytes at the same time: dead links are skipped, the best live answer plays. Never more than 1.4 s of waiting. */
   start.busy=1;
@@ -660,7 +670,9 @@ V.watch=async function(type,id,vid){
   const l=Q('#ld');if(l)l.classList.remove('on');
   const box=Q('#vw');if(!box)return;
   const dt=tried.length?'<details class="kdet"><summary>What was tried ('+tried.length+')</summary>'+tried.slice(-8).map(x=>'<p><b>'+h(x.p)+(x.q?' \u00b7 '+qlab(x.q):'')+'</b> '+h(x.why)+'</p>').join('')+'</details>':'';
-  box.innerHTML='<div class="kmsg">'+h(why)+dt+'<div class="kacts"><button class="btn p" id="kre">Try again</button>'+(cur&&cur.url?'<button class="btn" id="kcp">Copy link</button>':'')+(ANDROID&&cur&&cur.url?'<button class="btn" id="kext">Open in a player app</button>':'')+'</div></div>';
+  const lowN=!allowLow?playable().filter(x=>x.q&&x.q<FLOOR&&!bad.has(x.key)).length:0;
+  box.innerHTML='<div class="kmsg">'+h(why)+dt+'<div class="kacts"><button class="btn p" id="kre">Try again</button>'+(lowN?'<button class="btn" id="klow">Play lower quality</button>':'')+(cur&&cur.url?'<button class="btn" id="kcp">Copy link</button>':'')+(ANDROID&&cur&&cur.url?'<button class="btn" id="kext">Open in a player app</button>':'')+'</div></div>';
+  const lw=Q('#klow');if(lw)lw.onclick=()=>{allowLow=true;started=false;waiting=false;const b=Q('#ld');if(b)b.classList.add('on');start()};
   const re=Q('#kre');if(re)re.onclick=()=>{bad.clear();started=false;waiting=false;SC.delete(type+'|'+(vid||id));const b=Q('#ld');if(b)b.classList.add('on');start()};
   const cp=Q('#kcp');if(cp)cp.onclick=()=>navigator.clipboard.writeText(cur.url).then(()=>say('Link copied. Paste it into VLC or MX Player.')).catch(()=>say('Could not copy the link'));
   const ex=Q('#kext');if(ex)ex.onclick=()=>openExternal(cur);

@@ -102,6 +102,7 @@ public class MainActivity extends BridgeActivity {
   private volatile long updId = -1;
   private String pendingMime = "";
   private int netRetries = 0;
+  private int httpTry = 0;
   private StateSink sink = null;
   private boolean sinkLooked = false;
 
@@ -387,6 +388,45 @@ public class MainActivity extends BridgeActivity {
     } catch (Throwable x) { return String.valueOf(e); }
   }
 
+  /** Links from add-ons sometimes carry spaces, brackets or non-ASCII letters. A browser fixes that silently; the plain HTTP stack sends them as they are and many hosts answer 400. */
+  private static String cleanUrl(String u) {
+    if (u == null) return "";
+    u = u.trim();
+    StringBuilder sb = new StringBuilder(u.length() + 8);
+    for (int i = 0; i < u.length(); ) {
+      int cp = u.codePointAt(i);
+      i += Character.charCount(cp);
+      if (cp > 127) {
+        try {
+          for (byte b : new String(Character.toChars(cp)).getBytes("UTF-8")) sb.append(String.format("%%%02X", b & 0xFF));
+        } catch (Throwable ex) { sb.appendCodePoint(cp); }
+        continue;
+      }
+      char ch = (char) cp;
+      switch (ch) {
+        case ' ': sb.append("%20"); break;
+        case '|': sb.append("%7C"); break;
+        case '[': sb.append("%5B"); break;
+        case ']': sb.append("%5D"); break;
+        case '{': sb.append("%7B"); break;
+        case '}': sb.append("%7D"); break;
+        case '^': sb.append("%5E"); break;
+        case '`': sb.append("%60"); break;
+        case '"': sb.append("%22"); break;
+        case '<': sb.append("%3C"); break;
+        case '>': sb.append("%3E"); break;
+        case '\\': sb.append("%5C"); break;
+        default: sb.append(ch);
+      }
+    }
+    return sb.toString();
+  }
+
+  private static boolean hasKey(Map<String, String> m, String k) {
+    for (String x : m.keySet()) { if (x.equalsIgnoreCase(k)) return true; }
+    return false;
+  }
+
   private boolean canInstallApks() {
     try { return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls(); } catch (Throwable e) { return true; }
   }
@@ -668,13 +708,13 @@ public class MainActivity extends BridgeActivity {
     long t0 = System.nanoTime();
     try {
       Map<String, String> h = parseHeaders(headersJson);
-      String cur = url;
+      String cur = cleanUrl(url);
       HttpURLConnection c = null;
       int code = 0;
       for (int hop = 0; hop < 6; hop++) {
         c = (HttpURLConnection) new URL(cur).openConnection();
-        c.setConnectTimeout(3500);
-        c.setReadTimeout(3500);
+        c.setConnectTimeout(6000);
+        c.setReadTimeout(6000);
         c.setInstanceFollowRedirects(false);
         c.setRequestProperty("Range", "bytes=0-2047");
         boolean ua = false;
@@ -820,6 +860,17 @@ public class MainActivity extends BridgeActivity {
               }, 700L * netRetries);
               return;
             }
+            // the host refused this kind of request (400, 401, 403, 406, 416, 429): the same link again, first with browser-like headers, then with the bare minimum
+            Throwable cz = e.getCause();
+            if (cz instanceof HttpDataSource.InvalidResponseCodeException && httpTry < 2 && player != null) {
+              int rc = ((HttpDataSource.InvalidResponseCodeException) cz).responseCode;
+              if (rc == 400 || rc == 401 || rc == 403 || rc == 406 || rc == 416 || rc == 429) {
+                httpTry++;
+                final long at2 = player.getCurrentPosition();
+                handler.postDelayed(() -> { try { startExo(lastUrl, parseHeaders(lastHdr), at2, lastRate); } catch (Throwable ignored3) {} }, rc == 429 ? 2500L : 150L);
+                return;
+              }
+            }
             if (codec && fallbackToVlc(player.getCurrentPosition())) return;
           } catch (Throwable ignored) {}
           err = humanError(e);
@@ -865,6 +916,7 @@ public class MainActivity extends BridgeActivity {
       stateJson = IDLE;
       retried = false;
       netRetries = 0;
+      httpTry = 0;
       triedVlc = false;
       lastUrl = url; lastHdr = headersJson == null ? "{}" : headersJson; lastRate = rate > 0 ? rate : 1f;
       Map<String, String> hdr = parseHeaders(headersJson);
@@ -885,13 +937,29 @@ public class MainActivity extends BridgeActivity {
         return;
       }
       err = "";
+      url = cleanUrl(url);
       String ua = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36";
       Map<String, String> h2 = new HashMap<>();
       for (Map.Entry<String, String> e : hdr.entrySet()) { if ("user-agent".equalsIgnoreCase(e.getKey())) ua = e.getValue(); else h2.put(e.getKey(), e.getValue()); }
+      String lowU = url.toLowerCase(Locale.ROOT);
+      boolean manifest = lowU.contains(".m3u8") || lowU.contains(".mpd") || lowU.contains(".ism");
+      // try 2 (after a 400/401/403/406/416): only the user agent, in case a header from the add-on is what the host dislikes
+      if (httpTry >= 2) { h2.clear(); ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"; }
+      // try 1 and 2: what a browser sends (many hosts answer 400/403 to a bare request), and a range from the start for plain files
+      if (httpTry >= 1) {
+        try {
+          URL uu = new URL(url);
+          if (!hasKey(h2, "Referer")) h2.put("Referer", uu.getProtocol() + "://" + uu.getHost() + "/");
+          if (!hasKey(h2, "Accept")) h2.put("Accept", "*/*");
+          if (!hasKey(h2, "Accept-Language")) h2.put("Accept-Language", "en-US,en;q=0.9");
+          if (!manifest && !hasKey(h2, "Range")) h2.put("Range", "bytes=0-");
+        } catch (Throwable ignored) {}
+      }
+      // slow hosts are common: give them time instead of failing a source that would have started a few seconds later
       DefaultHttpDataSource.Factory hf = new DefaultHttpDataSource.Factory()
         .setAllowCrossProtocolRedirects(true)
-        .setConnectTimeoutMs(5000)
-        .setReadTimeoutMs(8000)
+        .setConnectTimeoutMs(9000)
+        .setReadTimeoutMs(20000)
         .setUserAgent(ua)
         .setDefaultRequestProperties(h2);
       MediaItem.Builder mi = new MediaItem.Builder().setUri(url);

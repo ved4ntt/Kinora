@@ -374,14 +374,15 @@ if(WIN&&!(window.KProbe&&KProbe.on&&KProbe.on())){
    const o=origin(s),c=srv();
    if(!c||!/^https?:/i.test(o.u))return Promise.resolve({ok:true,skip:1,ms:0});
    const hit=window.KProbe.last(o.u);if(hit)return Promise.resolve(hit);
-   ms=ms||3800;
+   ms=ms||6500;
    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),ms+1500);
    return fetch(c.url.replace(/\/$/,'')+'/probe?k='+encodeURIComponent(c.key)+'&u='+encodeURIComponent(o.u)+(o.h?'&h='+encodeURIComponent(o.h):'')+'&ms='+ms,{signal:ac.signal,cache:'no-store'})
     .then(r=>r.json())
     .then(r=>{
-     /* only clear failures count (same rule as the Android app): no answer, 404/410, server errors, or a web page instead of a video */
-     const hard=!r.ok&&(!r.code||r.code===404||r.code===410||r.code>=500||/html|json|text/.test(r.type||''));
-     const out={...r,ok:!hard};PRC.set(o.u,{t:Date.now(),r:out});return out;
+     /* only a clear answer condemns a link (see KPlayback.judge); a slow host keeps its place and gets more time to start */
+     const out=window.KPlayback&&KPlayback.judge?KPlayback.judge(r):{...r,ok:r.ok!==false};
+     if(out.slow&&!out.ms)out.ms=ms;
+     PRC.set(o.u,{t:Date.now(),r:out});return out;
     })
     .catch(()=>({ok:true,skip:1,ms:0}))   /* when the check itself fails, the source is not condemned */
     .finally(()=>clearTimeout(to));

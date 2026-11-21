@@ -87,14 +87,15 @@ window.KProbe={
  test(s,ms){
   const u=s&&s.url;if(!u)return Promise.resolve({ok:false});
   const c=window.KProbe.last(u);if(c)return Promise.resolve(c);
-  ms=ms||3800;
+  ms=ms||6500;
   return new Promise(res=>{
    const id='p'+(++prN)+'_'+Date.now(),hd=(s.behaviorHints&&s.behaviorHints.proxyHeaders&&s.behaviorHints.proxyHeaders.request)||s.headers||{};
    let to=0,iv=0,done=false;
    const fin=r=>{if(done)return;done=true;clearInterval(iv);clearTimeout(to);
-    /* only clear failures count: no answer, 404/410, server errors, or a web page instead of a video. 401/403/405 may still play with the player's own headers. */
-    const hard=!r.ok&&(!r.code||r.code===404||r.code===410||r.code>=500||/html|json|text/.test(r.type||''));
-    const o={...r,ok:!hard};PRC.set(u,{t:Date.now(),r:o});res(o)};
+    /* only a clear answer condemns a link (see KPlayback.judge): a host that is merely slow keeps its place and gets more time to start */
+    const o=window.KPlayback&&KPlayback.judge?KPlayback.judge(r):{...r,ok:r.ok!==false};
+    if(o.slow&&!o.ms)o.ms=ms;
+    PRC.set(u,{t:Date.now(),r:o});res(o)};
    to=setTimeout(()=>fin({ok:false,code:0,ms,timeout:1}),ms);
    if(viaPlug()){
     plug.probe({url:u,headers:JSON.stringify(hd)}).then(r=>fin(r||{ok:true,ms:0})).catch(()=>fin({ok:true,skip:1,ms:0}));

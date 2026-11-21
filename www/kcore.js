@@ -165,8 +165,20 @@ function tech(v){
 }
 window.KTech=tech;
 
+/* what a first-bytes check really tells. Only a clear answer condemns a link: the file is gone (404/410), the host does not exist or refuses connections,
+   or it answered with a web page or JSON instead of a video. No answer in time (slow hosts are normal), 403/400/5xx and the like prove nothing about the real
+   request, so the source stays in the running and is only given more time. */
+function judge(r){
+ r=r||{};
+ const err=String(r.err||''),type=String(r.type||'').toLowerCase(),code=+r.code||0;
+ const slow=!code&&(!!r.timeout||/timeout|timed out|reset|abort/i.test(err)||!err);
+ const gone=code===404||code===410||/UnknownHost|refused|unreachable|CertPath|certificate|SSLHandshake/i.test(err);
+ const page=/html|json/.test(type)&&code>=200&&code<300;
+ return{...r,ok:!(gone||page),slow:!!slow};
+}
+
 window.KPlayback={
- detect,sniff,
+ detect,sniff,judge,
  mimeOf:k=>MIME[k]||'',
  register(be){B[be.name]=be},
  backends:()=>B,

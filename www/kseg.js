@@ -67,7 +67,7 @@ function chipsBox(){
   b=D.createElement('div');b.id='kchips';pl.append(b);
   b.addEventListener('click',e=>{
    e.stopPropagation();
-   const c=e.target.closest('.kchip');if(!c)return;
+   const c=e.target.closest('.ksgc');if(!c)return;
    const k=c.dataset.id,w=S.chips.get(k);if(w&&w.act)w.act();
   });
  }
@@ -82,7 +82,7 @@ function setChip(id,label,icon,p,act,mark){
  const box=chipsBox();if(!box)return;
  let w=S.chips.get(id);
  if(!w){
-  const el=D.createElement('button');el.type='button';el.className='kchip';el.dataset.id=id;
+  const el=D.createElement('button');el.type='button';el.className='ksgc';el.dataset.id=id;
   el.innerHTML='<i class="ci">'+icon+'</i><span class="cl"></span>'+(matchMedia('(pointer:fine)').matches&&mark?'<kbd>'+mark+'</kbd>':'');
   box.append(el);w={el,label:'',act};S.chips.set(id,w);
   requestAnimationFrame(()=>el.classList.add('on'));
@@ -107,11 +107,11 @@ function nextCard(show,remain){
  const nx=Q('#nx');if(!nx)return;
  if(!c){
   c=D.createElement('div');c.id='knx';
-  c.innerHTML='<div class="kt"><small>Up next</small><b></b></div><div class="ka"><button type="button" class="kgo">Play now</button><button type="button" class="kno" aria-label="Stay on this episode">\u2715</button></div><i class="kbar"><u></u></i>';
+  c.innerHTML='<div class="knt"><small>Up next</small><b></b></div><div class="kna"><button type="button" class="kgo">Play now</button><button type="button" class="knc" aria-label="Stay on this episode">\u2715</button></div><i class="knb"><u></u></i>';
   pl.append(c);
   c.onclick=e=>{
    e.stopPropagation();
-   if(e.target.closest('.kno')){S.nxOff=true;nextCard(false)}
+   if(e.target.closest('.knc')){S.nxOff=true;nextCard(false)}
    else if(e.target.closest('.kgo')){S.nxOff=true;nx.click()}
   };
   requestAnimationFrame(()=>c.classList.add('on'));

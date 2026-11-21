@@ -2,6 +2,26 @@
 
 Each release on GitHub shows the section for its version. Add a new `## [version] - date` section at the top before you bump the version in `package.json`.
 
+## [0.3.x] - 2026-11-20
+
+### Playback: sources no longer fail in seconds
+- A slow host is no longer treated as a dead one. The first-bytes check only condemns a link when the host clearly says the file is gone (404/410), does not exist, or answers with a web page instead of a video. No answer in time, 400, 403 and server errors keep the source in the running and give it more time. This was the main reason good sources were dropped within about 5 seconds on phones.
+- Phones now give a source 32 seconds to show its first picture (up to 60 while data keeps arriving). PC: 16 seconds, up to 36. Network timeouts in the Android player are 9 s to connect and 20 s to read. A one-time reset clears sources that the old limits had written off.
+- Android: when a host answers 400, 401, 403, 406, 416 or 429, the same link is tried again with browser-like headers, then with only the bare minimum, before the source is given up. Links with spaces, brackets or non-English letters are cleaned up the way a browser does it (that alone fixes many "HTTP 400" sources). Dropped connections are retried three times from the same spot, and the player only keeps 30 seconds behind the playhead.
+- Errors now say what happened ("the host refused the request", "the file is gone on the host", "this link is not a video") and the failure screen lists what was tried.
+- Quality floor: automatic playback and automatic fallback never drop below 720p. A lower quality plays only if you pick it, if nothing better exists for the title, or if you press "Play lower quality" after every better source failed. The quality picker still lists everything.
+- The loader shows the stage, the source being tried and how long it has been. (No "try another source" button.)
+
+### Player
+- One playback contract for every engine (kcore.js): Android ExoPlayer (AndroidX Media3) and, on Windows, mpv speak the same interface, so the controls, watch party and progress saving work the same on both. Android now has a Capacitor plugin ("KinoraExoPlayer": promise calls and a live state event); if it ever fails to build, the app falls back to the older bridge by itself.
+- Windows (beta, Settings > Playback > Video engine): mpv with FFmpeg decoding and hardware decoding plays HEVC, 10-bit, HDR10 and DD+/DTS/TrueHD sound as they are, with no proxy and no converter. Off by default. If mpv cannot start, the built-in engine takes over.
+- New layout: back, title and episode on the left; watch party, subtitles, audio and quality together on the right, with the popup right under them. Phones get big play / back 10 / forward 10 in the middle. The playing format (codec, resolution, HDR, decoder) is shown in the quality popup, read from the engine.
+- Skip recap / intro / credits / post-credits scene and "Up next" with a countdown (IntroDB). The seek bar shows where they are. Settings > Playback > Skip buttons: Off, Buttons or Automatic. Keys: S and N.
+- Watch party panel: calmer type and spacing, fits phones in portrait and landscape.
+
+### Updates (Android)
+- Asks for the "install unknown apps" permission before offering the install button, and removes the downloaded APK after the update.
+
 ## [0.3.x] - 2026-11-15
 
 ### Playback
