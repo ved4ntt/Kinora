@@ -230,16 +230,19 @@ if (autoUpdater) {
   autoUpdater.autoDownload = false;
   autoUpdater.allowPrerelease = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', (i) => upd({ s: 'available', v: i.version, notes: typeof i.releaseNotes === 'string' ? i.releaseNotes : '' }));
+  const noteText = (n) => (typeof n === 'string' ? n : Array.isArray(n) ? n.map((x) => (x && x.note) || '').filter(Boolean).join('\n\n') : '');
+  const mb = (b) => (b / 1048576).toFixed(b > 1e8 ? 0 : 1);
+  autoUpdater.on('update-available', (i) => upd({ s: 'available', v: i.version, notes: noteText(i.releaseNotes) }));
   autoUpdater.on('update-not-available', () => upd({ s: 'uptodate' }));
-  autoUpdater.on('download-progress', (p) => upd({ s: 'downloading', p: Math.round(p.percent) }));
-  autoUpdater.on('update-downloaded', (i) => upd({ s: 'ready', v: i.version }));
-  autoUpdater.on('error', () => upd({ s: 'error', m: 'Could not check for updates' }));
+  // the page shows "12 of 85 MB \u00b7 4.1 MB/s" under the bar
+  autoUpdater.on('download-progress', (p) => upd({ s: 'downloading', p: Math.round(p.percent), m: mb(p.transferred) + ' of ' + mb(p.total) + ' MB \u00b7 ' + (p.bytesPerSecond / 1048576).toFixed(1) + ' MB/s' }));
+  autoUpdater.on('update-downloaded', (i) => upd({ s: 'ready', v: i.version, m: 'Installs when you close Kinora, or now with Restart.' }));
+  autoUpdater.on('error', (e) => upd({ s: 'error', m: 'Could not update: ' + String((e && e.message) || e).split('\n')[0].slice(0, 110) }));
 }
 ipcMain.handle('upd:version', () => app.getVersion());
 ipcMain.handle('upd:check', async () => { if (!autoUpdater || !app.isPackaged) return upd({ s: 'uptodate' }); try { await autoUpdater.checkForUpdates(); } catch {} });
 ipcMain.handle('upd:download', async () => { try { await autoUpdater.downloadUpdate(); } catch {} });
-ipcMain.on('upd:install', () => { if (autoUpdater) autoUpdater.quitAndInstall(false, true); });
+ipcMain.on('upd:install', () => { if (autoUpdater) autoUpdater.quitAndInstall(true, true); }); // silent install, then Kinora starts again by itself
 
 app.whenReady().then(createWindow);
 app.on('second-instance', (_e, argv) => { const u = authUrl(argv); if (win) { if (win.isMinimized()) win.restore(); win.focus(); } if (u) sendAuth(u); });

@@ -6,9 +6,15 @@ const KIND=W?'win':AND?'and':'web';
 const S={s:KIND==='web'?'web':'idle',cur:'',v:'',notes:'',p:0,url:'',m:'',at:0};
 let later=0,last='';
 const cfg=()=>{try{return CFG()}catch{return{}}};
+/* Windows downloads updates in the background by default (it installs when Kinora is closed); the switch in Settings still turns it off */
+try{if(KIND==='win'&&cfg().updAuto===undefined&&typeof setCfg==='function')setCfg({updAuto:true})}catch{}
 const num=v=>String(v).replace(/^v/,'').split('.').map(n=>parseInt(n)||0);
 const newer=(a,b)=>{const x=num(a),y=num(b);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)>(y[i]||0)}return false};
 const ago=t=>{const m=Math.round((Date.now()-t)/6e4);return m<1?'just now':m<60?m+' min ago':Math.round(m/60)+' h ago'};
+/* Android: the release notes are not in GitHub's redirect, so they are fetched separately (best effort) */
+function notesFor(tag){
+ fetch('https://api.github.com/repos/'+REPO+'/releases/tags/'+encodeURIComponent(tag)).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.body&&S.v===String(tag).replace(/^v/,'')){S.notes=j.body;render()}}).catch(()=>{});
+}
 const CV='<svg class="cv" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
 const opt=(t,s,c)=>'<div class="k6o"><span><b>'+t+'</b><small>'+s+'</small></span>'+c+'</div>';
 const tg=(k,on)=>'<button class="k6t'+(on?' on':'')+'" data-tg="'+k+'" role="switch" aria-checked="'+on+'" aria-label="toggle"></button>';
@@ -44,6 +50,7 @@ async function check(){
     const tag=String(t.tag);
     if(S.cur&&newer(tag,S.cur)){
      Object.assign(S,{s:'available',v:tag.replace(/^v/,''),notes:'',url:'https://github.com/'+REPO+'/releases/download/'+tag+'/Kinora.apk'});
+     notesFor(tag);
      if(cfg().updAuto===true)act();
     }else S.s='uptodate';
     S.at=Date.now();render();return;
@@ -56,7 +63,7 @@ async function check(){
    Object.assign(S,{s:'available',v:String(j.tag_name).replace(/^v/,''),notes:j.body||'',url:a.browser_download_url});
    if(cfg().updAuto===true)act();
   }else S.s='uptodate';
- }catch{S.s='error';S.m='Could not reach the update server'}
+ }catch{S.s='error';S.m='Could not reach the update server. Trying again in a minute.';if((S.retry=(S.retry||0)+1)<4)setTimeout(()=>{if(S.s==='error')check()},60000*S.retry)}
  S.at=Date.now();render();
 }
 /* Android: the download runs in the system download manager; the page follows it so the app shows the same progress bar as on Windows */
@@ -81,7 +88,12 @@ function act(){
    else{try{if(CAP&&CAP.Plugins&&CAP.Plugins.Browser)CAP.Plugins.Browser.open({url:S.url});else window.open(S.url,'_blank')}catch{window.open(S.url,'_blank')}}
   }
  }else if(S.s==='ready'&&W)W.install();
- else if(S.s==='ready'&&AND){let ok=false;try{ok=!!KinoraNative.installUpdate()}catch{}if(!ok)check()}
+ else if(S.s==='ready'&&AND){
+  /* Android asks once for "install unknown apps": say so before the installer fails silently */
+  let can=true;try{can=KinoraNative.canInstall?!!KinoraNative.canInstall():true}catch{}
+  if(!can){S.m='Allow Kinora to install updates in the settings screen that just opened, then come back and tap Install.';render();try{KinoraNative.allowInstall()}catch{}return}
+  let ok=false;try{ok=!!KinoraNative.installUpdate()}catch{}if(!ok)check();
+ }
  else check();
 }
 if(W)W.on(e=>{
@@ -95,7 +107,7 @@ if(W)W.on(e=>{
 const title=()=>({web:'You are on the newest version',idle:'Not checked yet',checking:'Checking for updates…',uptodate:'Kinora is up to date',available:'Version '+S.v+' is available',downloading:'Downloading version '+S.v+'… '+S.p+'%',ready:'Version '+S.v+' is ready to install',bg:'Downloading version '+S.v+' in the background',error:S.m||'Could not check for updates'})[S.s];
 function card(){
  const b=S.s==='available'?(W?'Download update':'Get update'):S.s==='ready'?(W?'Restart to update':'Install now'):'Check for updates',dis=S.s==='checking'||S.s==='downloading'||S.s==='bg';
- return opt(h(title()),KIND==='web'?'Kinora on the web':'Kinora '+h(S.cur||'')+' · '+(S.at?'checked '+ago(S.at):'not checked yet'),KIND==='web'?'':'<button class="btn p" data-upd="act"'+(dis?' disabled':'')+'>'+b+'</button>')+
+ return opt(h(title()),KIND==='web'?'Kinora on the web':((S.s==='downloading'||S.s==='ready')&&S.m)?h(S.m):'Kinora '+h(S.cur||'')+' · '+(S.at?'checked '+ago(S.at):'not checked yet'),KIND==='web'?'':'<button class="btn p" data-upd="act"'+(dis?' disabled':'')+'>'+b+'</button>')+
   (S.s==='downloading'?'<div style="height:4px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden;margin:6px 4px"><i style="display:block;height:100%;width:'+S.p+'%;background:#f1efea;transition:width .3s"></i></div>':'');
 }
 function page(){
@@ -137,4 +149,6 @@ addEventListener('hashchange',pill);
 /* ---- automatic checks ---- */
 const auto=()=>{if(KIND!=='web'&&cfg().updCheck!==false)check()};
 setTimeout(auto,7000);setInterval(auto,6*36e5);
+/* coming back to the app after a while (phones keep it asleep for hours): look again, at most once an hour */
+D.addEventListener('visibilitychange',()=>{if(D.visibilityState==='visible'&&Date.now()-(S.at||0)>36e5)auto()});
 })();
